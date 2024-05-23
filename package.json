@@ -17,5 +17,8 @@
     "js-yaml": "^4.1.0",
     "vm": "^0.1.0",
     "yargs": "^17.7.2"
+  },
+  "devDependencies": {
+    "blessed": "^0.1.81"
   }
 }

@@ -19,6 +19,7 @@ module.exports.runPath = function runPath(
   const context = prepareContext(custom_context, options, file.path, runPath);
 
   context.module.compiled = compiled_code;
+  context.process.exit = (int) => process.exit(int);
 
   return {
     context,
