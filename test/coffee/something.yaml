@@ -1,0 +1,9 @@
+name: yaml
+id: !int 1
+test: &test
+  testval: 'sss'
+  tedf: 'sss'
+t: 
+  <<: *test
+  ks: sss
+  i: !import ./yaml2.yaml
