@@ -52,7 +52,7 @@
       window.webkit.messageHandlers.external.postMessage(`{"action": "log", "data": "${strings.map(r => typeof r == "object" ? stringifyJSON(r) : r.toString()).map(i => i.replace(/\n/g, '\\\\n')).join(' ')}"}`);
     }
 
-    if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.external) {
+    if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.external && window.RUNID == "%OPTIONS(runId)") {
 
       const ws = new WebSocket('ws://localhost:%OPTIONS(port)');
 

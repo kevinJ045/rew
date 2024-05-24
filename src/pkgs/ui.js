@@ -4,6 +4,7 @@ const WebSocket = require('ws');
 const http = require('http');
 const fs = require('fs');
 const { uiClasses } = require('./modules/ui/classes');
+const { generateRandomID } = require('./modules/ui/id');
 
 const BIN_PATH = path.resolve(__dirname, '../../bin/ui');
 const HTML_STRING = fs.readFileSync(path.resolve(__dirname, '../html/ui.html'), { encoding: 'utf-8' });
@@ -23,8 +24,12 @@ module.exports = (context) => ({
       ...defaultOptions
     }
 
+    const runId = generateRandomID();
+
+    options.runId = runId;
+
     const svr = http.createServer((req, res) => {
-      res.write(HTML_STRING.replace(/\%OPTIONS\(([^)]+)\)/g, (_, n) => console.log(options[n], n) || options[n] || _));
+      res.write(HTML_STRING.replace(/\%OPTIONS\(([^)]+)\)/g, (_, n) => options[n] || _));
       res.end();
     });
 
@@ -40,7 +45,7 @@ module.exports = (context) => ({
 
     const url = `http://localhost:${options.port}`;
 
-    const p = spawn(BIN_PATH, [url]);
+    const p = spawn(BIN_PATH, [url, runId]);
 
     p.on('close', (code) => {
       options.onExit(code);

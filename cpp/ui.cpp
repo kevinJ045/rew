@@ -55,12 +55,13 @@ static void js_callback(WebKitUserContentManager* manager,
 
 
 int main(int argc, char** argv) {
-    if (argc != 2) {
-        g_print("Usage: %s <URL>\n", argv[0]);
+    if (argc != 3) {
+        g_print("Usage: %s <URL> <RUNID>\n", argv[0]);
         return 1;
     }
 
     const char* url = argv[1];
+    const char* rid = argv[2];
 
     AppData app_data;
     app_data.url = url;
@@ -77,11 +78,18 @@ int main(int argc, char** argv) {
     webkit_user_content_manager_register_script_message_handler(content_manager, "external");
     g_signal_connect(content_manager, "script-message-received::external", G_CALLBACK(js_callback), &app_data);
 
+    const char* js_code = g_strdup_printf("window.RUNID = \"%s\";", rid);
+    WebKitUserScript* user_script = webkit_user_script_new(js_code,
+                                                           WEBKIT_USER_CONTENT_INJECT_ALL_FRAMES,
+                                                           WEBKIT_USER_SCRIPT_INJECT_AT_DOCUMENT_START,
+                                                           NULL, NULL);
+    webkit_user_content_manager_add_script(content_manager, user_script);
+
     WebKitWebView* web_view = WEBKIT_WEB_VIEW(webkit_web_view_new_with_user_content_manager(content_manager));
     gtk_container_add(GTK_CONTAINER(window), GTK_WIDGET(web_view));
 
     webkit_web_view_load_uri(web_view, url);
-
+  
     g_signal_connect(window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
 
     gtk_widget_show_all(window);
