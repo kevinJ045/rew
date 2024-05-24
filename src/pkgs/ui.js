@@ -46,9 +46,9 @@ module.exports = (context) => ({
 
     svr.listen(options.port);
 
-    const url = `http://localhost:${options.port}`;
+    const url = new URL(`http://localhost:${options.port}`);
 
-    const p = spawn(BIN_PATH, [url, runId]);
+    const p = spawn(BIN_PATH, [url.toString(), runId]);
 
     p.on("close", (code) => {
       options.onExit(code);
