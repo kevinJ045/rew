@@ -58,10 +58,24 @@ module.exports.uiClasses = (context, options, svr, send) => {
       return this.options.uuid;
     }
 
+    get children(){
+      return this.options.children;
+    }
+
+  }
+
+  class RewTextWidget extends RewWidget {
+    constructor(text = '', options = RemWidgetOptions({})){
+      super({
+        ...options,
+        data: { ...(options.data), text }
+      });
+    }
   }
 
   return {
     Widget: RewWidget,
+    Text: RewTextWidget,
     WidgetOptions: RemWidgetOptions
   }
 }

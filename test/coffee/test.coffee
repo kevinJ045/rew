@@ -1,17 +1,13 @@
 ui = imp 'ui'
 
-{ Widget } = await ui.start
+{ Widget, Text } = await ui.start
   port: 4532
 
 w = new Widget
-  data: 
-    text: 'sss'
   parent: 'null'
   children:
     [
-      new Widget
-        data: 
-          text: 'hello'
+      new Text 'Hello'
     ]
 
-# print(w)
+print(w.children[0].options.data)

@@ -15,7 +15,7 @@ module.exports.struct = function struct(template) {
       defaultValue = template[key];
       if (key in properties) {
         value = properties[key];
-        if (types[key] !== '!any' && typeof value !== types[key]) {
+        if (defaultValue != '!any' && typeof value !== types[key]) {
           throw new Error(`Type error: Expected ${types[key]} for ${key}, got ${typeof value}`);
         }
         instance[key] = value;
