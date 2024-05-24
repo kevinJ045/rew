@@ -36,6 +36,19 @@ module.exports = (context) => ({
     const getData = (optionCenter, key) => {
       return conf[optionCenter.name][key];
     }
+
+    const staticFile = (name, defaultValue = "") => {
+      const fileRoot = path.join(rootPath, name);
+      const exists = fs.existsSync(fileRoot);
+      return {
+        create(value){
+          if(!fs.existsSync(path.dirname(fileRoot))) fs.mkdirSync(path.dirname(fileRoot), { recursive: true }); 
+          fs.writeFileSync(fileRoot, value || defaultValue);
+        },
+        fileRoot,
+        exists
+      }
+    }
     
     const createOptionCenter = (name, defaults = {}) => {
       const optionRoot = path.join(rootPath, name+'.yaml');
@@ -66,6 +79,7 @@ module.exports = (context) => ({
 
     return {
       optionCenter: createOptionCenter,
+      staticFile: staticFile,
       set: (key, value) => defaultCenter.set(key, value),
       get: (key, value) => defaultCenter.get(key, value),
       remove: (key, value) => defaultCenter.remove(key, value),

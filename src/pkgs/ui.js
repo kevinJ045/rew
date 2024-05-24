@@ -4,7 +4,7 @@ const WebSocket = require("ws");
 const http = require("http");
 const fs = require("fs");
 const { uiClasses } = require("./modules/ui/classes");
-const { generateRandomID } = require("./modules/ui/id");
+const { generateRandomID } = require("../functions/id");
 const { THEME_PATH } = require("../const/files");
 
 

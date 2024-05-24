@@ -1,7 +1,7 @@
 const path = require("path");
-const { getFile } = require("../modules/fs");
+const { getFile, file } = require("../modules/fs");
 const { importYaml } = require("../modules/yaml");
-const { findPackage } = require("../pkgs/pkgs");
+const { findPackage, getPackage } = require("../pkgs/pkgs");
 
 module.exports.imp = function (runPath, context) {
   return function (filename, options = {}) {
@@ -12,7 +12,7 @@ module.exports.imp = function (runPath, context) {
     // console.log(typeof runPath);
 
     if (ispkg) {
-      exports = ispkg(context);
+      exports = getPackage(filename)(context);
     } else if (type == "coffee") {
       exports = runPath(
         path.resolve(path.dirname(context.module.filepath), filename),

@@ -1,3 +1,5 @@
+const { generateRandomID } = require("../functions/id");
+
 module.exports.struct = function struct(template) {
   var key, types, value;
 
@@ -7,7 +9,7 @@ module.exports.struct = function struct(template) {
     types[key] = typeof value;
   }
 
-  return function (properties = {}) {
+  const fun = function (properties = {}) {
     var defaultValue, instance;
     instance = {};
     for (key in template) {
@@ -24,8 +26,11 @@ module.exports.struct = function struct(template) {
         instance[key] = defaultValue == "!any" ? null : defaultValue;
       }
     }
+    instance.__proto__ = { '@instance': fun };
     return instance;
   };
+
+  return fun;
 };
 
 module.exports.struct.inherits = function (struct, template) {

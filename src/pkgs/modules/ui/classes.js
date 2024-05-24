@@ -1,6 +1,6 @@
 const emitter = require("../../../functions/emitter");
 const { struct } = require("../../../models/struct");
-const { generateRandomID } = require("./id");
+const { generateRandomID } = require("../../../functions/id");
 
 module.exports.uiClasses = (context, options, svr, send, hook, rmHook) => {
   const _sanitizeOptions = (options) => {

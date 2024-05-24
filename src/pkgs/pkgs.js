@@ -1,14 +1,13 @@
-const conf = require("./conf");
-const ui = require("./ui");
+const path = require("path");
+const fs = require("fs");
 
-const packages = {};
-
-packages.ui = ui;
-packages.conf = conf;
 
 module.exports = {
   findPackage(pkg) {
-    if (pkg in packages) return packages[pkg];
-    return null;
+    if(pkg == 'pkgs') return false;
+    return fs.existsSync(path.resolve(__dirname, './'+pkg+'.js'));
   },
+  getPackage(pkg){
+    return require('./'+pkg);
+  }
 };
