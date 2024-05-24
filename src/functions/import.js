@@ -1,15 +1,18 @@
 const path = require('path');
 const { getFile } = require('../modules/fs');
 const { importYaml } = require('../modules/yaml');
+const { findPackage } = require('../pkgs/pkgs');
 
 module.exports.imp = function(runPath, context){
   return function(filename, options = {}){
     let type = options.type || 'coffee';
-    let exports;
+    let exports, ispkg = findPackage(filename);
 
     // console.log(typeof runPath);
-
-    if(type == 'coffee'){
+    
+    if(ispkg) {
+      exports = ispkg(context);
+    } else if(type == 'coffee'){
       exports = runPath(path.resolve(path.dirname(context.module.filepath), filename), { ...options, useContext: true }, context).context.module.exports;
     } else if(type == 'js'){
       exports = runPath(path.resolve(path.dirname(context.module.filepath), filename), { ...options, useContext: true, compile: false }, context).context.module.exports;

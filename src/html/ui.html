@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+
+  <script>
+
+    if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.external) {
+
+      const ws = new WebSocket('ws://localhost:%OPTIONS(port)');
+
+      ws.onopen = () => {
+        console.log('Connected to WebSocket server');
+      };
+
+      ws.onmessage = (event) => {
+        const edata = process_data(event.data);
+        if(edata.action == 'init'){
+          window.webkit.messageHandlers.external.postMessage(`{"action": "setTitle", "data": "${edata.data.title}"}`);
+        } 
+      };
+
+      
+    } else {
+      console.log("Not in a webkit window");
+    }
+
+    function process_data(data){
+      return JSON.parse(data);
+    }
+
+  </script>
+</head>
+
+<body>
+
+</body>
+
+</html>
