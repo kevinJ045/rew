@@ -19,8 +19,5 @@
     "ws": "^8.17.0",
     "yargs": "^17.7.2"
   },
-  "devDependencies": {
-    "@nodegui/nodegui": "^0.66.0",
-    "blessed": "^0.1.81"
-  }
+  "devDependencies": {}
 }
