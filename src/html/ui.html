@@ -49,12 +49,12 @@
 
         const log = (...strings) => {
           window.webkit.messageHandlers.external.postMessage(
-            `{"action": "log", "data": "${strings
+            `{"action": "log", "data": ${strings
               .map((r) =>
-                typeof r == "object" ? stringifyJSON(r) : r.toString(),
+                typeof r == "object" ? stringifyJSON(r) : `"${r.toString()}"`,
               )
               .map((i) => i.replace(/\n/g, "\\\\n"))
-              .join(" ")}"}`,
+              .join(",")}}`,
           );
         };
 

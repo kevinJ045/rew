@@ -2,4 +2,6 @@ conf = imp 'conf'
 
 config = conf.create 'com.app.name'
 
-print config
+animations = config.optionCenter 'animations', enable: false
+
+print animations.get('enable')
