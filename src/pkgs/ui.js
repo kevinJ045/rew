@@ -3,6 +3,7 @@ const { spawn, exec } = require('child_process');
 const WebSocket = require('ws');
 const http = require('http');
 const fs = require('fs');
+const { uiClasses } = require('./modules/ui/classes');
 
 const BIN_PATH = path.resolve(__dirname, '../../bin/ui');
 const HTML_STRING = fs.readFileSync(path.resolve(__dirname, '../html/ui.html'), { encoding: 'utf-8' });
@@ -12,6 +13,8 @@ const defaultOptions = {
   title: 'Title',
   onExit: () => process.exit()
 };
+
+
 
 module.exports = (context) => ({
   start: (o = {}) => {
@@ -26,20 +29,11 @@ module.exports = (context) => ({
     });
 
     const wss = new WebSocket.Server({ server: svr });
+    const sockets = [];
 
     wss.on('connection', (ws) => {
-      console.log('Client connected');
-
-      // Send a command to create a button
       ws.send(JSON.stringify({ action: 'init', data: options }));
-
-      ws.on('message', (message) => {
-        console.log(`Received: ${message}`);
-      });
-
-      ws.on('close', () => {
-        console.log('Client disconnected');
-      });
+      sockets.push(ws);
     });
 
     svr.listen(options.port);
@@ -48,19 +42,31 @@ module.exports = (context) => ({
 
     const p = spawn(BIN_PATH, [url]);
 
-    p.stdout.on('data', (data) => {
-      console.log(`stdout: ${data}`);
-    });
-
-    p.stderr.on('data', (data) => {
-      console.error(`stderr: ${data}`);
-    });
-
     p.on('close', (code) => {
       options.onExit(code);
     });
+
+    process.on('beforeExit', () => p.kill());
+
+   
     // p.on('message', console.log);
     // p.on('error', console.log);
     // exec(BIN_PATH+' '+'http://localhost:' + port, console.log)
+    return new Promise((r) => {
+
+      p.stdout.on('data', (data) => {
+        if(data.toString().trim() == 'INIT::READY'){
+          r(uiClasses(context, options, svr, (message) => {
+            sockets.forEach(socket => socket.send(message));
+          }));
+        } else {
+          console.log(data.toString());
+        }
+      });
+  
+      p.stderr.on('data', (data) => {
+        console.error(data.toString());
+      });
+    });
   }
 })

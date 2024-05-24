@@ -17,6 +17,9 @@ static void handle_json_message(const Json::Value& json, AppData* user_data) {
         if (action == "setTitle") {
             // Set the GTK window's title
             gtk_window_set_title(GTK_WINDOW(user_data->window), data.c_str());
+        } else if (action == "log") {
+            // Set the GTK window's title
+            g_print("%s\n", data.c_str());
         } else {
             // Handle other actions as needed
         }
