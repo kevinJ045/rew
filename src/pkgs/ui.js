@@ -39,6 +39,8 @@ module.exports = (context) => ({
 
     if(fs.existsSync(options.stylePath)) options.style = fs.readFileSync(options.stylePath, { encoding: 'utf-8' }) + '\n' + options.style;
 
+    options.style = ' */\n'+options.style+'\n/* ';
+
     const svr = http.createServer((req, res) => {
       res.write(
         HTML_STRING

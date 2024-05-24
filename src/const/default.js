@@ -6,6 +6,7 @@ const sleep = require("../functions/sleep");
 const { match } = require("../functions/match");
 const { map } = require("../functions/map");
 const { typex, typeis, typedef, typei } = require("../functions/types");
+const { isEmpty, clone, deepClone, merge, uniqueId, compose, curry } = require("../functions/core");
 
 module.exports = {
   cenum,
@@ -19,6 +20,15 @@ module.exports = {
   typei,
   typeis,
   typedef,
+
+  isEmpty,
+  clone,
+  deepClone,
+  merge,
+  uniqueId,
+  compose,
+  curry,
+
   print: function (...arguments) {
     return console.log(...arguments);
   },
