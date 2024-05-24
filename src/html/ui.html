@@ -1,93 +1,98 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
 
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Document</title>
+    <script>
+      window.addEventListener("load", () => {
+        const DOM = [];
 
-  <script>
+        const findInDom = (id) =>
+          DOM.find((el) => el.widgetOptions.uuid == id) ||
+          DOM.find((el) => el.id == id);
 
-    window.addEventListener('load', () => {
-
-    const DOM = [];
-
-    const findInDom = (id) => DOM.find(el => el.widgetOptions.uuid == id) ||  DOM.find(el => el.id == id);
-
-    const addTo = (el, parent) => {
-      if(parent == 'null'){
-        document.body.appendChild(el);
-      } else {
-        findInDom(parent).appendChild(el);
-      }
-    }
-
-    const createElement = (options) => {
-      const el = document.createElement(options.element);
-      el.widgetOptions = options;
-      el.id = options.id;
-      el.textContent = options.data.text;
-      if(options.parent) {
-        addTo(el, options.parent);
-      }
-      DOM.push(el);
-      if(options.children.length){
-        options.children.forEach(option => {
-          option.parent = options.uuid;
-          createElement(option);
-        });
-      }
-      return el;
-    }
-
-    const stringifyJSON = (json) => {
-      try{
-        return JSON.stringify(json);
-      } catch(e){
-        return json.toString();
-      }
-    }
-
-    const log = (...strings) => {
-      window.webkit.messageHandlers.external.postMessage(`{"action": "log", "data": "${strings.map(r => typeof r == "object" ? stringifyJSON(r) : r.toString()).map(i => i.replace(/\n/g, '\\\\n')).join(' ')}"}`);
-    }
-
-    if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.external && window.RUNID == "%OPTIONS(runId)") {
-
-      const ws = new WebSocket('ws://localhost:%OPTIONS(port)');
-
-      ws.onmessage = (event) => {
-        const edata = process_data(event.data);
-        if(edata.action == 'init'){
-          document.title = edata.data.title;
-          window.webkit.messageHandlers.external.postMessage(`{"action": "setTitle", "data": "${edata.data.title}"}`);
-          log('INIT::READY');
-        } else if(edata.action == 'createElement'){
-          const options = edata.data;
-          try{
-            createElement(options);
-          } catch(e){
-            log(e.toString());
+        const addTo = (el, parent) => {
+          if (parent == "null") {
+            document.body.appendChild(el);
+          } else {
+            findInDom(parent).appendChild(el);
           }
-        } 
-      };
+        };
 
-      
-    } else {
-      console.log("Not in a webkit window");
-    }
+        const createElement = (options) => {
+          const el = document.createElement(options.element);
+          el.widgetOptions = options;
+          el.id = options.id;
+          el.textContent = options.data.text;
+          if (options.parent) {
+            addTo(el, options.parent);
+          }
+          DOM.push(el);
+          if (options.children.length) {
+            options.children.forEach((option) => {
+              option.parent = options.uuid;
+              createElement(option);
+            });
+          }
+          return el;
+        };
 
-    function process_data(data){
-      return JSON.parse(data);
-    }
+        const stringifyJSON = (json) => {
+          try {
+            return JSON.stringify(json);
+          } catch (e) {
+            return json.toString();
+          }
+        };
 
-    });
+        const log = (...strings) => {
+          window.webkit.messageHandlers.external.postMessage(
+            `{"action": "log", "data": "${strings
+              .map((r) =>
+                typeof r == "object" ? stringifyJSON(r) : r.toString(),
+              )
+              .map((i) => i.replace(/\n/g, "\\\\n"))
+              .join(" ")}"}`,
+          );
+        };
 
-  </script>
-</head>
+        if (
+          window.webkit &&
+          window.webkit.messageHandlers &&
+          window.webkit.messageHandlers.external &&
+          window.RUNID == "%OPTIONS(runId)"
+        ) {
+          const ws = new WebSocket("ws://localhost:%OPTIONS(port)");
 
-<body>
+          ws.onmessage = (event) => {
+            const edata = process_data(event.data);
+            if (edata.action == "init") {
+              document.title = edata.data.title;
+              window.webkit.messageHandlers.external.postMessage(
+                `{"action": "setTitle", "data": "${edata.data.title}"}`,
+              );
+              log("INIT::READY");
+            } else if (edata.action == "createElement") {
+              const options = edata.data;
+              try {
+                createElement(options);
+              } catch (e) {
+                log(e.toString());
+              }
+            }
+          };
+        } else {
+          console.log("Not in a webkit window");
+        }
 
-</body>
+        function process_data(data) {
+          return JSON.parse(data);
+        }
+      });
+    </script>
+  </head>
 
+  <body></body>
 </html>
