@@ -46,7 +46,8 @@ static void js_callback(WebKitUserContentManager* manager,
             // Handle the incoming JSON message
             handle_json_message(root, static_cast<AppData*>(user_data));
         } else {
-            g_print("Failed to parse JSON string: %s\n", errors.c_str());
+            g_print("%s", str_value);
+            // g_print("Failed to parse JSON string: %s\n", errors.c_str());
         }
 
         g_free(str_value);

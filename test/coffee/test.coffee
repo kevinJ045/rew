@@ -5,6 +5,8 @@ ui = imp 'ui'
 
 w = new Widget
   parent: 'null'
+  style: 
+    color: 'red'
   children:
     [
       new Text 'Hello'

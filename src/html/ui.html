@@ -13,6 +13,8 @@
           DOM.find((el) => el.widgetOptions.uuid == id) ||
           DOM.find((el) => el.id == id);
 
+        const parseStyleValue = (val) => val;
+
         const addTo = (el, parent) => {
           if (parent == "null") {
             document.body.appendChild(el);
@@ -26,6 +28,11 @@
           el.widgetOptions = options;
           el.id = options.id;
           el.textContent = options.data.text;
+          if (options.style) {
+            for(let i in options.style){
+              el.style.setProperty(i, options.style[i]);
+            }
+          }
           if (options.parent) {
             addTo(el, options.parent);
           }
@@ -41,7 +48,7 @@
 
         const stringifyJSON = (json) => {
           try {
-            return JSON.stringify(json);
+            return JSON.stringify(json, null, 4);
           } catch (e) {
             return json.toString();
           }
@@ -49,12 +56,12 @@
 
         const log = (...strings) => {
           window.webkit.messageHandlers.external.postMessage(
-            `{"action": "log", "data": ${strings
+            JSON.stringify({"action": "log", "data": strings
               .map((r) =>
-                typeof r == "object" ? stringifyJSON(r) : `"${r.toString()}"`,
+                typeof r == "object" ? stringifyJSON(r) : `${r.toString()}`,
               )
-              .map((i) => i.replace(/\n/g, "\\\\n"))
-              .join(",")}}`,
+              // .map((i) => i.replace(/\"/g, '\\\\"').replace(/\n/g, "\\\\n"))
+              .join("\n")}, null, 4)
           );
         };
 
