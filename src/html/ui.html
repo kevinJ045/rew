@@ -3,13 +3,20 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>%OPTIONS(title)</title>
+    <title>$OPTIONS(title)</title>
 
-    <style>%OPTIONS(style)</style>
+    <style>$OPTIONS(style)</style>
 
     <script>
+      window.execContext = $OPTIONS(json.execContext);
+    </script>
+    <script>
+      window.exec = $OPTIONS(exec);
+    </script>
+    <script>
+      if(!window.execContext) window.execContext = {};
       window.addEventListener("load", () => {
-        const ws = new WebSocket("ws://localhost:%OPTIONS(port)");
+        const ws = new WebSocket("ws://localhost:$OPTIONS(port)");
         const DOM = [];
 
         const findInDom = (id) =>
@@ -152,7 +159,7 @@
           window.webkit &&
           window.webkit.messageHandlers &&
           window.webkit.messageHandlers.external &&
-          window.RUNID == "%OPTIONS(runId)"
+          window.RUNID == "$OPTIONS(runId)"
         ) {
 
           ws.onmessage = (event, cb) => {
@@ -163,6 +170,9 @@
                 `{"action": "setTitle", "data": "${edata.data.title}"}`,
               );
               log("INIT::READY");
+              if(window.exec){
+                window.exec(window.execContext);
+              }
             } else if(edata.action == 'eventListen') {
               const el = findInDom(edata.data.uuid);
               if(el){

@@ -3,6 +3,8 @@ ui = imp 'ui'
 { Widget, Text, findElement, StyleSheet } = await ui.start
   port: 4532,
   style: """body{ color: white; }"""
+  exec: () -> 
+    document.body.appendChild(document.createTextNode('before_init'))
 
 w = new Widget
   id: 'mainguy'

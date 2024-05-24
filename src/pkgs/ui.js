@@ -19,7 +19,9 @@ const defaultOptions = {
   title: "Title",
   onExit: () => process.exit(),
   style: '',
-  stylePath: THEME_PATH
+  stylePath: THEME_PATH,
+  exec: () => {},
+  execContext: {}
 };
 
 module.exports = (context) => ({
@@ -39,7 +41,8 @@ module.exports = (context) => ({
 
     const svr = http.createServer((req, res) => {
       res.write(
-        HTML_STRING.replace(/\%OPTIONS\(([^)]+)\)/g, (_, n) => options[n] || _),
+        HTML_STRING
+          .replace(/\$OPTIONS\(([^)]+)\)/g, (_, n) => n.startsWith('json.') ? JSON.stringify(options[n.split('json.')[1]] || '{}') : options[n] || _)
       );
       res.end();
     });
