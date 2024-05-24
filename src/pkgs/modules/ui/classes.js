@@ -148,7 +148,7 @@ module.exports.uiClasses = (context, options, svr, send, hook, rmHook) => {
     return new Promise((r) => {
       const rid = generateRandomID();
       hook(rid, 'findElement', (data) => {
-        r(data);
+        r(CreatedElements.find(e => e.uuid == data.uuid) || data);
       });
       send(JSON.stringify({ action: 'findElement', data: { id, rid } }));
     });

@@ -5,6 +5,8 @@ const http = require("http");
 const fs = require("fs");
 const { uiClasses } = require("./modules/ui/classes");
 const { generateRandomID } = require("./modules/ui/id");
+const { THEME_PATH } = require("../const/files");
+
 
 const BIN_PATH = path.resolve(__dirname, "../../bin/ui");
 const HTML_STRING = fs.readFileSync(
@@ -16,7 +18,8 @@ const defaultOptions = {
   port: 14473,
   title: "Title",
   onExit: () => process.exit(),
-  style: ''
+  style: '',
+  stylePath: THEME_PATH
 };
 
 module.exports = (context) => ({
@@ -31,6 +34,8 @@ module.exports = (context) => ({
     const runId = generateRandomID();
 
     options.runId = runId;
+
+    if(fs.existsSync(options.stylePath)) options.style = fs.readFileSync(options.stylePath, { encoding: 'utf-8' }) + '\n' + options.style;
 
     const svr = http.createServer((req, res) => {
       res.write(
