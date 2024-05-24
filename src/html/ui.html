@@ -1,119 +1,106 @@
 <!doctype html>
 <html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Document</title>
 
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Document</title>
+		<script>
+			window.addEventListener('load', () => {
+				const DOM = [];
 
-  <script>
-    window.addEventListener("load", () => {
-      const DOM = [];
+				const findInDom = (id) => DOM.find((el) => el.widgetOptions.uuid == id) || DOM.find((el) => el.id == id);
 
-      const findInDom = (id) =>
-        DOM.find((el) => el.widgetOptions.uuid == id) ||
-        DOM.find((el) => el.id == id);
+				const parseStyleValue = (val) => val;
 
-      const parseStyleValue = (val) => val;
+				const addTo = (el, parent) => {
+					if (parent == 'null') {
+						document.body.appendChild(el);
+					} else {
+						findInDom(parent).appendChild(el);
+					}
+				};
 
-      const addTo = (el, parent) => {
-        if (parent == "null") {
-          document.body.appendChild(el);
-        } else {
-          findInDom(parent).appendChild(el);
-        }
-      };
+				const createElement = (options) => {
+					const el = document.createElement(options.element);
+					el.widgetOptions = options;
+					el.id = options.id;
+					el.textContent = options.data.text;
+					if (options.attr) {
+						for (let i in options.attr) {
+							el.document.createElement('form', { action: i });
+						}
+					}
+					if (options.style) {
+						for (let i in options.style) {
+							el.style.setProperty(i, options.style[i]);
+						}
+					}
+					if (options.parent) {
+						addTo(el, options.parent);
+					}
+					DOM.push(el);
+					if (options.children.length) {
+						options.children.forEach((option) => {
+							option.parent = options.uuid;
+							createElement(option);
+						});
+					}
+					return el;
+				};
 
-      const createElement = (options) => {
-        const el = document.createElement(options.element);
-        el.widgetOptions = options;
-        el.id = options.id;
-        el.textContent = options.data.text;
-        if (options.attr) {
-          for (let i in options.attr) {
-            el.document.createElement("form", {action: i});
-          }
-        }
-        if (options.style) {
-          for (let i in options.style) {
-            el.style.setProperty(i, options.style[i]);
-          }
-        }
-        if (options.parent) {
-          addTo(el, options.parent);
-        }
-        DOM.push(el);
-        if (options.children.length) {
-          options.children.forEach((option) => {
-            option.parent = options.uuid;
-            createElement(option);
-          });
-        }
-        return el;
-      };
+				const stringifyJSON = (json) => {
+					try {
+						return JSON.stringify(json, null, 4);
+					} catch (e) {
+						return json.toString();
+					}
+				};
 
-      const stringifyJSON = (json) => {
-        try {
-          return JSON.stringify(json, null, 4);
-        } catch (e) {
-          return json.toString();
-        }
-      };
+				const log = (...strings) => {
+					window.webkit.messageHandlers.external.postMessage(
+						JSON.stringify(
+							{
+								action: 'log',
+								data: strings
+									.map((r) => (typeof r == 'object' ? stringifyJSON(r) : `${r.toString()}`))
+									// .map((i) => i.replace(/\"/g, '\\\\"').replace(/\n/g, "\\\\n"))
+									.join('\n'),
+							},
+							null,
+							4,
+						),
+					);
+				};
 
-      const log = (...strings) => {
-        window.webkit.messageHandlers.external.postMessage(
-          JSON.stringify(
-            {
-              action: "log",
-              data: strings
-                .map((r) =>
-                  typeof r == "object" ? stringifyJSON(r) : `${r.toString()}`,
-                )
-                // .map((i) => i.replace(/\"/g, '\\\\"').replace(/\n/g, "\\\\n"))
-                .join("\n"),
-            },
-            null,
-            4,
-          ),
-        );
-      };
+				if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.external && window.RUNID == '%OPTIONS(runId)') {
+					const ws = new WebSocket('ws://localhost:%OPTIONS(port)');
 
-      if (
-        window.webkit &&
-        window.webkit.messageHandlers &&
-        window.webkit.messageHandlers.external &&
-        window.RUNID == "%OPTIONS(runId)"
-      ) {
-        const ws = new WebSocket("ws://localhost:%OPTIONS(port)");
+					ws.onmessage = (event) => {
+						const edata = process_data(event.data);
+						if (edata.action == 'init') {
+							document.title = edata.data.title;
+							window.webkit.messageHandlers.external.postMessage(`{"action": "setTitle", "data": "${edata.data.title}"}`);
+							log('INIT::READY');
+						} else if (edata.action == 'createElement') {
+							const options = edata.data;
+							try {
+								createElement(options);
+							} catch (e) {
+								log(e.toString());
+							}
+						}
+					};
+				} else {
+					console.log('Not in a webkit window');
+				}
 
-        ws.onmessage = (event) => {
-          const edata = process_data(event.data);
-          if (edata.action == "init") {
-            document.title = edata.data.title;
-            window.webkit.messageHandlers.external.postMessage(
-              `{"action": "setTitle", "data": "${edata.data.title}"}`,
-            );
-            log("INIT::READY");
-          } else if (edata.action == "createElement") {
-            const options = edata.data;
-            try {
-              createElement(options);
-            } catch (e) {
-              log(e.toString());
-            }
-          }
-        };
-      } else {
-        console.log("Not in a webkit window");
-      }
+				function process_data(data) {
+					return JSON.parse(data);
+				}
+			});
+		</script>
+	</head>
 
-      function process_data(data) {
-        return JSON.parse(data);
-      }
-    });
-  </script>
-</head>
-
-<body></body>
-
+	<body></body>
 </html>
