@@ -26,6 +26,8 @@ module.exports.uiClasses = (context, options, svr, send) => {
     children: [],
     uuid: "",
     parent: "!any",
+    styles: {},
+    stylesheet: [],
   });
   class RewWidget {
     _emitter = emitter();

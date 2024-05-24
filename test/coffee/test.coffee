@@ -9,5 +9,7 @@ w = new Widget
     [
       new Text 'Hello'
     ]
+  styles:
+    color: 'red'
 
 print(w.children[0].options.data)

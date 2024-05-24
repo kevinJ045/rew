@@ -26,6 +26,10 @@
           el.widgetOptions = options;
           el.id = options.id;
           el.textContent = options.data.text;
+          log(options.styles);
+          Object.entries(options.styles).forEach((key, val) => {
+            el.style.setProperty(key, val);
+          });
           if (options.parent) {
             addTo(el, options.parent);
           }
