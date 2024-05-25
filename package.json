@@ -24,7 +24,7 @@
     "url": "git+https://github.com/kevinj045/rew.git"
   },
   "keywords": [],
-  "author": "",
+  "author": "makano",
   "license": "ISC",
   "dependencies": {
     "chalk": "^5.3.0",
