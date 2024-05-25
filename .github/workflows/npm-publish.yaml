@@ -19,12 +19,6 @@ jobs:
           node-version: '18'
           registry-url: 'https://registry.npmjs.org'
 
-      - name: Install dependencies
-        run: npm install
-
-      - name: Build package
-        run: npm run build
-
       - name: Publish package
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_SECRET }}
