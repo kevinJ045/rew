@@ -1,6 +1,6 @@
 {
   "name": "@makano/rew",
-  "version": "1.0.02",
+  "version": "1.0.21",
   "description": "",
   "main": "lib/rew/main.js",
   "directories": {
