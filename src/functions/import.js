@@ -9,28 +9,26 @@ module.exports.imp = function (runPath, context) {
     let exports,
       ispkg = findPackage(filename);
 
+    const filepath = path.resolve(path.dirname(context.module.filepath), filename);
+
     // console.log(typeof runPath);
 
     if (ispkg) {
       exports = getPackage(filename)(context);
     } else if (type == "coffee") {
       exports = runPath(
-        path.resolve(path.dirname(context.module.filepath), filename),
+        filepath,
         { ...options, useContext: true },
         context,
       ).context.module.exports;
     } else if (type == "js") {
       exports = runPath(
-        path.resolve(path.dirname(context.module.filepath), filename),
+        filepath,
         { ...options, useContext: true, compile: false },
         context,
       ).context.module.exports;
     } else if (type == "yaml" || type == "json" || type == "text") {
-      const pathname = path.resolve(
-        path.dirname(context.module.filepath),
-        filename,
-      );
-      const f = getFile(pathname);
+      const f = getFile(filepath);
       if (type == "yaml") {
         exports = importYaml(f.path, f);
       } else if (type == "json") {
@@ -51,6 +49,8 @@ module.exports.imp = function (runPath, context) {
           context[i] = exports[i];
         }
     }
+
+    if(!ispkg) context.module.imports.push(filepath);
 
     return exports;
   };

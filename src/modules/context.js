@@ -14,6 +14,7 @@ module.exports.prepareContext = function (
       exports: null,
       options,
       filepath,
+      imports: []
     },
   };
   if (options.useContext) {

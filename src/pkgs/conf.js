@@ -11,6 +11,7 @@ const createPackageRoot = (packageName) => {
 }
 
 module.exports = (context) => ({
+  CONFIG_PATH,
   create: (packageName) => {
     const rootPath = createPackageRoot(packageName);
 
@@ -71,6 +72,7 @@ module.exports = (context) => ({
         set: (key, value) => setData(optionCenter, key, value),
         remove: (key) => removeData(optionCenter, key),
         reset: () => fs.writeFileSync(optionCenter.root, dumpYaml(defaults)) && (conf[name] = defaults),
+        getAll: (str = false) => str ? dumpYaml(conf[name]) : conf[name],
         ...optionCenter
       }
     }
@@ -81,8 +83,8 @@ module.exports = (context) => ({
       optionCenter: createOptionCenter,
       staticFile: staticFile,
       set: (key, value) => defaultCenter.set(key, value),
-      get: (key, value) => defaultCenter.get(key, value),
-      remove: (key, value) => defaultCenter.remove(key, value),
+      get: (key) => defaultCenter.get(key),
+      remove: (key) => defaultCenter.remove(key),
       root: rootPath,
       package: packageName
     }

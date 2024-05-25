@@ -1,4 +1,4 @@
-
+ghs = imp './toor.coffee'
 i = 's'
 
 match(i, {
