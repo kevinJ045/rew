@@ -2,7 +2,7 @@
   "name": "rew",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "lib/rew/main.js",
   "directories": {
     "lib": "lib"
   },
@@ -11,6 +11,17 @@
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs"
+  },
+  "files": [
+    "lib/",
+    "bin/"
+  ],
+  "bin": {
+    "rew": "bin/rew"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kevinj045/rew.git"
   },
   "keywords": [],
   "author": "",
