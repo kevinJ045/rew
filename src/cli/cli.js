@@ -82,6 +82,17 @@ yargs(hideBin(process.argv))
       if(result) console.log(result);
     }
   )
+  .command('create <path>',  'Create a new project', (yargs) => {
+    yargs
+      .positional('path', {
+        describe: 'Path of the project to create',
+        type: 'string',
+      });
+    },
+    (argv) => {
+      utils.createProject(argv.path);
+    }
+  )
   .command('build <file>', 'Build the specified file', (yargs) => {
     yargs
       .positional('file', {

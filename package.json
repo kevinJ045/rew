@@ -24,6 +24,7 @@
     "yargs": "^17.7.2"
   },
   "devDependencies": {
+    "pkg": "^5.8.1",
     "vitepress": "^1.2.2"
   }
 }
