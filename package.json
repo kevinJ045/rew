@@ -1,7 +1,7 @@
 {
   "name": "@makano/rew",
-  "version": "1.0.22",
-  "description": "",
+  "version": "1.1.0",
+  "description": "A simple coffescript runtime",
   "main": "lib/rew/main.js",
   "directories": {
     "lib": "lib"
@@ -14,7 +14,8 @@
   },
   "files": [
     "lib/",
-    "bin/"
+    "bin/",
+    "README.md"
   ],
   "bin": {
     "rew": "bin/rew"

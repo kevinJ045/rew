@@ -1,4 +1,4 @@
-const { run } = require("../src/main");
+const { run } = require("../lib/rew/main");
 const path = require('path');
 
 function test(){
