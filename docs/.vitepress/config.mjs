@@ -8,21 +8,34 @@ export default defineConfig({
     // https://vitepress.dev/reference/default-theme-config
     nav: [
       { text: 'Home', link: '/' },
-      { text: 'Examples', link: '/markdown-examples' }
+      { text: 'Getting Started', link: '/getting-started' }
     ],
 
     sidebar: [
       {
-        text: 'Examples',
+        text: 'Starting',
         items: [
-          { text: 'Markdown Examples', link: '/markdown-examples' },
-          { text: 'Runtime API Examples', link: '/api-examples' }
+          { text: 'Introduction', link: '/introduction' },
+          { text: 'Getting Started', link: '/getting-started' }
+        ]
+      },
+      {
+        text: 'Modules',
+        items: [
+          { text: 'App', link: '/app' },
+          { text: 'Runtime', link: '/runtime' }
+        ]
+      },
+      {
+        text: 'API',
+        items: [
+          { text: 'Core', link: '/core' }
         ]
       }
     ],
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/vuejs/vitepress' }
+      { icon: 'github', link: 'https://github.com/kevinj045/rew' }
     ]
   }
 })
