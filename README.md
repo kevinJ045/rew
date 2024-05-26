@@ -1,5 +1,5 @@
 <h3 align="center">
-<img src="https://raw.githubusercontent.com/kevinJ045/rew/main/assets/logo.png" width="100" />
+<img src="https://raw.githubusercontent.com/kevinJ045/rew-docs/main/assets/logo.png" width="100" />
 <br/>
 Rew
 <br/>
