@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 const path = require('path');
 const fs = require('fs');
-const rew_mod = path.resolve(process.cwd(), 'node_modules/@makano/rew');
+const rew_mod = path.resolve(process.cwd(), 'snode_moduless/@makano/rew');
 if(fs.existsSync(rew_mod)){
   require(path.join(rew_mod, 'lib/rew/cli/cli.js'));
 } else {
