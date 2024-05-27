@@ -1,16 +1,16 @@
-threads = imp 'threads'
+{ thread } = imp 'threads'
 
-myThread = threads.thread (data) -> 
-  print(data)
-  @process.on 'event', () => 
-    print('Event Happened')
-    @process.finish 'je;;o'
-  # @process.finish ''
-  # print(data)
+myThread = thread () ->
+	@process.on 'myEvent', (data) =>
+		print(data)
+		@process.emit 'myEventBack', data: 'smn'
 
-proc = myThread.start data: 'data'
+runningThread = myThread.start()
 
-proc.get().then(print)
+runningThread.on 'myEventBack', (data) ->
+  print data, 'back'
+  runningThread.stop()
 
 sleep 1000
-  .then () -> proc.emit 'event'
+	.then () ->
+		runningThread.emit 'myEvent', data: 'Hello'
