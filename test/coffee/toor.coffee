@@ -14,3 +14,5 @@ runningThread.on 'myEventBack', (data) ->
 sleep 1000
 	.then () ->
 		runningThread.emit 'myEvent', data: 'Hello'
+
+# print 'It Exists' if exists './conf.coffee'
