@@ -1,6 +1,6 @@
 {
   "name": "@makano/rew",
-  "version": "1.1.56",
+  "version": "1.1.6",
   "description": "A simple coffescript runtime",
   "main": "lib/rew/main.js",
   "directories": {
@@ -11,7 +11,9 @@
   },
   "files": [
     "lib/",
+    "cpp/",
     "bin/",
+    "build.sh",
     "README.md"
   ],
   "bin": {
@@ -25,6 +27,9 @@
   "author": "makano",
   "license": "ISC",
   "dependencies": {
+    "@babel/core": "^7.24.6",
+    "@babel/preset-react": "^7.24.6",
+    "babel-plugin-jsx": "^1.2.0",
     "chalk": "^5.3.0",
     "chokidar": "^3.6.0",
     "js-yaml": "^4.1.0",

@@ -1,10 +1,6 @@
 
 
 
-str = typedef ''
-num = typedef 5
-bool = typedef true
-
 complexObject = typedef { name: str, age: num }
 anyObject = typedef {} 
 
@@ -23,7 +19,7 @@ n = new N
 
 print(typeis n, classedType)
 
-fn = typedef () -> ''
+fn = typedef () -> str
 
 fmm = () -> 'ss'
 
