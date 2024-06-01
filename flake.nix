@@ -29,6 +29,8 @@
           nodePackages_latest.typescript-language-server
           nodePackages_latest.prettier
           vscode-langservers-extracted
+          meson
+          ninja
         ];
       };
     }
