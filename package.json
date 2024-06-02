@@ -1,6 +1,6 @@
 {
   "name": "@makano/rew",
-  "version": "1.1.73",
+  "version": "1.1.8",
   "description": "A simple coffescript runtime",
   "main": "lib/rew/main.js",
   "directories": {
@@ -24,7 +24,11 @@
     "type": "git",
     "url": "git+https://github.com/kevinj045/rew.git"
   },
-  "keywords": ["coffescript", "rew", "runtime"],
+  "keywords": [
+    "coffescript",
+    "rew",
+    "runtime"
+  ],
   "author": "makano",
   "license": "ISC",
   "dependencies": {
@@ -34,6 +38,8 @@
     "chalk": "^5.3.0",
     "chokidar": "^3.6.0",
     "js-yaml": "^4.1.0",
+    "tiny-msgpack": "^2.2.0",
+    "uuid": "^9.0.1",
     "vm": "^0.1.0",
     "yargs": "^17.7.2"
   },
