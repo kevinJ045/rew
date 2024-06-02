@@ -12,7 +12,7 @@ Rew
 <a href="https://www.npmjs.com/package/rayous">  <img src="https://img.shields.io/npm/v/@makano/rew?style=for-the-badge&logo=npm&color=b4befe&logoColor=9399b2&labelColor=181825" alt="npm version" /></a>
 </p>
 
-Rayous is a simple lightweight coffeescript runtime, made to simply using coffescript and revive it
+Rew is a simple lightweight coffeescript runtime, made to simply using coffescript and revive it
 in the process.
 
 ## Getting Started

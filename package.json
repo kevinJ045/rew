@@ -1,6 +1,6 @@
 {
   "name": "@makano/rew",
-  "version": "1.1.72",
+  "version": "1.1.73",
   "description": "A simple coffescript runtime",
   "main": "lib/rew/main.js",
   "directories": {
@@ -24,7 +24,7 @@
     "type": "git",
     "url": "git+https://github.com/kevinj045/rew.git"
   },
-  "keywords": [],
+  "keywords": ["coffescript", "rew", "runtime"],
   "author": "makano",
   "license": "ISC",
   "dependencies": {
