@@ -1,6 +1,6 @@
 { thread } = imp 'threads'
 
-myThread = thread () ->
+myThread = thread ->
 	@process.on 'myEvent', (data) =>
 		print(data)
 		@process.emit 'myEventBack', data: 'smn'
