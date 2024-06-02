@@ -1,6 +1,6 @@
 {
   "name": "@makano/rew",
-  "version": "1.1.8",
+  "version": "1.1.81",
   "description": "A simple coffescript runtime",
   "main": "lib/rew/main.js",
   "directories": {
