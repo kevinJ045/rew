@@ -1,6 +1,6 @@
 {
   "name": "@makano/rew",
-  "version": "1.2.21",
+  "version": "1.2.3",
   "description": "A simple coffescript runtime and app manager",
   "main": "main.js",
   "directories": {
@@ -31,6 +31,7 @@
   "dependencies": {
     "@babel/core": "^7.24.6",
     "@babel/preset-react": "^7.24.6",
+    "@babel/preset-typescript": "^7.24.7",
     "axios": "^1.7.2",
     "babel-plugin-jsx": "^1.2.0",
     "chokidar": "^3.6.0",

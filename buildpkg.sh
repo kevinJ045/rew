@@ -1,1 +1,1 @@
-npx pkg -t node14-linux ./src/cli/cli.js -o ./bin/rew
+PKG_CACHE_PATH=~/.cache/pkg ./node_modules/.bin/pkg . -o ./bin/rew

@@ -18,6 +18,12 @@ jobs:
         with:
           node-version: '18'
           registry-url: 'https://registry.npmjs.org'
+      
+      # - name: Install dependencies
+      #   run: npm install
+
+      # - name: Package application
+      #   run: npx pkg .
 
       - name: Publish package
         env:
