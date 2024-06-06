@@ -31,6 +31,9 @@ in the process.
   ```
   Optionally, you can run single files with `rew [filename]`
 
+## Docs
+You can pay a visit to the [docs](https://kevinj045.github.io/rew-docs/) to learn more about rew and how it works.
+
 ## Author's Notes
 
 Any suggestions, bug fixes or ideas are accepted, feel free to ask anything. 

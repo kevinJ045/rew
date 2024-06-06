@@ -2,7 +2,7 @@
   "name": "@makano/rew",
   "version": "1.2.21",
   "description": "A simple coffescript runtime and app manager",
-  "main": "lib/rew/main.js",
+  "main": "main.js",
   "directories": {
     "lib": "lib"
   },
@@ -11,10 +11,7 @@
   },
   "files": [
     "lib/",
-    "cpp/",
-    "bin/",
-    "meson.build",
-    "build.sh",
+    "main.js",
     "README.md"
   ],
   "bin": {
@@ -38,6 +35,7 @@
     "babel-plugin-jsx": "^1.2.0",
     "chokidar": "^3.6.0",
     "colors": "^1.4.0",
+    "deasync": "^0.1.30",
     "js-yaml": "^4.1.0",
     "tiny-msgpack": "^2.2.0",
     "uuid": "^9.0.1",
