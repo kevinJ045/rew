@@ -1,2 +1,3 @@
 #!/usr/bin/env node
+global.fileName = __filename;
 require("../lib/rew/cli/cli.js");
