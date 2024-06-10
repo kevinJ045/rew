@@ -1,6 +1,6 @@
 {
   "name": "@makano/rew",
-  "version": "1.2.42",
+  "version": "1.2.43",
   "description": "A simple coffescript runtime and app manager",
   "main": "main.js",
   "directories": {
@@ -38,6 +38,7 @@
     "colors": "^1.4.0",
     "deasync": "^0.1.30",
     "js-yaml": "^4.1.0",
+    "loading-cli": "^1.1.2",
     "tiny-msgpack": "^2.2.0",
     "uuid": "^9.0.1",
     "vm": "^0.1.0",
