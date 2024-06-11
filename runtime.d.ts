@@ -38,6 +38,7 @@ interface ModuleConfOptionCenter {
    * @returns 
    */
   getAll: (() => string) | ((str?: false) => Record<string, any>)
+  root: string;
 }
 
 interface ModuleConf extends ModuleConfOptionCenter {
@@ -63,7 +64,7 @@ interface ModuleConf extends ModuleConfOptionCenter {
     read: (to?: string | object) => string | object | Buffer,
     fileRoot: string,
     exists: boolean
-  }
+  };
 }
 
 interface ModuleEnv {
@@ -350,6 +351,7 @@ declare namespace print {
 
 declare function input(prompt: string): string;
 
+declare function genID(len: number = 15, charachters?: string): string;
 
 declare const basename: (path: string) => string;
 declare const dirname: (path: string) => string;
