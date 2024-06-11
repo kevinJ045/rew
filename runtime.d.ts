@@ -359,6 +359,9 @@ declare const presolve: (...paths: string[]) => string;
 
 declare function exports(value: any) : any;
 
+declare function clear() : void;
+
+
 declare function pub(value: any) : any;
 declare function pub(name: string, value: any) : any;
 
