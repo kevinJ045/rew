@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "checkJs": true,
+    "lib": ["ESNext"],
+    "module": "Node16"
+  },
+  "include": [
+    "./runtime.d.ts"
+  ],
+  "typeAcquisition": {
+    "include": ["./runtime.d.ts"]
+  }
+}
