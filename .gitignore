@@ -4,3 +4,4 @@ docs/.vitepress/cache
 docs/.vitepress/dist
 .direnv/
 build/
+scripts/
