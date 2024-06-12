@@ -32,6 +32,7 @@
   "license": "ISC",
   "dependencies": {
     "@babel/core": "^7.24.6",
+    "@babel/preset-env": "^7.24.7",
     "@babel/preset-react": "^7.24.6",
     "@babel/preset-typescript": "^7.24.7",
     "axios": "^1.7.2",
@@ -39,15 +40,14 @@
     "chokidar": "^3.6.0",
     "colors": "^1.4.0",
     "deasync": "^0.1.30",
+    "itty-router": "^5.0.17",
     "js-yaml": "^4.1.0",
     "loading-cli": "^1.1.2",
     "tiny-msgpack": "^2.2.0",
     "uuid": "^9.0.1",
+    "vite": "^5.2.13",
     "vm": "^0.1.0",
     "yargs": "^17.7.2"
   },
-  "devDependencies": {
-    "pkg": "^5.8.1",
-    "vitepress": "^1.2.2"
-  }
+  "devDependencies": {}
 }
