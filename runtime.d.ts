@@ -1,3 +1,5 @@
+
+
 interface ImportOptions {
   /**
    * Determines how to import the given module
@@ -61,7 +63,7 @@ interface ModuleConf extends ModuleConfOptionCenter {
     name: string,
     defaults?: any
   ) => {
-    write: (value: any, ifExists?: boolean) => this;
+    write: (value: any, ifExists?: boolean) => any;
     read: (to?: string | object) => string | object | Buffer;
     fileRoot: string;
     exists: boolean;
@@ -109,8 +111,8 @@ interface ModuleRuneDB {
 interface ModuleRune {
   db(dbname: string, data?: object, encryptionKey?: string): ModuleRuneDB;
   genKey(secret: string): string;
-  push(...values: any[]): PushChange;
-  pop(...values: any[]): PopChange;
+  push(...values: any[]): any;
+  pop(...values: any[]): any;
 }
 
 interface ModuleThreads {
@@ -120,7 +122,7 @@ interface ModuleThreads {
       on: (event: string, callback: (data) => void) => void;
       off: (event: string, callback: (data) => void) => void;
       emit: (event: string, data: any) => void;
-      get: () => Promise;
+      get: () => Promise<any>;
       stop: () => void;
     };
   };
@@ -156,7 +158,8 @@ type StatusErrorObject = {
   error?: string;
   [key: string]: any;
 };
-class StatusError extends Error {
+
+export class StatusError extends Error {
   status: number;
   [key: string]: any;
   constructor(status?: number, body?: StatusErrorObject | string);
@@ -262,12 +265,9 @@ interface ErrorLike extends Error {
 type ErrorBody = string | object;
 interface ErrorFormatter {
   (statusCode?: number, body?: ErrorBody): Response;
-  (error: ErrorLike): Response;
-}
-{
 }
 
-const IttyRouter: <
+export const IttyRouter: <
   RequestType extends IRequest = IRequest,
   Args extends any[] = any[],
   ResponseType = any
@@ -277,7 +277,7 @@ const IttyRouter: <
   ...other
 }?: IttyRouterOptions) => IttyRouterType<RequestType, Args, ResponseType>;
 
-const Router: <
+export const Router: <
   RequestType = IRequest,
   Args extends any[] = any[],
   ResponseType = any
@@ -888,6 +888,7 @@ declare const presolve: (...paths: string[]) => string;
 
 declare function exports(value: any): any;
 
+
 declare function pub(value: any): any;
 declare function pub(name: string, value: any): any;
 
@@ -897,6 +898,10 @@ declare const opt: {
   push: (key: string, value: any) => any;
   pop: (key: string) => any;
 };
+
+declare const JSX: any;
+declare const TYPES: any;
+declare function using(fn: any, ...args: any[]): any;
 
 declare function wait(fn: CallableFunction, ...args: any[]): any;
 declare function clear(): void;
