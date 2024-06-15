@@ -64,6 +64,7 @@ interface ModuleConf extends ModuleConfOptionCenter {
     defaults?: any
   ) => {
     write: (value: any, ifExists?: boolean) => any;
+    // @ts-ignore
     read: (to?: string | object) => string | object | Buffer;
     fileRoot: string;
     exists: boolean;
@@ -128,6 +129,34 @@ interface ModuleThreads {
   };
 }
 
+
+type _Request = typeof globalThis extends { onmessage: any } ? {} : import("undici-types").Request;
+type _Response = typeof globalThis extends { onmessage: any } ? {} : import("undici-types").Response;
+type _FormData = typeof globalThis extends { onmessage: any } ? {} : import("undici-types").FormData;
+type _Headers = typeof globalThis extends { onmessage: any } ? {} : import("undici-types").Headers;
+type _RequestInit = typeof globalThis extends { onmessage: any } ? {}
+    : import("undici-types").RequestInit;
+type _ResponseInit = typeof globalThis extends { onmessage: any } ? {}
+    : import("undici-types").ResponseInit;
+// @ts-ignore
+type _File = typeof globalThis extends { onmessage: any } ? {} : import("node:buffer").File;
+
+interface Request {}
+declare var Request: typeof globalThis extends {
+    onmessage: any;
+    Request: infer T;
+} ? T
+    : typeof import("undici-types").Request;
+
+interface ResponseInit extends _ResponseInit {}
+
+interface Response extends _Response {}
+declare var Response: typeof globalThis extends {
+    onmessage: any;
+    Response: infer T;
+} ? T
+    : typeof import("undici-types").Response;
+
 type GenericTraps = Record<string, any>;
 
 type IRequestStrict = {
@@ -159,7 +188,7 @@ type StatusErrorObject = {
   [key: string]: any;
 };
 
-export class StatusError extends Error {
+interface StatusError extends Error {
   status: number;
   [key: string]: any;
   constructor(status?: number, body?: StatusErrorObject | string);
@@ -267,7 +296,7 @@ interface ErrorFormatter {
   (statusCode?: number, body?: ErrorBody): Response;
 }
 
-export const IttyRouter: <
+type IttyRouter = <
   RequestType extends IRequest = IRequest,
   Args extends any[] = any[],
   ResponseType = any
@@ -277,7 +306,7 @@ export const IttyRouter: <
   ...other
 }?: IttyRouterOptions) => IttyRouterType<RequestType, Args, ResponseType>;
 
-export const Router: <
+type Router = <
   RequestType = IRequest,
   Args extends any[] = any[],
   ResponseType = any
@@ -291,7 +320,7 @@ export const Router: <
   ResponseType
 >;
 
-const AutoRouter: <
+type AutoRouter = <
   RequestType extends IRequest = IRequest,
   Args extends any[] = any[],
   ResponseType = any
@@ -307,32 +336,18 @@ const AutoRouter: <
   ResponseType
 >;
 
-const createResponse: (
+type createResponse = (
   format?: string,
   transform?: ((body: any) => any) | undefined
 ) => ResponseFormatter;
 
-const error: ErrorFormatter;
+type statusR = (status: number, options?: ResponseInit) => Response;
 
-const statusR: (status: number, options?: ResponseInit) => Response;
+type withContent = (request: IRequest) => Promise<void>;
 
-const textR: ResponseFormatter;
+type withCookies = (r: IRequest) => void;
 
-const jsonR: ResponseFormatter;
-
-const htmlR: ResponseFormatter;
-
-const jpegR: ResponseFormatter;
-
-const pngR: ResponseFormatter;
-
-const webpR: ResponseFormatter;
-
-const withContent: (request: IRequest) => Promise<void>;
-
-const withCookies: (r: IRequest) => void;
-
-const withParams: (request: IRequest) => void;
+type withParams = (request: IRequest) => void;
 
 type CorsOptions = {
   credentials?: true;
@@ -353,7 +368,7 @@ type CorsPair = {
   preflight: Preflight;
   corsify: Corsify;
 };
-const cors: (options?: CorsOptions) => {
+type cors = (options?: CorsOptions) => {
   corsify: (response: Response, request?: Request) => Response;
   preflight: (request: Request) => Response | undefined;
 };
@@ -362,7 +377,9 @@ interface ModuleServeRouter extends RouterType {
   to(server: ModuleServeServer): any;
 }
 
-interface ModuleServeServerOptions {
+interface ResponseType{}
+
+declare class ModuleServeServerOptions {
   handler?: (req: RequestLike, res: ResponseType) => any;
   routers?: ModuleServeRouter[];
   fetch?: (req: RequestLike) => ResponseType | Promise<ResponseType>;
@@ -372,7 +389,7 @@ interface ModuleServeServer {
   _server: any;
   routers: Record<string, ModuleServeRouter>;
 
-  handleRequest: typeof ModuleServeServerOptions.handler;
+  handleRequest: typeof ModuleServeServerOptions.prototype.handler;
   listen: this;
   port: (port: number) => this;
   log: (string: string) => this;
@@ -388,7 +405,7 @@ interface ModuleServeFileRouterOptions {
   onError?: () => any;
 }
 
-class ModuleServe {
+declare class ModuleServe {
   router({
     id,
     type,
@@ -403,26 +420,29 @@ class ModuleServe {
     o: ModuleServeFileRouterOptions
   ): (req: RequestLike) => ResponseType | Promise<ResponseType>;
 
-  cors = cors;
-  json = jsonR;
-  error = error;
-  png = pngR;
-  jpeg = jpegR;
-  webp = webpR;
-  text = textR;
-  html = htmlR;
-  status = statusR;
+  cors: cors;
+  json: ResponseFormatter;
+  error: ResponseFormatter;
+  png: ResponseFormatter;
+  jpeg: ResponseFormatter;
+  webp: ResponseFormatter;
+  text: ResponseFormatter;
+  html: ResponseFormatter;
+  status: statusR;
 
-  createResponse = createResponse;
+  createResponse: createResponse;
 
-  withContent = withContent;
-  withCookies = withCookies;
-  withParams = withParams;
+  withContent: withContent;
+  withCookies: withCookies;
+  withParams: withParams;
 
+  // @ts-ignore
   Request = Request;
+  // @ts-ignore
   Response = Response;
 }
 
+// @ts-ignore
 type nodable = Element | Node | any;
 interface Node {
   type: string;
@@ -461,7 +481,7 @@ interface ModuleWebState {
   subscribe(callback: CallableFunction): this;
 }
 
-class ModuleWeb {
+declare class ModuleWeb {
   create(options: ModuleWebPageOptions): ModuleWebPage;
   isNode(node: any): boolean;
   isTextNode(node: any): boolean;
@@ -471,12 +491,13 @@ class ModuleWeb {
   createElement(...args: any[]): ElementNode;
 
   state(value): ModuleWebState | any;
+  // @ts-ignore
   useState(states: State[], callback: CallableFunction): any;
 
   bundle(filePath: string, options?: Record<string, any>): string;
 }
 
-class Stack<T = any> {
+declare class Stack<T = any> {
   constructor();
   push(item: T): void;
   pop(): T | undefined;
@@ -485,7 +506,7 @@ class Stack<T = any> {
   toArray(): T[];
 }
 
-class Queue<T = any> {
+declare class Queue<T = any> {
   constructor();
   enqueue(item: T): void;
   dequeue(): T | undefined;
@@ -494,7 +515,7 @@ class Queue<T = any> {
   toArray(): T[];
 }
 
-class LinkedList<T = any> {
+declare class LinkedList<T = any> {
   constructor();
   append(value: T): void;
   prepend(value: T): void;
@@ -503,7 +524,7 @@ class LinkedList<T = any> {
   toArray(): T[];
 }
 
-namespace LinkedList {
+declare namespace LinkedList {
   class Node<T = any> {
     constructor(value: T);
     value: T;
@@ -511,14 +532,14 @@ namespace LinkedList {
   }
 }
 
-class BinaryTree<T = any> {
+declare class BinaryTree<T = any> {
   constructor();
   insert(value: T): void;
   find(value: T): BinaryTree.Node<T> | null;
   toArray(): T[];
 }
 
-namespace BinaryTree {
+declare namespace BinaryTree {
   class Node<T = any> {
     constructor(value: T);
     value: T;
@@ -527,7 +548,7 @@ namespace BinaryTree {
   }
 }
 
-class DoublyLinkedList<T = any> {
+declare class DoublyLinkedList<T = any> {
   constructor();
   append(value: T): void;
   prepend(value: T): void;
@@ -536,7 +557,7 @@ class DoublyLinkedList<T = any> {
   toArray(): T[];
 }
 
-namespace DoublyLinkedList {
+declare namespace DoublyLinkedList {
   class Node<T = any> {
     constructor(value: T);
     value: T;
@@ -545,20 +566,26 @@ namespace DoublyLinkedList {
   }
 }
 
-interface ModuleData {
+declare interface ModuleData {
   Stack: typeof Stack;
   Queue: typeof Queue;
-	BinaryTree: typeof BinaryTree;
-	DoublyLinkedList: typeof DoublyLinkedList;
-	LinkedList: typeof LinkedList;
+  BinaryTree: typeof BinaryTree;
+  DoublyLinkedList: typeof DoublyLinkedList;
+  LinkedList: typeof LinkedList;
 }
 
 interface ModuleStream {
+  // @ts-ignore
   Readable: Readable,
+  // @ts-ignore
   Writable: Writable,
+  // @ts-ignore
   Transform: Transform,
+  // @ts-ignore
   Duplex: Duplex,
+  // @ts-ignore
   pipeline: pipeline,
+  // @ts-ignore
   finished: finished
 }
 
@@ -575,8 +602,9 @@ declare function imp(path: "data", options?: ImportOptions): ModuleData;
 declare function imp(path: "stream", options?: ImportOptions): ModuleStream;
 declare function imp(path: string, options?: ImportOptions): any;
 
-declare const inc = imp;
+declare const inc: typeof imp;
 
+// @ts-ignore
 declare function require(moduleName: string): any;
 
 interface Module {
@@ -587,10 +615,12 @@ interface Module {
   compiled: string;
 }
 
+// @ts-ignore
 declare const module: Module;
 
 interface Imports {
   meta: {
+    // @ts-ignore
     url: URL,
     main: boolean
   };
@@ -599,6 +629,7 @@ interface Imports {
 
 declare const imports: Imports;
 
+// @ts-ignore
 declare const process: {
   argv: string[];
   target: ReturnType<typeof emitter>;
@@ -842,6 +873,7 @@ declare function curl(
      */
     o?: string;
   }
+  // @ts-ignore
 ): Promise<Response>;
 
 /**
@@ -874,7 +906,9 @@ declare function curl(
 
 declare function print(...args: any[]): void;
 declare namespace print {
+  // @ts-ignore
   const stdout: WriteStream;
+  // @ts-ignore
   const stdin: ReadStream;
 }
 
@@ -886,6 +920,7 @@ declare const extname: (path: string) => string;
 declare const pjoin: (...paths: string[]) => string;
 declare const presolve: (...paths: string[]) => string;
 
+// @ts-ignore
 declare function exports(value: any): any;
 
 
@@ -901,6 +936,7 @@ declare const opt: {
 
 declare const JSX: any;
 declare const TYPES: any;
+declare const DECORATORS: any;
 declare function using(fn: any, ...args: any[]): any;
 
 declare function wait(fn: CallableFunction, ...args: any[]): any;
