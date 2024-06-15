@@ -492,7 +492,7 @@ declare class ModuleWeb {
 
   state(value): ModuleWebState | any;
   // @ts-ignore
-  useState(states: State[], callback: CallableFunction): any;
+  invokeState(states: State[], callback: CallableFunction): any;
 
   bundle(filePath: string, options?: Record<string, any>): string;
 }
