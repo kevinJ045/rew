@@ -942,9 +942,12 @@ declare function using(fn: any, ...args: any[]): any;
 declare function wait(fn: CallableFunction, ...args: any[]): any;
 declare function clear(): void;
 
+declare function namespace(object: any, callback: () => any): Usage;
+
 declare class Usage<T = () => void> {
   name: string;
   trigger: T;
-  constructor(name: string, trigger: T);
-  create(name: string, trigger: T): Usage;
+  save: boolean;
+  constructor(name: string, trigger: T, save: boolean);
+  create(name: string, trigger: T, save: boolean): Usage;
 }
