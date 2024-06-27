@@ -953,5 +953,5 @@ declare class Usage<T = () => void> {
   save: boolean;
   constructor(name: string, trigger: T, save: boolean);
   create(name: string, trigger: T, save: boolean): Usage;
-  group<T = any[], U = any>(group: T, props?: U): { g: T, [key: string]: any }
+  group(...group: any[]): { g: T, with: (props: any) => { g: T, [key: string]: any }, [key: string]: any }
 }
