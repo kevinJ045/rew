@@ -943,6 +943,9 @@ declare function wait(fn: CallableFunction, ...args: any[]): any;
 declare function clear(): void;
 
 declare function namespace(object: any, callback: () => any): Usage;
+declare namespace namespace {
+  function group<T = any[], U = any>(group: T, props?: U): { g: T }
+}
 
 declare class Usage<T = () => void> {
   name: string;
