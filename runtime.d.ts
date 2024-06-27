@@ -944,7 +944,7 @@ declare function clear(): void;
 
 declare function namespace(object: any, callback: () => any): Usage;
 declare namespace namespace {
-  function group<T = any[], U = any>(group: T, props?: U): { g: T }
+  function group<T = any[], U = any>(group: T, props?: U): { g: T, [key: string]: any }
 }
 
 declare class Usage<T = () => void> {
@@ -953,4 +953,5 @@ declare class Usage<T = () => void> {
   save: boolean;
   constructor(name: string, trigger: T, save: boolean);
   create(name: string, trigger: T, save: boolean): Usage;
+  group<T = any[], U = any>(group: T, props?: U): { g: T, [key: string]: any }
 }
