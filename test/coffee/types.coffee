@@ -2,10 +2,10 @@
 
 
 complexObject = typedef { name: str, age: num }
-anyObject = typedef {} 
+anyObject = typedef {}
 
 class N
-  constructor: () -> 
+  constructor: () ->
     @age = ''
 
 class M extends N

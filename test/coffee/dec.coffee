@@ -1,8 +1,22 @@
+#include *std
 
-imp '#rew.forge3d'
-mapcule = (a) -> { value: a + '456' }
+int mynumber = '1122'
+str mystring = 1234
 
-@mapcule manda = '123'
+print mynumber, mystring
 
-print manda
+struct myStruct = {
+  name: ''
+  something: ''
+}
 
+print myStruct {}
+
+typedef myObj = {
+  prop: str
+}
+typef(myObj) func = () -> {
+  prop: 'string value'
+}
+
+print func()
