@@ -15,8 +15,8 @@ print myStruct {}
 typedef myObj = {
   prop: str
 }
-typef(myObj) func = () -> {
+typef(myObj) func = -> {
   prop: 'string value'
 }
 
-print func()
+print typeis func(), func
