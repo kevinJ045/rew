@@ -1,6 +1,6 @@
 {
   "name": "@makano/rew",
-  "version": "1.2.92",
+  "version": "1.2.93",
   "description": "A simple coffescript runtime and app manager",
   "main": "main.js",
   "directories": {
