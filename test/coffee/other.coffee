@@ -1,4 +1,3 @@
-yaml = imp './something.yaml', type: 'yaml'
 # js = imp './test.js', type: 'js'
 # js = imp './test.json', type: 'json'
 
@@ -11,9 +10,6 @@ people = [
   person name: 'Makano', age: 19, hobby: 'being cool'
 ]
 
-print yaml
+for man in people then print man.name, 'is', man.age
 
-# for man in people
-#   print man.name, 'is', man.age
-
-# print parent people: people
+print parent people: people

@@ -1,6 +1,2 @@
 
-detach::Anchor
-
-
-
-attach::Anchor
+-detach::Anchor
