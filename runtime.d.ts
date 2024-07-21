@@ -1006,4 +1006,24 @@ declare namespace Rew {
     group(...group: any[]): { g: T, with: (props: any) => { g: T, [key: string]: any }, [key: string]: any }
   }
 
+  declare const std = {
+    curl: curl,
+    int: int,
+    str: str,
+    bool: bool,
+    float: float,
+    num: num,
+    typeis: typeis,
+    typex: typex,
+    typei: typei,
+
+    prototype: {
+      void: () => void 0,
+      Main: () => [string, () => any],
+      define: (name: string, object: any) => any,
+      attach: (object: any) => any,
+      ns: () => any
+    }
+  }
+
 // }
