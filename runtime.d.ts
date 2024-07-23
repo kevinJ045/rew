@@ -500,6 +500,7 @@ declare namespace Rew {
     add(...children: nodable[]): typeof this.body;
   
     script(script: string): ReturnType<typeof this.add>;
+    style(style: string | Record<string, any>): ReturnType<typeof this.add>;
   
     serializeState(): string;
   
@@ -522,11 +523,13 @@ declare namespace Rew {
   
     createText(text: string): Node;
     createElement(...args: any[]): ElementNode;
+    createStyles(styles: Record<string, any>): string;
   
     state(value): ModuleWebState | any;
     // @ts-ignore
     invokeState(states: State[], callback: CallableFunction): any;
   
+    bundleCode(code: string, options?: Record<string, any>): string;
     bundle(filePath: string, options?: Record<string, any>): string;
   }
   
@@ -1006,16 +1009,16 @@ declare namespace Rew {
     group(...group: any[]): { g: T, with: (props: any) => { g: T, [key: string]: any }, [key: string]: any }
   }
 
-  declare const std = {
-    curl: curl,
-    int: int,
-    str: str,
-    bool: bool,
-    float: float,
-    num: num,
-    typeis: typeis,
-    typex: typex,
-    typei: typei,
+  declare const std: {
+    curl: typeof curl,
+    int: typeof int,
+    str: typeof str,
+    bool: typeof bool,
+    float: typeof float,
+    num: typeof num,
+    typeis: typeof typeis,
+    typex: typeof typex,
+    typei: typeof typei,
 
     prototype: {
       void: () => void 0,
