@@ -9,5 +9,6 @@ module.exports = {
   compileFile,
   run,
   pkgs,
-  utils
+  utils,
+  LineMap: require('./lib/civet/main').SourceMap
 };

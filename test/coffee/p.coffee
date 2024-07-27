@@ -1,7 +1,10 @@
-
-!int d = 'f'
-
-i = basename 'hello/hello.txt'
-j = extname i
-
-print i, j
+import (
+  "fort"
+  "iffy"
+  "wide"
+  "tres"
+) as (
+  @fort
+  iffy
+  { wide, ind }
+);
