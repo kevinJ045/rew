@@ -958,13 +958,7 @@ declare namespace Rew {
   ): ReturnType<typeof future>;
 
   declare function print(...args: any[]): void;
-  declare namespace print {
-    // @ts-ignore
-    const stdout: WriteStream;
-    // @ts-ignore
-    const stdin: ReadStream;
-  }
-
+  declare function printf(...args: any[]): void;
   declare function input(prompt: string): string;
 
   declare const basename: (path: string) => string;
@@ -1009,6 +1003,18 @@ declare namespace Rew {
     group(...group: any[]): { g: T, with: (props: any) => { g: T, [key: string]: any }, [key: string]: any }
   }
 
+  // @ts-ignore
+  interface stdout extends WriteStream {
+    put: typeof print;
+    write: (str: string) => void;
+    strace: (...str: string[]) => void;
+  }
+
+  // @ts-ignore
+  interface stdin extends ReadStream {
+    read: typeof input
+  }
+
   declare const std: {
     curl: typeof curl,
     int: typeof int,
@@ -1021,11 +1027,17 @@ declare namespace Rew {
     typei: typeof typei,
 
     prototype: {
-      void: () => void 0,
+      void: void,
       Main: () => [string, () => any],
       define: (name: string, object: any) => any,
       attach: (object: any) => any,
-      ns: () => any
+
+      out: stdout;
+      in: stdin;
+
+      ns: () => any;
+
+      __: Record<string, any>;
     }
   }
 
