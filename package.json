@@ -50,5 +50,8 @@
     "vite": "^5.2.13",
     "vm": "^0.1.0",
     "yargs": "^17.7.2"
+  },
+  "devDependencies": {
+    "@danielx/civet": "^0.7.23"
   }
 }
