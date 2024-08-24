@@ -1029,8 +1029,10 @@ declare namespace Rew {
     prototype: {
       void: void,
       Main: () => [string, () => any],
+      named: (name: string) => (item: any) => [string, any],
       define: (name: string, object: any) => any,
-      attach: (object: any) => any,
+      attach: (name: string | any, object: any) => any,
+      detach: (nameOrObject: any) => any,
 
       out: stdout;
       in: stdin;
