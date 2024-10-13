@@ -1,24 +1,13 @@
 {
-  description = "A simple Rust project using Flakes and Direnv";
+  description = "A basic rust devshell flake";
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+  inputs.flake-utils.url = "github:numtide/flake-utils";
 
-  inputs = {
-    # Import nixpkgs and provide Rust and other dependencies
-    nixpkgs.url = "github:NixOS/nixpkgs";
-    rust-overlay.url = "github:oxalica/rust-overlay";
-  };
-
-  outputs = { self, nixpkgs, rust-overlay }:
-    let
-      system = "x86_64-linux"; # adjust for your system
-      pkgs = import nixpkgs {
-        inherit system;
-        overlays = [ rust-overlay.overlay ];
-      };
-    in {
-      devShell.${system} = pkgs.mkShell {
-        buildInputs = [
-          pkgs.rust-bin.stable.latest.default
-        ];
-      };
-    };
+  outputs = { self, nixpkgs, flake-utils }:
+    flake-utils.lib.eachDefaultSystem (system:
+      let pkgs = nixpkgs.legacyPackages.${system};
+      in {
+        devShells.default =
+          pkgs.mkShell { buildInputs = with pkgs; [ cargo rustc rustup rustfmt ]; };
+      });
 }
