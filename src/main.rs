@@ -10,7 +10,12 @@ use boa_gc::{Finalize, Trace};
 // use boa_interop::{js_class, Ignore, JsClass};
 use std::fs::File;
 use std::io::Read;
-use std::io::{self};
+use std::io::{self, Write};
+use std::collections::HashMap;
+use std::thread;
+use std::sync::Arc;
+use std::env;
+
 
 fn js_array_to_vec_u8(js_array: JsValue, context: &mut Context) -> JsResult<Vec<u8>> {
 	if let Ok(array) = JsArray::from_object(js_array.as_object().unwrap().clone()) {
@@ -40,6 +45,7 @@ fn vec_to_js_array(buffer: Vec<u8>, context: &mut Context) -> JsResult<JsArray> 
 struct ContextManager {
 	context: Context
 }
+
 impl ContextManager {
 
 	fn new() -> ContextManager {
@@ -61,8 +67,26 @@ impl ContextManager {
 		self.rns("Drw.prototype");
 		self.rns("Drw.prototype.core");
 		self.rns("Drw.prototype.fs");
+		self.rns("Drw.prototype.process");
 		self.rns("Drw.prototype.io");
 		self.rns("Drw.prototype.namespace");
+
+		// fn all_namespace_items(){
+		// 	let result = JsObject::new(ctx);
+    //     let proto = ctx.global_object().get("Drw").unwrap().as_object().unwrap();
+
+    //     for key in proto.get_own_property_keys(ctx)?.iter() {
+    //         if let Ok(name) = key.as_string() {
+    //             if name != "namespace" {
+    //                 let value = proto.get(name, ctx)?;
+    //                 result.set(name, value, true, ctx)?;
+    //             }
+    //         }
+    //     }
+
+    //     Ok(JsValue::from(result))
+
+		// }
 		
 		fn buffer_to_string(
 				_this: &JsValue,
@@ -168,6 +192,113 @@ impl ContextManager {
 		}
 
 		self.rfunc("Drw.prototype.fs.read", fs_read);
+
+		fn fs_write(
+			_this: &JsValue,
+			args: &[JsValue],
+			context: &mut boa_engine::Context,
+	) -> JsResult<JsValue> {
+			// Extract the filepath from the first argument
+			let filepath = to_std_str(args.get(0).unwrap_or(&JsValue::undefined()), context);
+			
+			// Extract the data from the second argument
+			let data_value = args.get(1).unwrap_or(&JsValue::undefined()).clone();
+			
+			// Extract optional options from the third argument
+			let options: Option<&JsObject> = args.get(2).and_then(JsValue::as_object);
+	
+			// Determine if we should treat the data as a buffer or a string
+			let is_buffer = options
+					.and_then(|opts| opts.get(js_string!("type"), context).ok())
+					.filter(|typ| to_std_str(typ, context).as_str() == "buffer")
+					.is_some();
+	
+			// Determine the data to write based on whether it's a buffer or string
+			let data_to_write = if is_buffer {
+					// If it's a buffer, we need to convert the JsValue to a Vec<u8>
+					match js_array_to_vec_u8(data_value.clone(), context) {
+							Ok(buffer) => buffer,
+							Err(_) => return Err(JsError::from_native(JsNativeError::typ())),
+					}
+			} else {
+					// Otherwise, treat it as a string
+					to_std_str(&data_value, context).into_bytes() // Convert the string to bytes
+			};
+	
+			// Write the data to the file
+			match std::fs::write(&filepath, data_to_write) {
+					Ok(_) => Ok(JsValue::undefined()), // Return undefined if the write was successful
+					Err(err) => {
+							eprintln!("Failed to write to file '{}': {:?}", filepath, err);
+							Err(JsError::from_native(JsNativeError::typ())) // Return an error if writing fails
+					}
+			}
+		}
+	
+		self.rfunc("Drw.prototype.fs.write", fs_write);
+
+		for (key, value) in env::vars() {
+			let keyFull = String::from("Drw.prototype.env.data.") + key.as_str();
+			self.rval(keyFull.as_str(), JsValue::from(js_string!(value)));
+		}
+
+		fn find_env(
+			this: &JsValue,
+			args: &[JsValue],
+			context: &mut boa_engine::Context,
+		) -> JsResult<JsValue> {
+			// Convert the first argument to a string, defaulting to an empty string if not present
+			let env_key = to_std_str(args.get_or_undefined(0), context);
+	
+			// Retrieve the environment variable using std::env::var
+			match std::env::var(env_key) {
+				Ok(value) => Ok(JsValue::from(js_string!(value))), // Return the variable as a JsValue if found
+				Err(_) => Ok(JsValue::undefined()), // Return undefined if the variable is not found
+			}
+		}
+
+		self.rfunc("Drw.prototype.env.get", find_env);
+
+		fn io_out_print(
+			_this: &JsValue,
+			args: &[JsValue],
+			context: &mut boa_engine::Context,
+	) -> JsResult<JsValue> {
+			let mut output = String::new();
+			for arg in args {
+					let arg_str = arg.to_string(context)?.to_std_string().unwrap_or_default();
+					output.push_str(&arg_str);
+					output.push(' '); // Add space between arguments
+			}
+			println!("{}", output.trim_end()); // Print to standard output
+			Ok(JsValue::undefined()) // Mimic console.log behavior
+	}
+
+	self.rfunc("Drw.prototype.io.print", io_out_print);
+
+	// Read method: Drw.prototype.io.in.read
+	fn io_in_read(
+		_this: &JsValue,
+		args: &[JsValue],
+		context: &mut boa_engine::Context,
+) -> JsResult<JsValue> {
+		// Extract the prompt from the first argument, if provided
+		let prompt = to_std_str(args.get(0).unwrap_or(&JsValue::undefined()), context);
+		if !prompt.is_empty() {
+				print!("{}", prompt); // Print the prompt without a newline
+				io::stdout().flush().expect("Failed to flush stdout"); // Ensure the prompt is displayed immediately
+		}
+
+		// Read input from standard input
+		let mut input = String::new();
+		std::io::stdin()
+				.read_line(&mut input)
+				.expect("Failed to read line");
+		Ok(JsValue::from(js_string!(input.trim()))) // Return the input as a string
+	}
+
+	self.rfunc("Drw.prototype.io.input", io_in_read);
+
 
 	}
 	
@@ -326,19 +457,120 @@ fn to_std_str(val: &JsValue, context: &mut Context) -> String {
 }
 
 
+struct PodManager {
+	cman: ContextManager,
+}
+
+impl PodManager {
+	fn new() -> PodManager {
+		let cman = ContextManager::new();
+		let pman = PodManager { cman };
+		pman
+	}
+
+	// Set the Drw.process.current.filepath property for the context
+	
+	// Set the Drw.process.current.filepath property for the context
+	fn set_current_filepath(&mut self, filename: &str, is_main: bool) -> JsResult<()> {
+		let cman = &mut self.cman;
+		let context = cman.get_context();
+		let myobj = ObjectInitializer::new(context)
+			.property(js_string!("filepath"), js_string!(filename), Attribute::all())
+			.property(js_string!("main"), JsValue::from(is_main), Attribute::all())
+			.property(js_string!("pid"), JsValue::from(std::process::id()), Attribute::all())
+			/* More properties */
+			.build();
+		cman.rval("Drw.prototype.process.current", JsValue::from(myobj));
+		Ok(())
+	}
+
+
+	// Execute a file with its own context
+	fn execute(&mut self, filename: &str, is_main: bool) -> JsResult<JsValue> {
+		// Read the file
+		let code = std::fs::read_to_string(filename).expect("Failed to read the file");
+
+		self.execute_string(&code, filename, is_main)
+	}
+
+	// Execute a string of code with its own context
+	fn execute_string(&mut self, code: &str, filename: &str, is_main: bool) -> JsResult<JsValue> {
+		// Create a new context for this execution
+
+		// Set the filepath property in the context
+		self.set_current_filepath(filename, is_main)?;
+
+		// Execute the string of code
+		match self.cman
+		.get_context()
+		.eval(Source::from_bytes(code.as_bytes())) {
+			Ok(result) => {
+				Ok(result)
+			}
+			Err(err) => {
+				println!("{}", err);
+				Err(JsError::from_native(JsNativeError::typ()))
+			}
+		}
+	}
+
+	// Execute a file in a new thread with its own context
+	fn execute_in_new_thread(filename: &str, is_main: bool) {
+			let filename = filename.to_string();
+			thread::spawn(move || {
+					let mut pod_manager = PodManager::new();
+					pod_manager
+							.execute(&filename, is_main)
+							.expect("Failed to execute in new thread");
+			});
+	}
+
+	// Execute a string of code in a new thread with its own context
+	fn execute_string_in_new_thread(code: &str, filename: &str, is_main: bool) {
+			let code = code.to_string();
+			let filename = filename.to_string();
+			thread::spawn(move || {
+					let mut pod_manager = PodManager::new();
+					pod_manager
+							.execute_string(&code, &filename, is_main)
+							.expect("Failed to execute string in new thread");
+			});
+	}
+}
+
 fn main() -> JsResult<()> {
-  let js_code = r#"
-		const filename = "/etc/nixos/home.nix";
-    Drw.prototype.fs.read(filename);
-  "#;
+  let mut pod = PodManager::new();
 
-  // Instantiate the execution context
-  let mut cman = ContextManager::new();
+	if let Ok(result) = pod.execute("/home/makano/workspace/dabo/test/some.js", true) {
+		let context = pod.cman.get_context();
+		let object_main = context.global_object();
 
-  // Parse the source code
-  let result = cman.context.eval(Source::from_bytes(js_code))?;
+		// Check if the global object has a function named "main"
+		if object_main.has_property(js_string!("main"), context)? {
+			// Get the `main` function from the global object
+			let main_function = object_main.get(js_string!("main"), context)?;
 
-  println!("{}", result.display());
+			// Check if it is callable
+			if main_function.is_callable() {
+					// Prepare argv or any necessary arguments to pass
+					let argv: Vec<JsValue> = vec![
+							JsValue::from(js_string!("arg1"))
+					];
+
+					// Call the `main` function with the arguments
+					let result = JsValue::from(main_function).as_callable().unwrap().call(&JsValue::from(object_main), &argv, context)?;
+
+					// Handle the result of the main function call
+					println!("Result of main function: {}", result.display());
+			} else {
+					println!("'main' is not callable.");
+			}
+		} else {
+				println!("No function 'main' found in the global object.");
+		}
+
+		println!("{}", result.display());
+	}
 
   Ok(())
 }
