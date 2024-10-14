@@ -63,6 +63,8 @@ impl ContextManager {
 		let context = self.get_context();
 
 		// context.register_global_class::<Buffer>();
+		let drw_obj = ObjectInitializer::new(context).build();
+		context.register_global_property(js_string!("Drw"), drw_obj, Attribute::all());
 		
 		self.rns("Drw.prototype");
 		self.rns("Drw.prototype.core");
@@ -71,23 +73,6 @@ impl ContextManager {
 		self.rns("Drw.prototype.io");
 		self.rns("Drw.prototype.namespace");
 
-		// fn all_namespace_items(){
-		// 	let result = JsObject::new(ctx);
-    //     let proto = ctx.global_object().get("Drw").unwrap().as_object().unwrap();
-
-    //     for key in proto.get_own_property_keys(ctx)?.iter() {
-    //         if let Ok(name) = key.as_string() {
-    //             if name != "namespace" {
-    //                 let value = proto.get(name, ctx)?;
-    //                 result.set(name, value, true, ctx)?;
-    //             }
-    //         }
-    //     }
-
-    //     Ok(JsValue::from(result))
-
-		// }
-		
 		fn buffer_to_string(
 				_this: &JsValue,
 				args: &[JsValue],
@@ -263,7 +248,7 @@ impl ContextManager {
 			_this: &JsValue,
 			args: &[JsValue],
 			context: &mut boa_engine::Context,
-	) -> JsResult<JsValue> {
+		) -> JsResult<JsValue> {
 			let mut output = String::new();
 			for arg in args {
 					let arg_str = arg.to_string(context)?.to_std_string().unwrap_or_default();
@@ -272,33 +257,59 @@ impl ContextManager {
 			}
 			println!("{}", output.trim_end()); // Print to standard output
 			Ok(JsValue::undefined()) // Mimic console.log behavior
-	}
-
-	self.rfunc("Drw.prototype.io.print", io_out_print);
-
-	// Read method: Drw.prototype.io.in.read
-	fn io_in_read(
-		_this: &JsValue,
-		args: &[JsValue],
-		context: &mut boa_engine::Context,
-) -> JsResult<JsValue> {
-		// Extract the prompt from the first argument, if provided
-		let prompt = to_std_str(args.get(0).unwrap_or(&JsValue::undefined()), context);
-		if !prompt.is_empty() {
-				print!("{}", prompt); // Print the prompt without a newline
-				io::stdout().flush().expect("Failed to flush stdout"); // Ensure the prompt is displayed immediately
 		}
 
-		// Read input from standard input
-		let mut input = String::new();
-		std::io::stdin()
-				.read_line(&mut input)
-				.expect("Failed to read line");
-		Ok(JsValue::from(js_string!(input.trim()))) // Return the input as a string
-	}
+		self.rfunc("Drw.prototype.io.print", io_out_print);
 
-	self.rfunc("Drw.prototype.io.input", io_in_read);
+	// Read method: Drw.prototype.io.in.read
+		fn io_in_read(
+			_this: &JsValue,
+			args: &[JsValue],
+			context: &mut boa_engine::Context,
+		) -> JsResult<JsValue> {
+			// Extract the prompt from the first argument, if provided
+			let prompt = to_std_str(args.get(0).unwrap_or(&JsValue::undefined()), context);
+			if !prompt.is_empty() {
+					print!("{}", prompt); // Print the prompt without a newline
+					io::stdout().flush().expect("Failed to flush stdout"); // Ensure the prompt is displayed immediately
+			}
 
+			// Read input from standard input
+			let mut input = String::new();
+			std::io::stdin()
+					.read_line(&mut input)
+					.expect("Failed to read line");
+			Ok(JsValue::from(js_string!(input.trim()))) // Return the input as a string
+		}
+
+		self.rfunc("Drw.prototype.io.input", io_in_read);
+
+
+		fn merge_js_objects(
+			_this: &JsValue,
+			objects: &[JsValue],
+			context: &mut boa_engine::Context,
+		) -> JsResult<JsValue> {
+			let merged_object = ObjectInitializer::new(context).build(); // Create a new empty object to hold merged properties
+	
+			for object in objects {
+					// Ensure the value is a JsObject
+					if let Some(obj) = object.as_object() {
+							// Get all property keys of the current object
+							let keys = obj.own_property_keys(context)?;
+	
+							for key in keys {
+									let value = obj.get(key.clone(), context)?;
+	
+									// Set the property in the merged object
+									merged_object.set(key, value, true, context)?;
+							}
+					}
+			}
+	
+			Ok(JsValue::from(merged_object))
+		}
+		self.rfunc("Drw.prototype.core.merge", merge_js_objects);
 
 	}
 	
@@ -561,15 +572,11 @@ fn main() -> JsResult<()> {
 					let result = JsValue::from(main_function).as_callable().unwrap().call(&JsValue::from(object_main), &argv, context)?;
 
 					// Handle the result of the main function call
-					println!("Result of main function: {}", result.display());
-			} else {
-					println!("'main' is not callable.");
+					// println!("Result of main function: {}", result.display());
 			}
-		} else {
-				println!("No function 'main' found in the global object.");
 		}
 
-		println!("{}", result.display());
+		// println!("{}", result.display());
 	}
 
   Ok(())
