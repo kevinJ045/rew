@@ -2,7 +2,7 @@
 pub(crate) mod coal;
 
 use boa_engine::{
-    context::DefaultHooks, js_string, object::{builtins::{JsArray, JsFunction}, shape::RootShape, NativeObject, ObjectInitializer}, property::{Attribute, PropertyKey}, realm::Realm, Context, JsArgs, JsError, JsNativeError, JsObject, JsResult, JsStr, JsString, JsValue, NativeFunction, Source
+    context::DefaultHooks, js_string, object::{builtins::{JsArray, JsFunction}, shape::RootShape, NativeObject, ObjectInitializer}, property::{Attribute, PropertyKey}, realm::Realm, vm::RuntimeLimits, Context, JsArgs, JsError, JsNativeError, JsObject, JsResult, JsStr, JsString, JsValue, NativeFunction, Source
 };
 use boa_engine::class::{Class, ClassBuilder};
 use boa_engine::parser::{Error};
@@ -16,6 +16,12 @@ use std::thread;
 use std::sync::Arc;
 use std::env;
 
+mod civet;
+
+// Import the function
+use civet::getCivetScript;
+
+const MAX_RECURSION_DEPTH: usize = 1000000; 
 
 fn js_array_to_vec_u8(js_array: JsValue, context: &mut Context) -> JsResult<Vec<u8>> {
 	if let Ok(array) = JsArray::from_object(js_array.as_object().unwrap().clone()) {
@@ -65,6 +71,7 @@ impl ContextManager {
 		// context.register_global_class::<Buffer>();
 		let drw_obj = ObjectInitializer::new(context).build();
 		context.register_global_property(js_string!("Drw"), drw_obj, Attribute::all());
+		context.runtime_limits().set_recursion_limit(MAX_RECURSION_DEPTH);
 		
 		self.rns("Drw.prototype");
 		self.rns("Drw.prototype.core");
@@ -549,35 +556,90 @@ impl PodManager {
 	}
 }
 
-fn main() -> JsResult<()> {
-  let mut pod = PodManager::new();
 
-	if let Ok(result) = pod.execute("/home/makano/workspace/dabo/test/some.js", true) {
-		let context = pod.cman.get_context();
-		let object_main = context.global_object();
+struct RuntimeManager {
+	pman: PodManager
+}
 
-		// Check if the global object has a function named "main"
-		if object_main.has_property(js_string!("main"), context)? {
-			// Get the `main` function from the global object
-			let main_function = object_main.get(js_string!("main"), context)?;
+impl RuntimeManager {
+	fn new() -> RuntimeManager {
+		let pman = PodManager::new();
+		let runtime = RuntimeManager { pman };
+		runtime
+	}
 
-			// Check if it is callable
-			if main_function.is_callable() {
-					// Prepare argv or any necessary arguments to pass
-					let argv: Vec<JsValue> = vec![
-							JsValue::from(js_string!("arg1"))
-					];
+	fn srun(filename: &str, func: Option<Box<dyn for<'a> FnOnce(&'a mut PodManager)>>) -> JsResult<JsValue>
+	{
+		let mut r = RuntimeManager::new();
+		r.runFile(filename, func)
+	}
 
-					// Call the `main` function with the arguments
-					let result = JsValue::from(main_function).as_callable().unwrap().call(&JsValue::from(object_main), &argv, context)?;
+	fn runFile(&mut self, filename: &str, func: Option<Box<dyn for<'a> FnOnce(&'a mut PodManager)>>) -> JsResult<JsValue>
+	{
+		let mut val = JsValue::undefined();
 
-					// Handle the result of the main function call
-					// println!("Result of main function: {}", result.display());
+		let code = if filename.ends_with(".coffee") || filename.ends_with(".civet") {
+			CompileManager::compile(filename)?
+		} else {
+			std::fs::read_to_string(filename).expect("Failed to read the file")
+		};
+
+		if let Ok(result) = self.pman.execute_string(&code, filename, true) {
+			let context = self.pman.cman.get_context();
+			let object_main = context.global_object();
+	
+			// Check if the global object has a function named "main"
+			if object_main.has_property(js_string!("main"), context)? {
+				// Get the `main` function from the global object
+				let main_function = object_main.get(js_string!("main"), context)?;
+	
+				// Check if it is callable
+				if main_function.is_callable() {
+						// Prepare argv or any necessary arguments to pass
+						let argv: Vec<JsValue> = vec![
+								JsValue::from(js_string!("arg1"))
+						];
+						val = JsValue::from(main_function).as_callable().unwrap().call(&JsValue::from(object_main), &argv, context)?;
+						
+				}
 			}
 		}
 
-		// println!("{}", result.display());
+		Ok(val)
 	}
+}
+
+
+struct CompileManager {}
+
+impl CompileManager {
+
+	fn compile(filename: &str) -> JsResult<String> {
+
+		let mut pman = PodManager::new();
+
+		let codeRaw = std::fs::read_to_string(filename).expect("Failed to read the file");
+
+		println!("{}", codeRaw);
+
+		pman.cman.rval("__to__compile__", JsValue::from(js_string!(codeRaw)));
+
+		let compiled = pman.execute_string(getCivetScript().as_str(), "system::compiler", false)?;	
+
+		println!("{}", compiled.display());
+		
+		Ok(to_std_str(&compiled, &mut pman.cman.context))
+	}
+
+}
+
+fn main() -> JsResult<()> {
+
+	// RuntimeManager::srun("/home/makano/workspace/dabo/test/some.js", Some(Box::new(|_| {
+
+	// })));
+
+	RuntimeManager::srun("/home/makano/workspace/dabo/test/s.coffee", None);
 
   Ok(())
 }
