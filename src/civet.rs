@@ -1,5 +1,5 @@
 
-pub fn getCivetScript() -> String {
+pub fn get_civet_script() -> String {
   return String::from(r#"
     "use strict";
 var module = {};

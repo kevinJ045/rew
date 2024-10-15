@@ -18,8 +18,7 @@ use std::env;
 
 mod civet;
 
-// Import the function
-use civet::getCivetScript;
+use civet::get_civet_script;
 
 const MAX_RECURSION_DEPTH: usize = 1000000; 
 
@@ -62,7 +61,7 @@ impl ContextManager {
 	}
 
 	fn get_context(&mut self) -> &mut Context {
-		&mut self.context // Return a reference to the context
+		&mut self.context
 	}
 
 	fn define_context_props(&mut self) {
@@ -85,14 +84,11 @@ impl ContextManager {
 				args: &[JsValue],
 				context: &mut boa_engine::Context,
 		) -> JsResult<JsValue> {
-			// You need to get the 'data' property from the current object (`this`)
 			let this_object = _this.as_object().unwrap();
 			let js_array = this_object.get(js_string!("data"), context)?;
 	
-			// Convert the JsArray back to a Vec<u8> (you can define this function)
 			let the_vec = js_array_to_vec_u8(js_array, context)?;
 	
-			// Convert the Vec<u8> to a string and return it
 			let as_string = String::from_utf8(the_vec).unwrap_or_else(|_| "Invalid UTF-8".to_string());
 			
 			Ok(JsValue::from(js_string!(as_string)))
@@ -108,7 +104,6 @@ impl ContextManager {
 	
 			let js_array = JsArray::from_object(array.as_object().unwrap().clone())?;
 	
-			// Build the object
 			let buffer_item = ObjectInitializer::new(context)
 					.property(js_string!("data"), JsValue::from(js_array), Attribute::all())
 					.function(
@@ -118,7 +113,6 @@ impl ContextManager {
 					)
 					.build();
 	
-			// Return the constructed object
 			Ok(JsValue::from(buffer_item))
 		}
 		self.rfunc("Drw.prototype.fs.buffer", buffer_method);
@@ -169,7 +163,7 @@ impl ContextManager {
 						option_type = opts.get(js_string!("type"), context)?
 					}
 				},
-        None => {}, // Default if no options are provided
+        None => {},
     	};
 
 			if to_std_str(&option_type, context) == "buffer" {
@@ -190,39 +184,31 @@ impl ContextManager {
 			args: &[JsValue],
 			context: &mut boa_engine::Context,
 	) -> JsResult<JsValue> {
-			// Extract the filepath from the first argument
 			let filepath = to_std_str(args.get(0).unwrap_or(&JsValue::undefined()), context);
 			
-			// Extract the data from the second argument
 			let data_value = args.get(1).unwrap_or(&JsValue::undefined()).clone();
 			
-			// Extract optional options from the third argument
 			let options: Option<&JsObject> = args.get(2).and_then(JsValue::as_object);
 	
-			// Determine if we should treat the data as a buffer or a string
 			let is_buffer = options
 					.and_then(|opts| opts.get(js_string!("type"), context).ok())
 					.filter(|typ| to_std_str(typ, context).as_str() == "buffer")
 					.is_some();
 	
-			// Determine the data to write based on whether it's a buffer or string
 			let data_to_write = if is_buffer {
-					// If it's a buffer, we need to convert the JsValue to a Vec<u8>
 					match js_array_to_vec_u8(data_value.clone(), context) {
 							Ok(buffer) => buffer,
 							Err(_) => return Err(JsError::from_native(JsNativeError::typ())),
 					}
 			} else {
-					// Otherwise, treat it as a string
-					to_std_str(&data_value, context).into_bytes() // Convert the string to bytes
+					to_std_str(&data_value, context).into_bytes()
 			};
 	
-			// Write the data to the file
 			match std::fs::write(&filepath, data_to_write) {
-					Ok(_) => Ok(JsValue::undefined()), // Return undefined if the write was successful
+					Ok(_) => Ok(JsValue::undefined()),
 					Err(err) => {
 							eprintln!("Failed to write to file '{}': {:?}", filepath, err);
-							Err(JsError::from_native(JsNativeError::typ())) // Return an error if writing fails
+							Err(JsError::from_native(JsNativeError::typ()))
 					}
 			}
 		}
@@ -239,13 +225,11 @@ impl ContextManager {
 			args: &[JsValue],
 			context: &mut boa_engine::Context,
 		) -> JsResult<JsValue> {
-			// Convert the first argument to a string, defaulting to an empty string if not present
 			let env_key = to_std_str(args.get_or_undefined(0), context);
 	
-			// Retrieve the environment variable using std::env::var
 			match std::env::var(env_key) {
-				Ok(value) => Ok(JsValue::from(js_string!(value))), // Return the variable as a JsValue if found
-				Err(_) => Ok(JsValue::undefined()), // Return undefined if the variable is not found
+				Ok(value) => Ok(JsValue::from(js_string!(value))), 
+				Err(_) => Ok(JsValue::undefined()),
 			}
 		}
 
@@ -260,33 +244,30 @@ impl ContextManager {
 			for arg in args {
 					let arg_str = arg.to_string(context)?.to_std_string().unwrap_or_default();
 					output.push_str(&arg_str);
-					output.push(' '); // Add space between arguments
+					output.push(' '); 
 			}
-			println!("{}", output.trim_end()); // Print to standard output
-			Ok(JsValue::undefined()) // Mimic console.log behavior
+			println!("{}", output.trim_end()); 
+			Ok(JsValue::undefined()) 
 		}
 
 		self.rfunc("Drw.prototype.io.print", io_out_print);
 
-	// Read method: Drw.prototype.io.in.read
 		fn io_in_read(
 			_this: &JsValue,
 			args: &[JsValue],
 			context: &mut boa_engine::Context,
 		) -> JsResult<JsValue> {
-			// Extract the prompt from the first argument, if provided
 			let prompt = to_std_str(args.get(0).unwrap_or(&JsValue::undefined()), context);
 			if !prompt.is_empty() {
-					print!("{}", prompt); // Print the prompt without a newline
-					io::stdout().flush().expect("Failed to flush stdout"); // Ensure the prompt is displayed immediately
+					print!("{}", prompt); 
+					io::stdout().flush().expect("Failed to flush stdout"); 
 			}
 
-			// Read input from standard input
 			let mut input = String::new();
 			std::io::stdin()
 					.read_line(&mut input)
 					.expect("Failed to read line");
-			Ok(JsValue::from(js_string!(input.trim()))) // Return the input as a string
+			Ok(JsValue::from(js_string!(input.trim())))
 		}
 
 		self.rfunc("Drw.prototype.io.input", io_in_read);
@@ -297,18 +278,15 @@ impl ContextManager {
 			objects: &[JsValue],
 			context: &mut boa_engine::Context,
 		) -> JsResult<JsValue> {
-			let merged_object = ObjectInitializer::new(context).build(); // Create a new empty object to hold merged properties
+			let merged_object = ObjectInitializer::new(context).build();
 	
 			for object in objects {
-					// Ensure the value is a JsObject
 					if let Some(obj) = object.as_object() {
-							// Get all property keys of the current object
 							let keys = obj.own_property_keys(context)?;
 	
 							for key in keys {
 									let value = obj.get(key.clone(), context)?;
 	
-									// Set the property in the merged object
 									merged_object.set(key, value, true, context)?;
 							}
 					}
@@ -327,7 +305,6 @@ impl ContextManager {
 		let mut current_object: JsObject = context.global_object();
 
 		for &part in &names {
-			// Check if the object already exists
 			if current_object.has_property(js_string!(part), context).unwrap_or(false) {
 				match current_object.get(js_string!(part), context) {
 					Ok(value) => current_object = value.as_object()
@@ -335,7 +312,7 @@ impl ContextManager {
 					.unwrap(),
 					Err(err) => {
 						eprintln!("Error getting property '{}': {:?}", part, err);
-						return ObjectInitializer::new(context).build(); // Exit if there's an error (handle as needed)
+						return ObjectInitializer::new(context).build();
 					}
 				}
 			} else {
@@ -347,46 +324,39 @@ impl ContextManager {
 		return current_object;
 	}
 		
-		/// Registers a namespace in the context.
 	fn rns(&mut self, name: &str) -> JsObject {
 		let names: Vec<&str> = name.split('.').collect();
 		let context = self.get_context();
 		
-		// Start with the global object
 		let mut current_object: JsObject = context.global_object();
 
 		for &part in &names {
-				// Check if the object already exists
 				if current_object.has_property(js_string!(part), context).unwrap_or(false) {
-					// Get the existing object
 					match current_object.get(js_string!(part), context) {
 						Ok(value) => current_object = value.as_object()
 						.map(|obj| obj.clone())
 						.unwrap(),
 						Err(err) => {
 								eprintln!("Error getting property '{}': {:?}", part, err);
-								return ObjectInitializer::new(context).build(); // Exit if there's an error (handle as needed)
+								return ObjectInitializer::new(context).build(); 
 						}
 					}
 				} else {
-						// Create a new object if it doesn't exist
 						let new_object = ObjectInitializer::new(context).build();
 						match current_object.set(js_string!(part), new_object.clone(), true, context) {
 							Ok(_) => {}
 							Err(_) => {}
 						}
-						current_object = new_object; // Move to the new object for the next part
+						current_object = new_object;
 				}
 		}
 
 		return current_object;
 	}
 
-	/// Registers a function in the context.
 	fn rfunc(&mut self, name: &str, func: boa_engine::native_function::NativeFunctionPointer) {
 		let js_function = NativeFunction::from_fn_ptr(func);
 
-		// Register the function in the final object
 		{
 			let shape = RootShape::default();
 			let hooks = DefaultHooks {};
@@ -409,12 +379,9 @@ impl ContextManager {
 		let parts: Vec<&str> = name.split('.').collect();
 		let prop_name = parts.last().unwrap();
 		
-		// Get the object to register the function on
 		let current_object: JsObject = if parts.len() > 1 {
-			// If the name has a namespace, get the corresponding object
 			self.rns(&name[..name.len() - prop_name.len() - 1])
 		} else {
-			// If there's no namespace, get the global object
 			self.get_context().global_object()
 		};
 
@@ -425,7 +392,6 @@ impl ContextManager {
 		};
 	}
 
-	// /// Registers a property in the context.
 	// fn rprop(&self, name: &str, value: JsValue, context: &mut Context) {
 	// 		let names: Vec<&str> = name.split('.').collect();
 	// 		let mut current_object = context.global_object();
@@ -466,11 +432,11 @@ fn to_std_str(val: &JsValue, context: &mut Context) -> String {
 	match val.to_string(context) {
 		Ok(js_string) => {
 			match js_string.to_std_string() {
-				Ok(fsn) => fsn, // return the String directly
-				Err(_) => String::new(), // return an empty String if conversion fails
+				Ok(fsn) => fsn,
+				Err(_) => String::new(),
 			}
 		}
-		Err(_) => String::new(), // return an empty String if to_string fails
+		Err(_) => String::new(),
 	}
 }
 
@@ -486,9 +452,6 @@ impl PodManager {
 		pman
 	}
 
-	// Set the Drw.process.current.filepath property for the context
-	
-	// Set the Drw.process.current.filepath property for the context
 	fn set_current_filepath(&mut self, filename: &str, is_main: bool) -> JsResult<()> {
 		let cman = &mut self.cman;
 		let context = cman.get_context();
@@ -503,22 +466,15 @@ impl PodManager {
 	}
 
 
-	// Execute a file with its own context
 	fn execute(&mut self, filename: &str, is_main: bool) -> JsResult<JsValue> {
-		// Read the file
 		let code = std::fs::read_to_string(filename).expect("Failed to read the file");
 
 		self.execute_string(&code, filename, is_main)
 	}
 
-	// Execute a string of code with its own context
 	fn execute_string(&mut self, code: &str, filename: &str, is_main: bool) -> JsResult<JsValue> {
-		// Create a new context for this execution
-
-		// Set the filepath property in the context
 		self.set_current_filepath(filename, is_main)?;
 
-		// Execute the string of code
 		match self.cman
 		.get_context()
 		.eval(Source::from_bytes(code.as_bytes())) {
@@ -532,27 +488,29 @@ impl PodManager {
 		}
 	}
 
-	// Execute a file in a new thread with its own context
-	fn execute_in_new_thread(filename: &str, is_main: bool) {
-			let filename = filename.to_string();
-			thread::spawn(move || {
-					let mut pod_manager = PodManager::new();
-					pod_manager
-							.execute(&filename, is_main)
-							.expect("Failed to execute in new thread");
-			});
+	fn execute_in_new_thread(&mut self, filename: &str, is_main: bool) {
+		let filename = filename.to_string();
+		thread::spawn(move || {
+			let mut pod_manager = PodManager::new();
+			pod_manager
+					.execute(&filename, is_main)
+					.expect("Failed to execute in new thread");
+		});
 	}
 
-	// Execute a string of code in a new thread with its own context
-	fn execute_string_in_new_thread(code: &str, filename: &str, is_main: bool) {
-			let code = code.to_string();
-			let filename = filename.to_string();
-			thread::spawn(move || {
-					let mut pod_manager = PodManager::new();
-					pod_manager
-							.execute_string(&code, &filename, is_main)
-							.expect("Failed to execute string in new thread");
-			});
+	fn execute_string_in_new_thread(&mut self, code: &str, filename: &str, is_main: bool) {
+		let code = code.to_string();
+		let filename = filename.to_string();
+		thread::spawn(move || {
+			let mut pod_manager = PodManager::new();
+			if let Ok(result) = pod_manager
+					.execute_string(&code, &filename, is_main) {
+						println!("{}", result.display());
+					}
+			else {
+				println!("Err");
+			}
+		});
 	}
 }
 
@@ -618,17 +576,18 @@ impl CompileManager {
 
 		let mut pman = PodManager::new();
 
-		let codeRaw = std::fs::read_to_string(filename).expect("Failed to read the file");
+		let code_raw = std::fs::read_to_string(filename).expect("Failed to read the file");
 
-		println!("{}", codeRaw);
+		println!("{}", code_raw);
 
-		pman.cman.rval("__to__compile__", JsValue::from(js_string!(codeRaw)));
+		pman.cman.rval("__to__compile__", JsValue::from(js_string!(code_raw)));
 
-		let compiled = pman.execute_string(getCivetScript().as_str(), "system::compiler", false)?;	
+		let compiled = pman.execute_string_in_new_thread(get_civet_script().as_str(), "system::compiler", false);	
 
-		println!("{}", compiled.display());
+		// println!("{}", compiled.display());
 		
-		Ok(to_std_str(&compiled, &mut pman.cman.context))
+		// Ok(to_std_str(&compiled, &mut pman.cman.context))
+		Ok(String::from("Drw"))
 	}
 
 }
