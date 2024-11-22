@@ -12,4 +12,4 @@ people = [
 
 for man in people then print man.name, 'is', man.age
 
-print parent people: people
+# print parent people: people

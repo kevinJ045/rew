@@ -1,6 +1,6 @@
 {
   "name": "@makano/rew",
-  "version": "1.4.7",
+  "version": "1.5.0",
   "description": "A simple coffescript runtime and app manager",
   "main": "main.js",
   "directories": {
@@ -23,7 +23,9 @@
     "url": "git+https://github.com/kevinj045/rew.git"
   },
   "keywords": [
-    "coffescript",
+    "coffeescript",
+    "coffee",
+    "compiler",
     "rew",
     "runtime"
   ],

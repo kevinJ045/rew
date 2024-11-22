@@ -7,6 +7,9 @@ myThread = thread ->
 
 runningThread = myThread.start()
 
+runningThread.on 'error', (data) ->
+  print data
+
 runningThread.on 'myEventBack', (data) ->
   print data, 'back'
   runningThread.stop()

@@ -7,7 +7,7 @@ n =
 l = 1
 
 do (l) ->
-  f = 1
+  l = 4
 
 using namespace n, ->
   print l, fuckAround
