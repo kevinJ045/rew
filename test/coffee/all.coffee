@@ -1,11 +1,10 @@
 import '#std'
 
-passed = 0
-failed = 0
-taken = 0
-
 using namespace std::ns ->
   define Main class Test
+    @passed = 0
+    @failed = 0
+    @taken = 0
 
     @evaluate_value: (type, value) -> { type: type, value: value }
 
@@ -38,12 +37,12 @@ using namespace std::ns ->
       return @testRaw data.description, data.name, data.expect, data.sin
     
     @testRaw: (description, name, expect = '', sin = {}) ->
-      new Promise (resolve, reject) ->
+      new Promise (resolve, reject) =>
         text = '%c--> [%b%!!%!%b] %bTest%! ' + description + '%! On Progress...'
         if text.length > std::out.cols
           text = text.slice(0, std::out.cols - 1)
-        cb = (err, stdout) ->
-          taken++
+        cb = (err, stdout) =>
+          @taken++
           result = stdout.split('\n').slice(3).join('\n').trim()
           printf '\r' + ' '.repeat(text.length)
           success = if expect then (
@@ -55,11 +54,11 @@ using namespace std::ns ->
               print err.toString().split('\n').map((i) => '\t' + i).join('\n')
             else if not success
               printf '%c%r\t -> Result not expected value'
-            failed++
+            @failed++
             reject()
           else
             printf '%c\r--> [%g%!-%!%g] %gTest%! ' + description + '%! done\n'
-            passed++
+            @passed++
             resolve()
         printf text
         proc = exec.background "npm run test #{name}", cb
@@ -176,4 +175,4 @@ using namespace std::ns ->
         @expect [10..0].join('\n')
       ]
 
-      print "%c\n\n  %gTests Passed: %!#{passed} / %b#{taken}%b%!\n  %rTests Failed: %!#{failed} / %y#{taken}%y%!"
+      print "%c\n\n  %gTests Passed: %!#{@passed} / %b#{@taken}%b%!\n  %rTests Failed: %!#{@failed} / %y#{@taken}%y%!"
