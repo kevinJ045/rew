@@ -1,8 +1,15 @@
 [package]
-name = "coal"
-version = "0.1.0"
+name = "rew"
+version = "1.5.5"
 edition = "2021"
 
+
 [dependencies]
-boa_engine = "0.19.1"
-boa_gc = "0.19.1"
+deno_core = "0.339.0"
+tokio = { version = "1.43.0", features = ["full"] }
+anyhow = "1.0.96"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+clap = { version = "4.5", features = ["derive"] }
+colored = "2.1"
+regex = "1.10"
