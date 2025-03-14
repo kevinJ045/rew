@@ -46,12 +46,12 @@ async fn main() -> anyhow::Result<()> {
       let source = std::fs::read_to_string(&file)?;
       let result = runtime.compile_and_run(&source, &file).await?;
 
-			println!("{}", result);
+			// println!("{}", result);
 
       if compile {
         println!("{}", result);
       } else {
-        runtime.execute(&result).await?;
+        runtime.execute_in_runtime(&file, &result).await?;
       }
     }
     Commands::Exec { code } => {
