@@ -1,10 +1,12 @@
 use std::collections::HashMap;
+use deno_core::error::CoreError;
 use deno_core::{ extension, op2, Extension, JsRuntime, RuntimeOptions };
 use std::path::{ Path, PathBuf };
 use anyhow::Result;
 use std::rc::Rc;
 
 use crate::compiler::CompilerResults;
+use crate::runtime_script::get_runtime_script;
 use super::compiler::{ compile_rew_stuff, CompilerOptions };
 use super::civet::get_civet_script;
 
@@ -16,14 +18,24 @@ pub struct RewRuntime {
 
 #[op2(async)]
 #[string]
-async fn op_inc(
+async fn op_inc2(
+  #[string] url: String
+) -> Result<String, CoreError> {
+  let mut newUrl: String = String::new();
+  newUrl.push_str("hello world, ");
+  newUrl.push_str(&url);
+  Ok(newUrl)
+}
+
+#[op2]
+#[string]
+fn op_inc(
   #[string] url: String
 ) -> String {
-  let mut newUrl: String = String::new();
-  newUrl.push_str("hello world");
-  newUrl.push_str(&url);
-  println!("{}", newUrl);
-  return url;
+  let mut new_url = String::new();
+  new_url.push_str("hello world, ");
+  new_url.push_str(&url);
+  new_url
 }
 
 
@@ -80,13 +92,7 @@ impl RewRuntime {
         ..Default::default()
       });
       
-      runtime.execute_script("<setup>", r#"
-        globalThis.Rew = {...globalThis.Deno};
-        delete globalThis.Deno;
-        globalThis.inc = function(path) {
-          return Deno.core.ops.op_inc(path);
-        };
-      "#)?;
+      runtime.execute_script("<setup>", get_runtime_script())?;
 
       self.runtimes.insert(filepath.to_path_buf(), runtime);
     }
@@ -99,9 +105,13 @@ impl RewRuntime {
 
     let code = format!(
       r#"
-            const result = compile(`{}`);
-            result
-        "#,
+        const result = compile(`{}`, {{
+          parseOptions: {{ 
+			      coffeeCompat: true,
+          }}
+        }});
+        result
+      "#,
       processed.code.replace("`", "\\`")
     );
 

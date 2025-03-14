@@ -5,6 +5,7 @@ use std::path::Path;
 use tokio;
 
 mod runtime;
+mod runtime_script;
 mod compiler;
 mod civet;
 use runtime::RewRuntime;
