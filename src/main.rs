@@ -1,13 +1,13 @@
-use clap::{ Parser, Subcommand };
+use clap::{Parser, Subcommand};
 use colored::*;
-use std::path::PathBuf;
 use std::path::Path;
+use std::path::PathBuf;
 use tokio;
 
+mod civet;
+mod compiler;
 mod runtime;
 mod runtime_script;
-mod compiler;
-mod civet;
 use runtime::RewRuntime;
 
 #[derive(Parser)]
@@ -38,28 +38,20 @@ enum Commands {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+  let file = PathBuf::from("test/s.coffee");
 
-  let cli = Cli::parse();
-  let mut runtime = RewRuntime::new()?;
+  let source = std::fs::read_to_string(&file)?;
 
-  match cli.command {
-    Commands::Run { file, watch, compile } => {
-      let source = std::fs::read_to_string(&file)?;
-      let result = runtime.compile_and_run(&source, &file).await?;
+  // Create runtime in a block so it gets dropped when execution is complete
+  {
+    println!("New runtime initiation");
+    let mut runtime = RewRuntime::new()?;
+    runtime.run_file(&file).await?;
+    println!("Execution Done");
 
-			// println!("{}", result);
-
-      if compile {
-        println!("{}", result);
-      } else {
-        runtime.execute_in_runtime(&file, &result).await?;
-      }
-    }
-    Commands::Exec { code } => {
-      let result = runtime.compile_and_run(&code, &PathBuf::from("repl")).await?;
-      runtime.execute(&result).await?;
-    }
+    // Explicitly drop the runtime to clean up resources
   }
 
+  #[allow(unreachable_code)]
   Ok(())
 }

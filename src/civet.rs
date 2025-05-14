@@ -1,6 +1,6 @@
-
 pub fn get_civet_script() -> String {
-  return String::from(r#"
+  return String::from(
+    r#"
     "use strict";
 var module = {};
 var __create = Object.create;
@@ -17371,6 +17371,6 @@ var main_default = { parse, parseProgram, ParseError: import_lib3.ParseError, Pa
 if(this.__to__compile__){
   compile(this.__to__compile__, { sync: true, ...(this.__compile__options || { parseOptions: { coffeeCompat: true } }) });
 };
-  "#)
+  "#,
+  );
 }
-

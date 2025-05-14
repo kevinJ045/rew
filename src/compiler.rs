@@ -1,8 +1,8 @@
-use std::collections::HashMap;
 use anyhow::Result;
 use deno_core::v8::ContextOptions;
-use serde_json::Value;
 use regex::Regex;
+use serde_json::Value;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct Token {
@@ -72,9 +72,8 @@ fn tokenize_coffee_script(code: &str) -> Vec<Token> {
     } else if char == '"' && next_char == Some('"') && next_next_char == Some('"') {
       let mut string = "\"\"\"".to_string();
       i += 3;
-      while
-        i < chars.len() &&
-        !(chars[i] == '"' && chars.get(i + 1) == Some(&'"') && chars.get(i + 2) == Some(&'"'))
+      while i < chars.len()
+        && !(chars[i] == '"' && chars.get(i + 1) == Some(&'"') && chars.get(i + 2) == Some(&'"'))
       {
         string.push(chars[i]);
         i += 1;
@@ -156,6 +155,31 @@ fn get_next_token(i: usize, n: i32, tokens: &[Token]) -> Option<(Token, i32, usi
   Some((tokens[index].clone(), n, index))
 }
 
+fn find_next_token(
+  start: usize,
+  tokens: &[Token],
+  expected_type: &str,
+  expected_value: Option<&str>,
+) -> Option<(Token, usize)> {
+  let mut idx = start;
+  while idx < tokens.len() {
+    let token = &tokens[idx];
+    if token.token_type != "WHITESPACE" {
+      if token.token_type == expected_type {
+        if let Some(val) = expected_value {
+          if token.value == val {
+            return Some((token.clone(), idx));
+          }
+        } else {
+          return Some((token.clone(), idx));
+        }
+      }
+    }
+    idx += 1;
+  }
+  None
+}
+
 fn declare_alias(aliases: &mut HashMap<String, HashMap<String, String>>, token: &Token) {
   if token.value.contains(';') {
     // will add this one later --
@@ -218,7 +242,7 @@ fn handle_import(tokens: &[Token], i: usize) -> (String, usize) {
 
   match token.token_type.as_str() {
     "STRING" => {
-      result.push_str(&format!("inc {}", token.value));
+      result.push_str(&format!("rew::mod::find module, {}", token.value));
       current_idx += 1;
     }
     "IDENTIFIER" | "OTHER" => {
@@ -239,7 +263,10 @@ fn handle_import(tokens: &[Token], i: usize) -> (String, usize) {
           if should_handle {
             let re = Regex::new(r"(\w+)\s+as\s+(\w+)").unwrap();
             let replaced_imports = re.replace_all(&imports, "$1: $2").to_string();
-            result.push_str(&format!("{{ {} }} := inc", replaced_imports));
+            result.push_str(&format!(
+              "{{ {} }} := rew::mod::find module, ",
+              replaced_imports
+            ));
           }
         }
       } else {
@@ -248,26 +275,43 @@ fn handle_import(tokens: &[Token], i: usize) -> (String, usize) {
 
         // Skip to module path
         while current_idx < tokens.len() && tokens[current_idx].value != "from" {
-					if tokens[current_idx].value == "as" {
-						if let Some((token, _, _)) = get_next_token(current_idx + 1, 1, &tokens) {
-							if token.token_type == "IDENTIFIER" {
-								default_name = token.value;
-							}
-						}
-					}
+          if tokens[current_idx].value == "as" {
+            if let Some((token, _, _)) = get_next_token(current_idx + 1, 1, &tokens) {
+              if token.token_type == "IDENTIFIER" {
+                default_name = token.value;
+              }
+            }
+          }
           current_idx += 1;
         }
 
         current_idx += 1;
-				
+
         if let Ok((should_handle, _)) = finalize_handle_import(tokens, current_idx) {
           if should_handle {
-            result.push_str(&format!("{} := inc ", default_name));
+            result.push_str(&format!("{} := rew::mod::find module, ", default_name));
           }
         }
       }
     }
     _ => {}
+  }
+
+  if let Some((assert_token, assert_idx)) =
+    find_next_token(current_idx, tokens, "IDENTIFIER", Some("assert"))
+  {
+    if let Some((from_token, _)) = find_next_token(current_idx - 1, tokens, "STRING", None) {
+      result.push_str(&format!("{}, ", from_token.value.trim()));
+    }
+    current_idx = assert_idx + 1;
+    // // Found 'assert' keyword, so parse assertion object
+    // if let Some((brace_token, brace_idx)) =
+    //     find_next_token(assert_idx + 1, tokens, "OTHER", Some("{"))
+    // {
+    //     let (assert_obj, new_idx) = get_string_until(tokens, brace_idx + 1, &["}"]);
+    //     result.push_str(&format!("{}", assert_obj.trim()));
+    //     current_idx = new_idx + 1;
+    // }
   }
 
   (result, current_idx)
@@ -286,7 +330,11 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
   while i < tokens.len() {
     let token = &tokens[i];
     let next_token = get_next_token(i, 1, &tokens);
-    let prev_token = if i > 1 { get_next_token(i, -2, &tokens) } else { None };
+    let prev_token = if i > 1 {
+      get_next_token(i, -2, &tokens)
+    } else {
+      None
+    };
 
     // Skip shebang
     if token.token_type == "COMMENT" && i < 2 && token.value.starts_with("#!") {
@@ -296,9 +344,8 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
 
     if token.token_type == "IDENTIFIER" && token.value == "fn" && i < 2 {
       if let Some((next, _, _)) = next_token {
-        if
-          prev_token.clone().map_or(true, |(t, _, _)| t.value != ".") &&
-          next.token_type == "IDENTIFIER"
+        if prev_token.clone().map_or(true, |(t, _, _)| t.value != ".")
+          && next.token_type == "IDENTIFIER"
         {
           result.push_str("function");
           i += 1;
@@ -306,10 +353,9 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
         }
       }
     }
-		
-    if
-      (token.token_type == "COMMENT" && multiline_declare) ||
-      (token.token_type != "COMMENT" && multiline_declare)
+
+    if (token.token_type == "COMMENT" && multiline_declare)
+      || (token.token_type != "COMMENT" && multiline_declare)
     {
       if token.token_type == "COMMENT" {
         let value = if token.value.starts_with("###") {
@@ -327,7 +373,7 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
             &(Token {
               token_type: "COMMENT".to_string(),
               value: combined,
-            })
+            }),
           );
           multiline_declare_buffer.clear();
         }
@@ -359,7 +405,7 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
         &(Token {
           token_type: "COMMENT".to_string(),
           value,
-        })
+        }),
       );
     }
 
@@ -373,29 +419,24 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
       }
     }
 
-
     if token.token_type == "COMMENT" && token.value[1..].trim() == "@cls" {
       options.cls = true;
     }
 
-
-    if
-      prev_token.clone().map_or(true, |(t, _, _)| t.value != ".") &&
-      token.token_type == "IDENTIFIER" &&
-      token.value == "export" &&
-      !options.keep_imports
+    if prev_token.clone().map_or(true, |(t, _, _)| t.value != ".")
+      && token.token_type == "IDENTIFIER"
+      && token.value == "export"
+      && !options.keep_imports
     {
       result.push_str("pub");
       i += 1;
       continue;
     }
 
-
-    if
-      prev_token.map_or(true, |(t, _, _)| t.value != ".") &&
-      token.token_type == "IDENTIFIER" &&
-      token.value == "import" &&
-      !options.keep_imports
+    if prev_token.map_or(true, |(t, _, _)| t.value != ".")
+      && token.token_type == "IDENTIFIER"
+      && token.value == "import"
+      && !options.keep_imports
     {
       let (import_str, new_idx) = handle_import(&tokens, i);
       println!("import_str: {}", import_str);
@@ -404,7 +445,6 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
       continue;
     }
 
-
     if let Some(alias_map) = aliases.get(&token.token_type) {
       if let Some(replacement) = alias_map.get(&token.value) {
         result.push_str(replacement);
@@ -412,7 +452,6 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
         continue;
       }
     }
-
 
     result.push_str(&token.value);
     hooks.retain(|hook| {
@@ -432,17 +471,20 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
   }
 
   let compiler_results = CompilerResults {
-    options: std::mem::replace(options, CompilerOptions {
-      keep_imports: false,
-      disable_use: false,
-      jsx: false,
-      jsx_pragma: None,
-      cls: false,
-      included: false,
-      filename: None,
-      aliases: HashMap::new(),
-      compiler_type: String::new(),
-    }),
+    options: std::mem::replace(
+      options,
+      CompilerOptions {
+        keep_imports: false,
+        disable_use: false,
+        jsx: false,
+        jsx_pragma: None,
+        cls: false,
+        included: false,
+        filename: None,
+        aliases: HashMap::new(),
+        compiler_type: String::new(),
+      },
+    ),
     code: result,
   };
 

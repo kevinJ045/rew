@@ -1,10 +1,7 @@
+# import "./e.coffee"
+using namespace rew::ns()
 
-# import { doThis, doThat } from "./d.coffee"
+print module.options
+print "Imported Script from"
 
-// console.log doThis
-
-// doThis 'hello'
-
-console.log('hi')
-export function doThis(a)
-  console.log a
+module.exports.hello = "shhshsh"
