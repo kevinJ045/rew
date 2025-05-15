@@ -4,10 +4,12 @@ use std::path::Path;
 use std::path::PathBuf;
 use tokio;
 
+pub mod ext;
 mod civet;
 mod compiler;
 mod runtime;
 mod runtime_script;
+mod utils;
 use runtime::RewRuntime;
 
 #[derive(Parser)]
@@ -38,20 +40,34 @@ enum Commands {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-  let file = PathBuf::from("test/s.coffee");
+  let cli = Cli::parse();
 
-  let source = std::fs::read_to_string(&file)?;
-
-  // Create runtime in a block so it gets dropped when execution is complete
-  {
-    println!("New runtime initiation");
-    let mut runtime = RewRuntime::new()?;
-    runtime.run_file(&file).await?;
-    println!("Execution Done");
-
-    // Explicitly drop the runtime to clean up resources
+  match &cli.command {
+    Commands::Run { file, watch, compile } => {
+      println!("Running file: {}", file.display().to_string().green());
+      
+      if *watch {
+        println!("Watch mode enabled");
+        // TODO: Implement watch mode
+      }
+      
+      if *compile {
+        println!("Compile mode enabled");
+        // TODO: Implement compile-only mode
+      }
+      
+      println!("New runtime initiation");
+      let mut runtime = RewRuntime::new()?;
+      runtime.run_file(file).await?;
+      println!("Execution Done");
+    },
+    Commands::Exec { code } => {
+      println!("Executing code: {}", code.blue());
+      // TODO: Implement code execution
+      let mut runtime = RewRuntime::new()?;
+      // TODO: Add a method to execute code directly
+    }
   }
 
-  #[allow(unreachable_code)]
   Ok(())
 }

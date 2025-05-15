@@ -2,23 +2,27 @@ use super::civet::get_civet_script;
 use super::compiler::{compile_rew_stuff, CompilerOptions};
 use crate::compiler::CompilerResults;
 use crate::runtime_script::get_runtime_script;
+use crate::utils::find_app_path;
+use crate::ext::{url, web, webidl, console, ffi};
 use anyhow::{Context, Result};
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use deno_core::error::CoreError;
-use deno_core::OpState;
+use deno_core::{resolve_path, OpState};
 use deno_core::{extension, op2, Extension, JsRuntime, RuntimeOptions};
 use deno_core::{v8, PollEventLoopOptions};
+use deno_ffi::deno_ffi;
+use deno_permissions::PermissionsContainer;
+use once_cell::sync::Lazy;
 use regex::Regex;
+use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::path::{Path, PathBuf};
-use std::rc::Rc;
-
-use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
-use once_cell::sync::Lazy;
-use serde::{Deserialize, Serialize};
 use std::fs::{self, DirEntry, File};
 use std::io::{self, Read, Write};
+use std::path::{Path, PathBuf};
+use std::rc::Rc;
+use std::sync::Arc;
 
 #[derive(Default)]
 struct RuntimeState {
@@ -75,16 +79,43 @@ impl RewRuntime {
   pub fn new() -> Result<Self> {
     let compiler_runtime = get_compiler_runtime();
 
+    let blob_store = Arc::new(deno_web::BlobStore::default());
+    let location = None;
+    
+    let console_ext = deno_console::deno_console::init_ops_and_esm();
+    let url_ext = deno_url::deno_url::init_ops_and_esm();
+    let web_ext = deno_web::deno_web::init_ops::<PermissionsContainer>(blob_store, location);
+    let ffi_ext = deno_ffi::init_ops::<PermissionsContainer>();
+
+    // let main_module = resolve_path("./lib/rew/main.js", Path::new(".")).unwrap();
+
+    println!("Bar0");
+
+    let mut extensions = vec![
+      rewextension::init_ops(),
+    ];
+
+    extensions.extend(webidl::extensions(false));
+    extensions.extend(console::extensions(false));
+    extensions.extend(url::extensions(false));
+    extensions.extend(web::extensions(web::WebOptions::default(), false));
+    extensions.extend(ffi::extensions(false));
+
     let mut runtime = JsRuntime::new(RuntimeOptions {
-      extensions: vec![rewextension::init_ops()],
+      extensions: extensions,
+        module_loader: Some(Rc::new(deno_core::FsModuleLoader)),
       ..Default::default()
     });
 
+    println!("Bar");
+
     let current_dir = std::env::current_dir()?;
+    println!("foo");
 
     let state = RuntimeState {
       current_dir: current_dir.clone(),
     };
+    println!("foo2");
     runtime.op_state().borrow_mut().put(state);
     runtime.execute_script(
       "<setup>",
@@ -97,6 +128,7 @@ impl RewRuntime {
 	"#,
     )?;
     runtime.execute_script("<setup>", get_runtime_script())?;
+    println!("foo3");
 
     Ok(Self {
       compiler_runtime,
@@ -673,7 +705,6 @@ fn op_fs_cwd(state: Rc<RefCell<OpState>>) -> Result<String, CoreError> {
   Ok(runtime_state.current_dir.to_string_lossy().to_string())
 }
 
-
 // Base64 encoding/decoding operations
 #[op2]
 #[string]
@@ -747,4 +778,19 @@ fn op_from_base64(
 #[derive(Deserialize, Default)]
 struct Base64DecodeOptions {
   as_string: bool,
+}
+
+
+#[op2]
+#[string]
+fn op_find_app(
+  #[string] filepath: String,
+  state: Rc<RefCell<OpState>>,
+) -> Result<String, CoreError> {
+  let current_file = Path::new(&filepath);
+  let dir_path = current_file.parent().unwrap_or(Path::new("/"));
+
+  let app_path = find_app_path(dir_path);
+
+  Ok(String::from(app_path.unwrap_or(PathBuf::from("")).to_str().unwrap()))
 }
