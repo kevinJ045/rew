@@ -14,7 +14,7 @@ sayhello = (...a) ->
 
 sayhello g 
 # means g = sayhello()
-sayhello("a)", 1 + 2) h
+sayhello("a)", 1 + 2, name: 'j') h
 # means h = sayhello("a", "v")
 sayhello i = "j"
 # means i = sayhello("j")
