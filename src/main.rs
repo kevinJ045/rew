@@ -1,8 +1,8 @@
 use clap::{Parser, Subcommand};
 use colored::*;
-use std::path::Path;
 use std::path::PathBuf;
 use tokio;
+use std::fs;
 
 pub mod builtins;
 mod civet;
@@ -13,6 +13,34 @@ mod runtime;
 mod runtime_script;
 mod utils;
 use runtime::RewRuntime;
+
+fn ensure_rew_dirs() -> anyhow::Result<()> {
+  let rew_root = utils::get_rew_root();
+  
+  // Create the root directory if it doesn't exist
+  if !rew_root.exists() {
+    fs::create_dir_all(&rew_root)?;
+  }
+  
+  // Create the apps directory if it doesn't exist
+  let apps_dir = rew_root.join("apps");
+  if !apps_dir.exists() {
+    fs::create_dir_all(&apps_dir)?;
+  }
+  
+  // Create other directories as needed
+  let data_dir = rew_root.join("data");
+  if !data_dir.exists() {
+    fs::create_dir_all(&data_dir)?;
+  }
+  
+  let config_dir = rew_root.join("config");
+  if !config_dir.exists() {
+    fs::create_dir_all(&config_dir)?;
+  }
+  
+  Ok(())
+}
 
 #[derive(Parser)]
 #[command(name = "rew")]
@@ -43,6 +71,9 @@ enum Commands {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
   let cli = Cli::parse();
+  
+  // Ensure Rew directories exist
+  ensure_rew_dirs()?;
 
   match &cli.command {
     Commands::Run {

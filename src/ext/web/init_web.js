@@ -18,6 +18,15 @@ import * as performance from 'ext:deno_web/15_performance.js';
 import * as imageData from 'ext:deno_web/16_image_data.js';
 
 import * as errors from 'ext:init_web/init_errors.js';
+import { core, primordials } from "ext:core/mod.js";
+
+// Ensure globalThis is properly set up as an EventTarget
+event.saveGlobalThisReference(globalThis);
+event.setEventTargetData(globalThis);
+
+// Set up the DedicatedWorkerGlobalScope prototype chain
+const { DedicatedWorkerGlobalScope } = globalInterfaces;
+primordials.ObjectSetPrototypeOf(globalThis, DedicatedWorkerGlobalScope.prototype);
 
 globalThis.Deno.refTimer = timers.refTimer;
 globalThis.Deno.unrefTimer = timers.unrefTimer;
@@ -35,8 +44,8 @@ const ObjectProperties = {
       };
   }
 }
-const nonEnumerable = (value) => ObjectProperties.apply(value, nonEnumerable);
-const writeable = (value) => ObjectProperties.apply(value, writeable);
+const nonEnumerable = (value) => ObjectProperties.apply(value, 'nonEnumerable');
+const writeable = (value) => ObjectProperties.apply(value, 'writeable');
 
 Object.defineProperties(globalThis, {
     AbortController: nonEnumerable(abortSignal.AbortController),

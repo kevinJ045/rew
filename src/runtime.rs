@@ -9,21 +9,19 @@ use crate::utils::find_app_path;
 use anyhow::{Context, Result};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use deno_core::error::CoreError;
-use deno_core::{extension, op2, Extension, JsRuntime, RuntimeOptions};
-use deno_core::{resolve_path, OpState};
-use deno_core::{v8, PollEventLoopOptions};
-use deno_ffi::deno_ffi;
-use deno_permissions::PermissionsContainer;
+use deno_core::{extension, op2, JsRuntime, RuntimeOptions};
+use deno_core::{OpState};
+use deno_core::{PollEventLoopOptions};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::fs::{self, DirEntry, File};
+use std::fs::{self, File};
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
-use std::sync::Arc;
+use serde_yaml;
 
 #[derive(Default)]
 struct RuntimeState {
@@ -36,23 +34,9 @@ pub struct RewRuntime {
   declaration_engine: DeclarationEngine,
 }
 
-#[op2(async)]
-#[string]
-async fn op_inc(
-  #[string] _source_file: String,
-  #[string] _url: String,
-  state: Rc<RefCell<OpState>>,
-) -> Result<String, CoreError> {
-  Err(CoreError::Io(std::io::Error::new(
-    std::io::ErrorKind::Other,
-    "Import not used in inclusion mode",
-  )))
-}
-
 extension!(
   rewextension,
   ops = [
-    op_inc,
     op_fs_read,
     op_fs_write,
     op_fs_exists,
@@ -64,7 +48,11 @@ extension!(
     op_fs_rename,
     op_fs_cwd,
     op_to_base64,
-    op_from_base64
+    op_from_base64,
+    op_find_app,
+    op_yaml_to_string,
+    op_string_to_yaml,
+    op_app_loadconfig
   ]
 );
 
@@ -79,16 +67,7 @@ fn get_compiler_runtime() -> JsRuntime {
 impl RewRuntime {
   pub fn new() -> Result<Self> {
     let compiler_runtime = get_compiler_runtime();
-
-    let blob_store = Arc::new(deno_web::BlobStore::default());
-    let location = None;
-
-    let console_ext = deno_console::deno_console::init_ops_and_esm();
-    let url_ext = deno_url::deno_url::init_ops_and_esm();
-    let web_ext = deno_web::deno_web::init_ops::<PermissionsContainer>(blob_store, location);
-    let ffi_ext = deno_ffi::init_ops::<PermissionsContainer>();
-
-    // let main_module = resolve_path("./lib/rew/main.js", Path::new(".")).unwrap();
+    
 
     let mut extensions = vec![rewextension::init_ops()];
 
@@ -136,7 +115,7 @@ impl RewRuntime {
 
   pub fn resolve_includes_recursive_from<P: AsRef<Path>>(
     filepath: P,
-  ) -> Result<Vec<(PathBuf, String)>> {
+  ) -> Result<Vec<(PathBuf, String, bool)>> {  
     let filepath = filepath
       .as_ref()
       .canonicalize()
@@ -151,17 +130,24 @@ impl RewRuntime {
     fn visit_file(
       file_path: &Path,
       visited: &mut HashSet<PathBuf>,
-      result: &mut Vec<(PathBuf, String)>,
+      result: &mut Vec<(PathBuf, String, bool)>,
       import_re: &Regex,
     ) -> Result<()> {
       if visited.contains(file_path) {
         return Ok(());
       }
 
-      let file_path_str = file_path.to_str().unwrap_or("");
-      println!("Processing: {}", file_path_str);
 
-      // Check if this is a builtin module
+      let mut should_preprocess = false;
+      let file_path_unf = file_path.to_str().unwrap_or("");
+      let file_path_str = if file_path_unf.ends_with('!') {
+        should_preprocess = true;
+        &file_path_unf[0..file_path_unf.len()-1]
+      } else {
+        file_path_unf
+      };
+
+      
       let content = if file_path_str.starts_with("#") {
         if let Some(builtin_content) = BUILTIN_MODULES.get(file_path_str) {
           builtin_content.to_string()
@@ -175,18 +161,56 @@ impl RewRuntime {
         fs::read_to_string(file_path).with_context(|| format!("Failed to read {:?}", file_path))?
       };
 
-      visited.insert(file_path.to_path_buf());
-      result.push((file_path.to_path_buf(), content.clone()));
+      visited.insert(PathBuf::from(file_path_str));
+      
+      
+      result.push((PathBuf::from(file_path_str), content.clone(), should_preprocess));
 
       let parent = file_path.parent().unwrap_or(Path::new("."));
 
       for cap in import_re.captures_iter(&content) {
         let relative_path = cap[1].to_string();
+        
         if relative_path.starts_with("#") {
-          // Handle builtin module imports
+          
           let builtin_path = PathBuf::from(&relative_path);
           visit_file(&builtin_path, visited, result, import_re)?;
+        } else if !relative_path.contains("/") && !relative_path.contains("\\") && !relative_path.starts_with(".") {
+          
+          if let Some(app_entry) = crate::utils::resolve_app_entry(&relative_path, None) {
+            visit_file(&app_entry, visited, result, import_re)?;
+          } else {
+            return Err(anyhow::anyhow!(
+              "App not found: {}",
+              relative_path
+            ));
+          }
+        } else if relative_path.contains("/") && !relative_path.starts_with(".") {
+          
+          let parts: Vec<&str> = relative_path.splitn(2, "/").collect();
+          if parts.len() == 2 {
+            let package_name = parts[0];
+            let entry_name = parts[1];
+            
+            if let Some(app_entry) = crate::utils::resolve_app_entry(package_name, Some(entry_name)) {
+              visit_file(&app_entry, visited, result, import_re)?;
+            } else {
+              return Err(anyhow::anyhow!(
+                "App entry not found: {}/{}",
+                package_name, entry_name
+              ));
+            }
+          } else {
+            
+            let included_path = parent
+              .join(relative_path)
+              .canonicalize()
+              .with_context(|| format!("Failed to resolve import"))?;
+
+            visit_file(&included_path, visited, result, import_re)?;
+          }
         } else {
+          
           let included_path = parent
             .join(relative_path)
             .canonicalize()
@@ -213,13 +237,33 @@ impl RewRuntime {
     for (path, source) in files {
       let compiled = self.compile_and_run(&source, &path).await?;
       let mod_id = path.to_str().unwrap_or("unknown");
-      // .replace("\\", "_")
-      // .replace("/", "_");
+      let mut mod_alias = String::new();
+      
+      
+      if let Some(app_info) = crate::utils::find_app_info(&path) {
+        if let Some(manifest) = &app_info.config.manifest {
+          if let Some(package) = &manifest.package {
+            
+            if let Some(rel_path) = path.strip_prefix(&app_info.path).ok() {
+              let rel_path_str = rel_path.to_str().unwrap_or("");
+              
+              if let Some(entries) = &app_info.config.entries {
+                for (key, value) in entries {
+                  if value == rel_path_str {
+                    
+                    mod_alias.push_str(&format!("[\"app://{}/{}\"]", package, key));
+                    break;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
 
       if mod_id.starts_with('#') {
         module_wrappers.push_str(&format!(
           r#"{compiled}"#,
-          // id = mod_id,
           compiled = compiled
         ));
       } else {
@@ -229,23 +273,47 @@ impl RewRuntime {
               {compiled}
             }}
             return context.module.exports;
-          }});"#,
+          }}, {mod_alias});"#,
           id = mod_id,
+          mod_alias = mod_alias,
           compiled = compiled
         ));
       }
     }
 
     let entry_mod_id = entry.to_str().unwrap_or("entry");
+    let mut entry_app_id = None;
+    
+    
+    if let Some(app_info) = crate::utils::find_app_info(entry) {
+      if let Some(manifest) = &app_info.config.manifest {
+        if let Some(package) = &manifest.package {
+          
+          if let Some(rel_path) = entry.strip_prefix(&app_info.path).ok() {
+            let rel_path_str = rel_path.to_str().unwrap_or("");
+            
+            if let Some(entries) = &app_info.config.entries {
+              for (key, value) in entries {
+                if value == rel_path_str {
+                  
+                  entry_app_id = Some(format!("app://{}/{}", package, key));
+                  break;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
 
-    // println!("From: {}", module_wrappers);
+    
+    let final_entry_id = entry_app_id.unwrap_or_else(|| entry_mod_id.to_string());
 
     let final_script = format!(
       "{}\nrew.prototype.mod.prototype.get('{}');",
-      module_wrappers, entry_mod_id
+      module_wrappers, final_entry_id
     );
 
-    // println!("{}", final_script);
     fs::write("out.js", final_script.clone())?;
 
     self.runtime.execute_script("<main>", final_script)?;
@@ -257,8 +325,12 @@ impl RewRuntime {
   }
 
   pub async fn compile_and_run(&mut self, source: &str, filepath: &Path) -> Result<String> {
+    
     let local_declarations = self.declaration_engine.process_script(source);
+    
+    
     let global_declarations = self.declaration_engine.global_declarations.clone();
+    
     
     let processed = self.preprocess_rew(source, local_declarations, global_declarations)?;
 
@@ -309,10 +381,30 @@ impl RewRuntime {
       .canonicalize()
       .with_context(|| format!("Failed to resolve file path: {:?}", filepath.as_ref()))?;
 
-    // Resolve all imports recursively - use associated function syntax
-    let files = RewRuntime::resolve_includes_recursive_from(&filepath)?;
+    
+    let files_with_flags = RewRuntime::resolve_includes_recursive_from(&filepath)?;
+  
+    
+    for (path, content, preprocess) in &files_with_flags {
+      if *preprocess {
+        // println!("Preprocessing declarations from: {}", path.display());
+        
+        let local_declarations = self.declaration_engine.process_script(&content);
+      
+        
+        for (name, decl) in local_declarations {
+          self.declaration_engine.global_declarations.insert(name, decl);
+        }
+      }
+    }
+  
+    
+    let files: Vec<(PathBuf, String)> = files_with_flags
+      .into_iter()
+      .map(|(path, content, _)| (path, content))
+      .collect();
 
-    // Execute the resolved files with the entry point
+    
     self.include_and_run(files, &filepath).await?;
 
     Ok(())
@@ -323,30 +415,32 @@ impl Drop for RewRuntime {
   fn drop(&mut self) {}
 }
 
-// File system operations
 
-// Read file with options
+
+
 #[op2(async)]
 #[serde]
 async fn op_fs_read(
   #[string] current_file: String,
   #[string] filepath: String,
   #[serde] options: Option<ReadOptions>,
-  state: Rc<RefCell<OpState>>,
+  _: Rc<RefCell<OpState>>,
 ) -> Result<serde_json::Value, CoreError> {
   let current_file_path = Path::new(&current_file);
   let base_dir = current_file_path.parent().unwrap_or(Path::new("."));
   let full_path = base_dir.join(filepath);
 
+  // println!("{}", current_file);
+
   let options = options.unwrap_or_default();
 
   if options.binary {
-    // For binary reads, return an array of bytes
+    
     let mut file = File::open(&full_path).map_err(CoreError::Io)?;
     let mut buffer = Vec::new();
     file.read_to_end(&mut buffer).map_err(CoreError::Io)?;
 
-    // Return as a byte array that JavaScript can handle
+    
     Ok(serde_json::Value::Array(
       buffer
         .into_iter()
@@ -354,7 +448,7 @@ async fn op_fs_read(
         .collect(),
     ))
   } else {
-    // For text reads, return a string
+    
     let content = fs::read_to_string(&full_path).map_err(CoreError::Io)?;
     Ok(serde_json::Value::String(content))
   }
@@ -371,7 +465,7 @@ async fn op_fs_write(
   #[string] filepath: String,
   #[serde] content: serde_json::Value,
   #[serde] options: Option<WriteOptions>,
-  state: Rc<RefCell<OpState>>,
+  _: Rc<RefCell<OpState>>,
 ) -> Result<(), CoreError> {
   let current_file_path = Path::new(&current_file);
   let base_dir = current_file_path.parent().unwrap_or(Path::new("."));
@@ -387,7 +481,7 @@ async fn op_fs_write(
   }
 
   if options.binary {
-    // For binary writes, expect an array of bytes
+    
     if let serde_json::Value::Array(bytes) = content {
       let buffer: Result<Vec<u8>, _> = bytes
         .iter()
@@ -416,7 +510,7 @@ async fn op_fs_write(
       )));
     }
   } else {
-    // For text writes, expect a string
+    
     if let serde_json::Value::String(text) = content {
       let mut file = File::create(&full_path).map_err(CoreError::Io)?;
       file.write_all(text.as_bytes()).map_err(CoreError::Io)?;
@@ -441,7 +535,7 @@ struct WriteOptions {
 fn op_fs_exists(
   #[string] current_file: String,
   #[string] filepath: String,
-  state: Rc<RefCell<OpState>>,
+  _: Rc<RefCell<OpState>>,
 ) -> Result<bool, CoreError> {
   let current_file_path = Path::new(&current_file);
   let base_dir = current_file_path.parent().unwrap_or(Path::new("."));
@@ -456,7 +550,7 @@ async fn op_fs_rm(
   #[string] current_file: String,
   #[string] filepath: String,
   #[serde] options: Option<RemoveOptions>,
-  state: Rc<RefCell<OpState>>,
+  _: Rc<RefCell<OpState>>,
 ) -> Result<(), CoreError> {
   let current_file_path = Path::new(&current_file);
   let base_dir = current_file_path.parent().unwrap_or(Path::new("."));
@@ -488,7 +582,7 @@ async fn op_fs_mkdir(
   #[string] current_file: String,
   #[string] dirpath: String,
   #[serde] options: Option<MkdirOptions>,
-  state: Rc<RefCell<OpState>>,
+  _: Rc<RefCell<OpState>>,
 ) -> Result<(), CoreError> {
   let current_file_path = Path::new(&current_file);
   let base_dir = current_file_path.parent().unwrap_or(Path::new("."));
@@ -517,7 +611,7 @@ fn op_fs_readdir(
   #[string] current_file: String,
   #[string] dirpath: String,
   #[serde] options: Option<ReaddirOptions>,
-  state: Rc<RefCell<OpState>>,
+  _: Rc<RefCell<OpState>>,
 ) -> Result<String, CoreError> {
   let current_file_path = Path::new(&current_file);
   let base_dir = current_file_path.parent().unwrap_or(Path::new("."));
@@ -621,13 +715,13 @@ struct DirEntryInfo {
   created: Option<u64>,
 }
 
-// Get file stats
+
 #[op2]
 #[string]
 fn op_fs_stats(
   #[string] current_file: String,
   #[string] filepath: String,
-  state: Rc<RefCell<OpState>>,
+  _: Rc<RefCell<OpState>>,
 ) -> Result<String, CoreError> {
   let current_file_path = Path::new(&current_file);
   let base_dir = current_file_path.parent().unwrap_or(Path::new("."));
@@ -659,7 +753,7 @@ async fn op_fs_copy(
   #[string] src: String,
   #[string] dest: String,
   #[serde] options: Option<CopyOptions>,
-  state: Rc<RefCell<OpState>>,
+  _: Rc<RefCell<OpState>>,
 ) -> Result<(), CoreError> {
   let current_file_path = Path::new(&current_file);
   let base_dir = current_file_path.parent().unwrap_or(Path::new("."));
@@ -726,7 +820,7 @@ async fn op_fs_rename(
   #[string] current_file: String,
   #[string] src: String,
   #[string] dest: String,
-  state: Rc<RefCell<OpState>>,
+  _: Rc<RefCell<OpState>>,
 ) -> Result<(), CoreError> {
   let current_file_path = Path::new(&current_file);
   let base_dir = current_file_path.parent().unwrap_or(Path::new("."));
@@ -754,11 +848,11 @@ fn op_fs_cwd(state: Rc<RefCell<OpState>>) -> Result<String, CoreError> {
 fn op_to_base64(#[serde] data: serde_json::Value) -> Result<String, CoreError> {
   match data {
     serde_json::Value::String(text) => {
-      // Encode string to base64
+      
       Ok(BASE64.encode(text.as_bytes()))
     }
     serde_json::Value::Array(bytes) => {
-      // Convert array of numbers to bytes and encode to base64
+      
       let buffer: Result<Vec<u8>, _> = bytes
         .iter()
         .map(|v| {
@@ -803,12 +897,12 @@ fn op_from_base64(
     .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::InvalidData, e)))?;
 
   if options.as_string {
-    // Convert decoded bytes to string
+    
     let text = String::from_utf8(decoded)
       .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::InvalidData, e)))?;
     Ok(serde_json::Value::String(text))
   } else {
-    // Return as array of bytes
+    
     Ok(serde_json::Value::Array(
       decoded
         .into_iter()
@@ -827,7 +921,7 @@ struct Base64DecodeOptions {
 #[string]
 fn op_find_app(
   #[string] filepath: String,
-  state: Rc<RefCell<OpState>>,
+  _: Rc<RefCell<OpState>>,
 ) -> Result<String, CoreError> {
   let current_file = Path::new(&filepath);
   let dir_path = current_file.parent().unwrap_or(Path::new("/"));
@@ -838,3 +932,64 @@ fn op_find_app(
     app_path.unwrap_or(PathBuf::from("")).to_str().unwrap(),
   ))
 }
+
+
+#[op2]
+#[string]
+fn op_yaml_to_string(
+  #[serde] data: serde_json::Value,
+  _: Rc<RefCell<OpState>>,
+) -> Result<String, CoreError> {
+  let yaml = serde_yaml::to_string(&data)
+    .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::InvalidData, e)))?;
+  
+  Ok(yaml)
+}
+
+
+#[op2]
+#[serde]
+fn op_string_to_yaml(
+  #[string] yaml_str: String,
+  _: Rc<RefCell<OpState>>,
+) -> Result<serde_json::Value, CoreError> {
+  let value: serde_json::Value = serde_yaml::from_str(&yaml_str)
+    .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::InvalidData, e)))?;
+  
+  Ok(value)
+}
+
+
+#[op2]
+#[serde]
+fn op_app_loadconfig(
+  #[string] app_path: String,
+  _: Rc<RefCell<OpState>>,
+) -> Result<serde_json::Value, CoreError> {
+  let app_path = Path::new(&app_path);
+  
+  if !app_path.exists() {
+    return Err(CoreError::Io(io::Error::new(
+      io::ErrorKind::NotFound,
+      format!("App path not found: {}", app_path.display()),
+    )));
+  }
+  
+  let config_path = app_path.join("app.yaml");
+  
+  if !config_path.exists() {
+    return Err(CoreError::Io(io::Error::new(
+      io::ErrorKind::NotFound,
+      format!("App config not found: {}", config_path.display()),
+    )));
+  }
+  
+  let config_str = fs::read_to_string(&config_path)
+    .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))?;
+  
+  let config: serde_json::Value = serde_yaml::from_str(&config_str)
+    .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::InvalidData, e)))?;
+  
+  Ok(config)
+}
+

@@ -1,28 +1,9 @@
 
-#declare* "=sayhello" = sayhello;
-import * as imported from "./d.coffee"
-
-import "#std.ghost"
-
-
+import "#std.ffi!";
 using namespace rew::ns()
-print imported
-# print magnificento
 
-sayhello = (...a) ->
-  print "hello", ...a
+ffi_type('i32', 'i32') add_ffi = -> 'i32'
 
-sayhello g 
-# means g = sayhello()
-sayhello("a)", 1 + 2, name: 'j') h
-# means h = sayhello("a", "v")
-sayhello i = "j"
-# means i = sayhello("j")
-sayhello("a", "b") j = "c"
-# means j = sayhello("a", "b", "c")
+{ add } = ffi::open '/home/makano/workspace/testing/rustyscript/test_ffi/target/release/libmy_add_lib.so', add: add_ffi
 
-f = ->
-  print await rew::fs::read './d.coffee', { binary: true }
-
-f()
-# print rew::encoding::toBase64 await rew::fs::read './d.coffee', { binary: true }
+print add 1, 2

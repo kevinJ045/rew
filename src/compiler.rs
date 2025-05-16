@@ -8,8 +8,8 @@ use crate::declarations::Declaration;
 
 #[derive(Debug, Clone)]
 pub struct Token {
-  token_type: String,
-  value: String,
+  pub token_type: String,
+  pub value: String,
 }
 
 #[derive(Debug)]
@@ -55,7 +55,7 @@ pub struct CompilerResults {
 }
 
 // i hate this function
-fn tokenize_coffee_script(code: &str) -> Vec<Token> {
+pub fn tokenize_coffee_script(code: &str) -> Vec<Token> {
   let mut tokens = Vec::new();
   let mut i = 0;
   let chars: Vec<char> = code.chars().collect();
@@ -171,7 +171,6 @@ fn find_next_token(
   while idx < tokens.len() {
     let token = &tokens[idx];
     
-    // Check if we should break on this token type/value
     if let Some((break_type, break_value)) = break_on_find {
       if token.token_type == break_type {
         if let Some(val) = break_value {
@@ -184,7 +183,6 @@ fn find_next_token(
       }
     }
     
-    // Check if this is the token we're looking for
     if token.token_type != "WHITESPACE" {
       if token.token_type == expected_type {
         if let Some(val) = expected_value {
@@ -201,37 +199,6 @@ fn find_next_token(
   None
 }
 
-// New function to process declaration comments with the new pattern
-fn process_declaration_comment(
-  comment: &str,
-  local_declarations: &mut HashMap<String, Declaration>,
-  global_declarations: &mut HashMap<String, Declaration>,
-) -> bool {
-  if comment.trim_start().starts_with("#declare") {
-    // New simplified pattern: #declare(*|nothing) "trigger" = replacement;
-    let re = Regex::new(r#"#declare(\*?)\s+"([^"]+)"\s*=\s*(.+?)(?:;|$)"#).unwrap();
-    if let Some(caps) = re.captures(comment) {
-      let is_global = &caps[1] == "*";
-      let trigger = &caps[2];
-      let replacement = &caps[3].trim();
-
-      let decl = Declaration::new(trigger, replacement);
-      
-      // Generate a unique name for the declaration
-      let name = format!("decl_{}", uuid::Uuid::new_v4().to_string().replace("-", ""));
-      
-      if is_global {
-        global_declarations.insert(name, decl);
-      } else {
-        local_declarations.insert(name, decl);
-      }
-      return true;
-    }
-  }
-  false
-}
-
-// New function to apply declarations to a token
 fn apply_declarations(
   token: &Token,
   index: usize,
@@ -250,78 +217,111 @@ fn apply_declarations(
       } else {
         decl.trigger.clone()
       };
-      // println!("trigget: {} value: {}", trigger, token.value);
+
+      // println!("==> Token value: {}, needed: {}", token.value, decl.trigger.clone());
+      
       if token.value == trigger {
-        println!("Token Replacement Found");
-        if isDeclaration {
-          let mut str = String::new();
-          let mut args = String::new();
-          let mut cidx = index;
-          let mut next_token = if let Some((token, _, idx)) = get_next_token(index, 1, tokens) {
-            cidx = idx;
-            token
-          } else {
-            Token {
-              token_type: "OTHER".to_string(),
-              value: "".to_string()
-            }
-          };
-          if next_token.token_type == "OTHER" && next_token.value == "(" {
-            if let Some((_, bc_idx)) =
-              find_next_token(index, tokens, "OTHER", Some(")"), None)
-            {
-              let mut arg_tokens = Vec::new();
-              let mut arg_idx = cidx + 1;
-              
-              while arg_idx < bc_idx {
-                arg_tokens.push(&tokens[arg_idx]);
-                arg_idx += 1;
-              }
-              
-              args = arg_tokens.iter().map(|t| t.value.clone()).collect::<Vec<String>>().join("");
-              
-              next_token = if let Some((token, _, new_idx)) = get_next_token(bc_idx, 1, tokens) {
-                cidx = new_idx;
-                token
-              } else {
-                Token {
-                  token_type: "OTHER".to_string(),
-                  value: "".to_string()
-                }
-              };
+        let mut conditions_met = true;
+        
+        if let Some(prev_condition) = &decl.condition_prev {
+          let mut prev_idx = index;
+          while prev_idx > 0 {
+            prev_idx -= 1;
+            if tokens[prev_idx].token_type != "WHITESPACE" {
+              break;
             }
           }
-          if next_token.token_type == "IDENTIFIER" {
-            println!("Token found");
-            println!("{}", next_token.value);
-            str.push_str(format!(
-              "{} = {} ",
-              next_token.value,
-              decl.replacement.clone()
-            ).as_str());
-            if let Some((_, eq_idx)) =
-              find_next_token(index, tokens, "OTHER", Some("="), Some(("WHITESPACE", Some("\n"))))
-            {
-              if !args.is_empty() {
-                str.push_str(args.as_str());
-                str.push_str(",");
-              }
-              additional_idx = eq_idx - index 
+
+          // println!("==> Prev value: {}", tokens[prev_idx].value);
+          
+          if prev_idx < index {
+            if tokens[prev_idx].value != *prev_condition {
+              conditions_met = false;
+            }
+          } else {
+            conditions_met = false;
+          }
+        }
+        
+        if let Some(next_condition) = &decl.condition_next {
+          if let Some((next_token, _, _)) = get_next_token(index, 1, tokens) {
+            if next_token.value != *next_condition {
+              conditions_met = false;
+            }
+          } else {
+            conditions_met = false;
+          }
+        }
+        
+        if conditions_met {
+          if isDeclaration {
+            let mut str = String::new();
+            let mut args = String::new();
+            let mut cidx = index;
+            let mut next_token = if let Some((token, _, idx)) = get_next_token(index, 1, tokens) {
+              cidx = idx;
+              token
             } else {
-              if !args.is_empty() {
-                str.push_str(args.as_str());
-              } else {
-                str = String::from(str.trim());
-                str.push_str("()");
+              Token {
+                token_type: "OTHER".to_string(),
+                value: "".to_string()
               }
-              additional_idx = cidx - index;
+            };
+            if next_token.token_type == "OTHER" && next_token.value == "(" {
+              if let Some((_, bc_idx)) =
+                find_next_token(index, tokens, "OTHER", Some(")"), None)
+              {
+                let mut arg_tokens = Vec::new();
+                let mut arg_idx = cidx + 1;
+                
+                while arg_idx < bc_idx {
+                  arg_tokens.push(&tokens[arg_idx]);
+                  arg_idx += 1;
+                }
+                
+                args = arg_tokens.iter().map(|t| t.value.clone()).collect::<Vec<String>>().join("");
+                
+                next_token = if let Some((token, _, new_idx)) = get_next_token(bc_idx, 1, tokens) {
+                  cidx = new_idx;
+                  token
+                } else {
+                  Token {
+                    token_type: "OTHER".to_string(),
+                    value: "".to_string()
+                  }
+                };
+              }
             }
+            if next_token.token_type == "IDENTIFIER" {
+              str.push_str(format!(
+                "{} = {} ",
+                next_token.value,
+                decl.replacement.clone()
+              ).as_str());
+              if let Some((_, eq_idx)) =
+                find_next_token(index, tokens, "OTHER", Some("="), Some(("WHITESPACE", Some("\n"))))
+              {
+                if !args.is_empty() {
+                  str.push_str(args.as_str());
+                  str.push_str(",");
+                }
+                additional_idx = eq_idx - index 
+              } else {
+                if !args.is_empty() {
+                  str.push_str(args.as_str());
+                } else {
+                  str = String::from(str.trim());
+                  str.push_str("()");
+                }
+                additional_idx = cidx - index;
+              }
+            } else {
+              return None;
+            }
+            return Some((index + 1 + additional_idx, str));
           } else {
-            return None;
+            return Some((index + 1 + additional_idx, decl.replacement.clone()));
           }
-          return Some((index + 1 + additional_idx, str));
-        } else {
-          return Some((index + 1 + additional_idx, decl.replacement.clone()));
         }
       }
     }
@@ -376,16 +376,13 @@ fn handle_import(tokens: &[Token], i: usize) -> (String, usize) {
     }
     "IDENTIFIER" | "OTHER" => {
       if token.value == "{" {
-        // Named imports: import { a, b } from "module"
         let (imports, new_idx) = get_string_until(tokens, current_idx + 1, &["}"]);
         current_idx = new_idx + 1;
 
-        // Skip to "from" keyword
         while current_idx < tokens.len() && tokens[current_idx].value != "from" {
           current_idx += 1;
         }
 
-        // Get module path
         current_idx += 1;
 
         if let Ok((should_handle, _)) = finalize_handle_import(tokens, current_idx) {
@@ -399,10 +396,9 @@ fn handle_import(tokens: &[Token], i: usize) -> (String, usize) {
           }
         }
       } else {
-        // Default import: import defaultExport from "module"
         let mut default_name = token.value.clone();
+        let mut used_multiple = false;
 
-        // Skip to module path
         while current_idx < tokens.len() && tokens[current_idx].value != "from" {
           if tokens[current_idx].value == "as" {
             if let Some((token, _, _)) = get_next_token(current_idx + 1, 1, &tokens) {
@@ -410,6 +406,16 @@ fn handle_import(tokens: &[Token], i: usize) -> (String, usize) {
                 default_name = token.value;
               }
             }
+          } else if tokens[current_idx].value == "{" {
+            let (imports, new_idx) = get_string_until(tokens, current_idx + 1, &["}"]);
+            let re = Regex::new(r"(\w+)\s+as\s+(\w+)").unwrap();
+            let replaced_imports = re.replace_all(&imports, "$1: $2").to_string();
+            default_name.insert_str(0, &format!(
+              "{{ {} }} = ",
+              replaced_imports
+            ));
+            used_multiple = true;
+            current_idx = new_idx + 1;
           }
           current_idx += 1;
         }
@@ -417,8 +423,13 @@ fn handle_import(tokens: &[Token], i: usize) -> (String, usize) {
         current_idx += 1;
 
         if let Ok((should_handle, _)) = finalize_handle_import(tokens, current_idx) {
+          let slug = if used_multiple {
+            "="
+          } else {
+            ":="
+          };
           if should_handle {
-            result.push_str(&format!("{} := rew::mod::find module, ", default_name));
+            result.push_str(&format!("{} {} rew::mod::find module, ", default_name, slug));
           }
         }
       }
@@ -434,7 +445,6 @@ fn handle_import(tokens: &[Token], i: usize) -> (String, usize) {
       result.push_str(&format!("{}, ", from_token.value.trim()));
     }
     current_idx = assert_idx + 1;
-    // // Found 'assert' keyword, so parse assertion object
     // if let Some((brace_token, brace_idx)) =
     //     find_next_token(assert_idx + 1, tokens, "OTHER", Some("{"))
     // {
@@ -447,7 +457,6 @@ fn handle_import(tokens: &[Token], i: usize) -> (String, usize) {
   (result, current_idx)
 }
 
-// New function to handle declaration-based transformations
 fn transform_line_with_declarations(
   line: &str,
   local_declarations: &HashMap<String, Declaration>,
@@ -455,7 +464,6 @@ fn transform_line_with_declarations(
 ) -> String {
   let mut output = line.to_string();
 
-  // First, check for function-style declarations: sayhello(arg1, arg2) VAR = SOMETHING
   let func_pattern = Regex::new(r"(\w+)\(([^)]*)\)\s+(\w+)\s*=\s*(.+)").unwrap();
   if let Some(caps) = func_pattern.captures(&output) {
     let func_name = &caps[1];
@@ -463,7 +471,6 @@ fn transform_line_with_declarations(
     let var_name = &caps[3];
     let value = &caps[4];
 
-    // Check if this function name matches a declaration
     for decl in local_declarations.values().chain(global_declarations.values()) {
       if decl.trigger == func_name {
         return format!("{} = {} {}, {}", var_name, decl.replacement, args, value);
@@ -471,14 +478,12 @@ fn transform_line_with_declarations(
     }
   }
 
-  // Then check for simple declarations: sayhello VAR = SOMETHING
   let simple_pattern = Regex::new(r"(\w+)\s+(\w+)\s*=\s*(.+)").unwrap();
   if let Some(caps) = simple_pattern.captures(&output) {
     let trigger = &caps[1];
     let var_name = &caps[2];
     let value = &caps[3];
 
-    // Check if this trigger matches a declaration
     for decl in local_declarations.values().chain(global_declarations.values()) {
       if decl.trigger == trigger {
         if decl.is_constructor {
@@ -501,10 +506,9 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
   let mut result = String::new();
   let mut i = 0;
   let mut hooks: Vec<Hook> = Vec::new();
-  let mut multiline_declare_buffer: Vec<String> = Vec::new();
-  let mut multiline_declare = false;
-  let mut local_declarations = options.local_declarations.clone();
-  let mut global_declarations = options.global_declarations.clone();
+  let local_declarations = options.local_declarations.clone();
+  let global_declarations = options.global_declarations.clone();
+  let mut is_exporting = false;
 
   while i < tokens.len() {
     let token = &tokens[i];
@@ -515,7 +519,7 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
       None
     };
 
-    // Skip shebang
+    // shebang
     if token.token_type == "COMMENT" && i < 2 && token.value.starts_with("#!") {
       i += 1;
       continue;
@@ -533,55 +537,6 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
       }
     }
 
-    // Handle multiline declarations
-    if (token.token_type == "COMMENT" && multiline_declare)
-      || (token.token_type != "COMMENT" && multiline_declare)
-    {
-      if token.token_type == "COMMENT" {
-        let value = if token.value.starts_with("###") {
-          token.value[3..].to_string()
-        } else {
-          token.value[1..].to_string()
-        };
-        multiline_declare_buffer.push(value);
-
-        if token.value.trim().ends_with(';') {
-          multiline_declare = false;
-          let combined = multiline_declare_buffer.join("\n");
-          process_declaration_comment(&combined, &mut local_declarations, &mut global_declarations);
-          multiline_declare_buffer.clear();
-        }
-      } else {
-        multiline_declare = false;
-        multiline_declare_buffer.clear();
-      }
-    }
-
-    // Process single-line declarations
-    if token.token_type == "COMMENT" && token.value.trim_start().starts_with("#declare") {
-      let value = token.value.trim_start().to_string();
-
-      if value.ends_with(';') {
-        // Single-line declare
-        process_declaration_comment(&value, &mut local_declarations, &mut global_declarations);
-      } else {
-        // Begin multiline declare block
-        multiline_declare = true;
-        multiline_declare_buffer.clear();
-        let cleaned = if value.starts_with("###") {
-          value[3..].trim().to_string()
-        } else if value.starts_with("#") {
-          value[1..].trim().to_string()
-        } else {
-          value
-        };
-        multiline_declare_buffer.push(cleaned);
-      }
-      i += 1;
-      continue;
-    }
-
-    // Handle JSX pragma
     if token.token_type == "COMMENT" && token.value[1..].trim().starts_with("@jsx") {
       options.jsx = true;
       if let Some(pragma) = token.value.split("@jsx").nth(1) {
@@ -595,12 +550,33 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
       options.cls = true;
     }
 
+    if prev_token.clone().map_or(true, |(t, _, _)| t.value == "export")
+      && token.token_type == "IDENTIFIER"
+      && token.value == "default"
+      && !options.keep_imports
+    {
+      i += 1;
+      continue;
+    }
+
     if prev_token.clone().map_or(true, |(t, _, _)| t.value != ".")
+      && prev_token.clone().map_or(true, |(t, _, _)| t.value != ":")
       && token.token_type == "IDENTIFIER"
       && token.value == "export"
       && !options.keep_imports
     {
-      result.push_str("pub");
+      if let Some((next_token, _, _)) = get_next_token(i, 1, &tokens) {
+        if next_token.value == "{" {
+          result.push_str("module.exports = ");
+        } else {
+          if next_token.value == "default" {
+            i += 1;
+          }
+          result.push_str(
+            format!("module.exports.{} = ", next_token.value).as_str()
+          );
+        }
+      }
       i += 1;
       continue;
     }
@@ -616,7 +592,6 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
       continue;
     }
 
-    // Apply declarations
     if let Some((new_idx, replacement)) = apply_declarations(token, i, &tokens, &local_declarations, &global_declarations) {
       result.push_str(&replacement);
       i = new_idx;
@@ -659,6 +634,6 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
     code: result,
   };
 
-  println!("{}", compiler_results.code);
+  // println!("{}", compiler_results.code);
   Ok(compiler_results)
 }

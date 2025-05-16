@@ -10,4 +10,5 @@ sayhello = (...a) ->
 
 sayhello g = ""
 
-module.exports.hello = "shhshsh"
+export hello = "shhshsh"
+export name = "jjj"

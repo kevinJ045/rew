@@ -1,8 +1,8 @@
 manifest:
   package: test.app
   private: false
-exec:
-  entry: main.coffee
+entries:
+  main: main.coffee
   test: test.coffee
 assets:
   icon: assets/icon.png
