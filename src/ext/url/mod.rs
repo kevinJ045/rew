@@ -7,19 +7,19 @@ extension!(
     esm = [ dir "src/ext/url", "init_url.js" ],
 );
 impl ExtensionTrait<()> for init_url {
-    fn init((): ()) -> Extension {
-        init_url::init_ops_and_esm()
-    }
+  fn init((): ()) -> Extension {
+    init_url::init_ops_and_esm()
+  }
 }
 impl ExtensionTrait<()> for deno_url::deno_url {
-    fn init((): ()) -> Extension {
-        deno_url::deno_url::init_ops_and_esm()
-    }
+  fn init((): ()) -> Extension {
+    deno_url::deno_url::init_ops_and_esm()
+  }
 }
 
 pub fn extensions(is_snapshot: bool) -> Vec<Extension> {
-    vec![
-        deno_url::deno_url::build((), is_snapshot),
-        init_url::build((), is_snapshot),
-    ]
+  vec![
+    deno_url::deno_url::build((), is_snapshot),
+    init_url::build((), is_snapshot),
+  ]
 }

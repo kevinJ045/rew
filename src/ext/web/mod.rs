@@ -8,8 +8,8 @@ pub use options::WebOptions;
 mod permissions;
 pub(crate) use permissions::PermissionsContainer;
 pub use permissions::{
-    AllowlistWebPermissions, DefaultWebPermissions, PermissionDeniedError, SystemsPermissionKind,
-    WebPermissions,
+  AllowlistWebPermissions, DefaultWebPermissions, PermissionDeniedError, SystemsPermissionKind,
+  WebPermissions,
 };
 
 extension!(
@@ -22,23 +22,23 @@ extension!(
     state = |state, config| state.put(PermissionsContainer(config.permissions)),
 );
 impl ExtensionTrait<WebOptions> for init_web {
-    fn init(options: WebOptions) -> Extension {
-        init_web::init_ops_and_esm(options.permissions)
-    }
+  fn init(options: WebOptions) -> Extension {
+    init_web::init_ops_and_esm(options.permissions)
+  }
 }
 
 impl ExtensionTrait<WebOptions> for deno_web::deno_web {
-    fn init(options: WebOptions) -> Extension {
-        deno_web::deno_web::init_ops_and_esm::<PermissionsContainer>(
-            options.blob_store,
-            options.base_url,
-        )
-    }
+  fn init(options: WebOptions) -> Extension {
+    deno_web::deno_web::init_ops_and_esm::<PermissionsContainer>(
+      options.blob_store,
+      options.base_url,
+    )
+  }
 }
 
 pub fn extensions(options: WebOptions, is_snapshot: bool) -> Vec<Extension> {
-    vec![
-        deno_web::deno_web::build(options.clone(), is_snapshot),
-        init_web::build(options.clone(), is_snapshot),
-    ]
+  vec![
+    deno_web::deno_web::build(options.clone(), is_snapshot),
+    init_web::build(options.clone(), is_snapshot),
+  ]
 }

@@ -1,18 +1,19 @@
 use super::civet::get_civet_script;
 use super::compiler::{compile_rew_stuff, CompilerOptions};
+use crate::builtins::BUILTIN_MODULES;
 use crate::compiler::CompilerResults;
+use crate::declarations::{Declaration, DeclarationEngine};
+use crate::ext::{console, ffi, url, web, webidl};
 use crate::runtime_script::get_runtime_script;
 use crate::utils::find_app_path;
-use crate::ext::{url, web, webidl, console, ffi};
 use anyhow::{Context, Result};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use deno_core::error::CoreError;
-use deno_core::{resolve_path, OpState};
 use deno_core::{extension, op2, Extension, JsRuntime, RuntimeOptions};
+use deno_core::{resolve_path, OpState};
 use deno_core::{v8, PollEventLoopOptions};
 use deno_ffi::deno_ffi;
 use deno_permissions::PermissionsContainer;
-use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
@@ -32,7 +33,7 @@ struct RuntimeState {
 pub struct RewRuntime {
   runtime: JsRuntime,
   compiler_runtime: JsRuntime,
-  current_dir: PathBuf,
+  declaration_engine: DeclarationEngine,
 }
 
 #[op2(async)]
@@ -81,7 +82,7 @@ impl RewRuntime {
 
     let blob_store = Arc::new(deno_web::BlobStore::default());
     let location = None;
-    
+
     let console_ext = deno_console::deno_console::init_ops_and_esm();
     let url_ext = deno_url::deno_url::init_ops_and_esm();
     let web_ext = deno_web::deno_web::init_ops::<PermissionsContainer>(blob_store, location);
@@ -89,11 +90,7 @@ impl RewRuntime {
 
     // let main_module = resolve_path("./lib/rew/main.js", Path::new(".")).unwrap();
 
-    println!("Bar0");
-
-    let mut extensions = vec![
-      rewextension::init_ops(),
-    ];
+    let mut extensions = vec![rewextension::init_ops()];
 
     extensions.extend(webidl::extensions(false));
     extensions.extend(console::extensions(false));
@@ -103,19 +100,16 @@ impl RewRuntime {
 
     let mut runtime = JsRuntime::new(RuntimeOptions {
       extensions: extensions,
-        module_loader: Some(Rc::new(deno_core::FsModuleLoader)),
+      module_loader: Some(Rc::new(deno_core::FsModuleLoader)),
       ..Default::default()
     });
 
-    println!("Bar");
-
     let current_dir = std::env::current_dir()?;
-    println!("foo");
 
     let state = RuntimeState {
       current_dir: current_dir.clone(),
     };
-    println!("foo2");
+
     runtime.op_state().borrow_mut().put(state);
     runtime.execute_script(
       "<setup>",
@@ -128,12 +122,15 @@ impl RewRuntime {
 	"#,
     )?;
     runtime.execute_script("<setup>", get_runtime_script())?;
-    println!("foo3");
+
+    let declaration_engine = DeclarationEngine {
+      global_declarations: HashMap::new(),
+    };
 
     Ok(Self {
       compiler_runtime,
       runtime,
-      current_dir,
+      declaration_engine,
     })
   }
 
@@ -161,8 +158,23 @@ impl RewRuntime {
         return Ok(());
       }
 
-      let content =
-        fs::read_to_string(file_path).with_context(|| format!("Failed to read {:?}", file_path))?;
+      let file_path_str = file_path.to_str().unwrap_or("");
+      println!("Processing: {}", file_path_str);
+
+      // Check if this is a builtin module
+      let content = if file_path_str.starts_with("#") {
+        if let Some(builtin_content) = BUILTIN_MODULES.get(file_path_str) {
+          builtin_content.to_string()
+        } else {
+          return Err(anyhow::anyhow!(
+            "Builtin module not found: {}",
+            file_path_str
+          ));
+        }
+      } else {
+        fs::read_to_string(file_path).with_context(|| format!("Failed to read {:?}", file_path))?
+      };
+
       visited.insert(file_path.to_path_buf());
       result.push((file_path.to_path_buf(), content.clone()));
 
@@ -170,12 +182,18 @@ impl RewRuntime {
 
       for cap in import_re.captures_iter(&content) {
         let relative_path = cap[1].to_string();
-        let included_path = parent
-          .join(relative_path)
-          .canonicalize()
-          .with_context(|| format!("Failed to resolve import"))?;
+        if relative_path.starts_with("#") {
+          // Handle builtin module imports
+          let builtin_path = PathBuf::from(&relative_path);
+          visit_file(&builtin_path, visited, result, import_re)?;
+        } else {
+          let included_path = parent
+            .join(relative_path)
+            .canonicalize()
+            .with_context(|| format!("Failed to resolve import"))?;
 
-        visit_file(&included_path, visited, result, import_re)?;
+          visit_file(&included_path, visited, result, import_re)?;
+        }
       }
 
       Ok(())
@@ -198,16 +216,24 @@ impl RewRuntime {
       // .replace("\\", "_")
       // .replace("/", "_");
 
-      module_wrappers.push_str(&format!(
-        r#"rew.prototype.mod.prototype.defineNew("{id}", function(context, options){{
-					with (context) {{
-						{compiled}
-					}}
-					return context.module.exports;
-				}});"#,
-        id = mod_id,
-        compiled = compiled
-      ));
+      if mod_id.starts_with('#') {
+        module_wrappers.push_str(&format!(
+          r#"{compiled}"#,
+          // id = mod_id,
+          compiled = compiled
+        ));
+      } else {
+        module_wrappers.push_str(&format!(
+          r#"rew.prototype.mod.prototype.defineNew("{id}", function(context){{
+            with (context) {{
+              {compiled}
+            }}
+            return context.module.exports;
+          }});"#,
+          id = mod_id,
+          compiled = compiled
+        ));
+      }
     }
 
     let entry_mod_id = entry.to_str().unwrap_or("entry");
@@ -220,6 +246,7 @@ impl RewRuntime {
     );
 
     // println!("{}", final_script);
+    fs::write("out.js", final_script.clone())?;
 
     self.runtime.execute_script("<main>", final_script)?;
     self
@@ -230,21 +257,25 @@ impl RewRuntime {
   }
 
   pub async fn compile_and_run(&mut self, source: &str, filepath: &Path) -> Result<String> {
-    let processed = self.preprocess_rew(source)?;
+    let local_declarations = self.declaration_engine.process_script(source);
+    let global_declarations = self.declaration_engine.global_declarations.clone();
+    
+    let processed = self.preprocess_rew(source, local_declarations, global_declarations)?;
 
     let code = format!(
       r#"
-	globalThis.result = compile(`{}`, {{
-	 parseOptions: {{
-	 coffeeCompat: true,
-	 }},
-	filename: '{}'
-	}});
-	globalThis.result
-	"#,
+    globalThis.result = compile(`{}`, {{
+     parseOptions: {{
+     coffeeCompat: true,
+     }},
+    filename: '{}'
+    }});
+    globalThis.result
+    "#,
       processed.code.replace("`", "\\`"),
       filepath.to_str().unwrap_or("unknown")
     );
+    
     let result = self
       .compiler_runtime
       .execute_script("<rew>", code.clone())?;
@@ -255,8 +286,20 @@ impl RewRuntime {
     Ok(result_code)
   }
 
-  fn preprocess_rew(&mut self, source: &str) -> Result<CompilerResults> {
-    let mut options = CompilerOptions::default();
+  fn preprocess_rew(&mut self, source: &str, local_declarations: HashMap<String, Declaration>, global_declarations: HashMap<String, Declaration>) -> Result<CompilerResults> {
+    let mut options = CompilerOptions {
+      keep_imports: false,
+      disable_use: false,
+      jsx: false,
+      jsx_pragma: None,
+      cls: false,
+      included: false,
+      filename: None,
+      compiler_type: "coffee".to_string(),
+      local_declarations,
+      global_declarations,
+    };
+    
     compile_rew_stuff(source, &mut options)
   }
 
@@ -780,7 +823,6 @@ struct Base64DecodeOptions {
   as_string: bool,
 }
 
-
 #[op2]
 #[string]
 fn op_find_app(
@@ -792,5 +834,7 @@ fn op_find_app(
 
   let app_path = find_app_path(dir_path);
 
-  Ok(String::from(app_path.unwrap_or(PathBuf::from("")).to_str().unwrap()))
+  Ok(String::from(
+    app_path.unwrap_or(PathBuf::from("")).to_str().unwrap(),
+  ))
 }

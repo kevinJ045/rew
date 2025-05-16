@@ -4,6 +4,8 @@ use regex::Regex;
 use serde_json::Value;
 use std::collections::HashMap;
 
+use crate::declarations::Declaration;
+
 #[derive(Debug, Clone)]
 pub struct Token {
   token_type: String,
@@ -24,13 +26,10 @@ pub struct CompilerOptions {
   pub cls: bool,
   pub included: bool,
   pub filename: Option<String>,
-  pub aliases: HashMap<String, HashMap<String, String>>,
   pub compiler_type: String,
-}
 
-pub struct CompilerResults {
-  pub options: CompilerOptions,
-  pub code: String,
+  pub local_declarations: HashMap<String, Declaration>,
+  pub global_declarations: HashMap<String, Declaration>,
 }
 
 impl Default for CompilerOptions {
@@ -43,10 +42,16 @@ impl Default for CompilerOptions {
       cls: false,
       included: false,
       filename: None,
-      aliases: HashMap::new(),
       compiler_type: "coffee".to_string(),
+      local_declarations: HashMap::new(),
+      global_declarations: HashMap::new(),
     }
   }
+}
+
+pub struct CompilerResults {
+  pub options: CompilerOptions,
+  pub code: String,
 }
 
 // i hate this function
@@ -160,10 +165,26 @@ fn find_next_token(
   tokens: &[Token],
   expected_type: &str,
   expected_value: Option<&str>,
+  break_on_find: Option<(&str, Option<&str>)>,
 ) -> Option<(Token, usize)> {
   let mut idx = start;
   while idx < tokens.len() {
     let token = &tokens[idx];
+    
+    // Check if we should break on this token type/value
+    if let Some((break_type, break_value)) = break_on_find {
+      if token.token_type == break_type {
+        if let Some(val) = break_value {
+          if token.value == val {
+            return None;
+          }
+        } else {
+          return None;
+        }
+      }
+    }
+    
+    // Check if this is the token we're looking for
     if token.token_type != "WHITESPACE" {
       if token.token_type == expected_type {
         if let Some(val) = expected_value {
@@ -180,24 +201,132 @@ fn find_next_token(
   None
 }
 
-fn declare_alias(aliases: &mut HashMap<String, HashMap<String, String>>, token: &Token) {
-  if token.value.contains(';') {
-    // will add this one later --
-    let parts: Vec<&str> = token.value.split(';').collect();
-    for part in parts {
-      if part.contains('=') {
-        let kv: Vec<&str> = part.split('=').collect();
-        if kv.len() == 2 {
-          let key = kv[0].trim();
-          let value = kv[1].trim();
-          aliases
-            .entry("IDENTIFIER".to_string())
-            .or_insert_with(HashMap::new)
-            .insert(key.to_string(), value.to_string());
+// New function to process declaration comments with the new pattern
+fn process_declaration_comment(
+  comment: &str,
+  local_declarations: &mut HashMap<String, Declaration>,
+  global_declarations: &mut HashMap<String, Declaration>,
+) -> bool {
+  if comment.trim_start().starts_with("#declare") {
+    // New simplified pattern: #declare(*|nothing) "trigger" = replacement;
+    let re = Regex::new(r#"#declare(\*?)\s+"([^"]+)"\s*=\s*(.+?)(?:;|$)"#).unwrap();
+    if let Some(caps) = re.captures(comment) {
+      let is_global = &caps[1] == "*";
+      let trigger = &caps[2];
+      let replacement = &caps[3].trim();
+
+      let decl = Declaration::new(trigger, replacement);
+      
+      // Generate a unique name for the declaration
+      let name = format!("decl_{}", uuid::Uuid::new_v4().to_string().replace("-", ""));
+      
+      if is_global {
+        global_declarations.insert(name, decl);
+      } else {
+        local_declarations.insert(name, decl);
+      }
+      return true;
+    }
+  }
+  false
+}
+
+// New function to apply declarations to a token
+fn apply_declarations(
+  token: &Token,
+  index: usize,
+  tokens: &[Token],
+  local_declarations: &HashMap<String, Declaration>,
+  global_declarations: &HashMap<String, Declaration>,
+) -> Option<(usize, String)> {
+  let mut additional_idx = 0;
+  if token.token_type == "IDENTIFIER" {
+    let values = global_declarations.values().chain(local_declarations.values());
+    for decl in values {
+      let mut isDeclaration = false;
+      let trigger = if decl.trigger.starts_with("=") {
+        isDeclaration = true;
+        decl.trigger.replace("=", "")
+      } else {
+        decl.trigger.clone()
+      };
+      // println!("trigget: {} value: {}", trigger, token.value);
+      if token.value == trigger {
+        println!("Token Replacement Found");
+        if isDeclaration {
+          let mut str = String::new();
+          let mut args = String::new();
+          let mut cidx = index;
+          let mut next_token = if let Some((token, _, idx)) = get_next_token(index, 1, tokens) {
+            cidx = idx;
+            token
+          } else {
+            Token {
+              token_type: "OTHER".to_string(),
+              value: "".to_string()
+            }
+          };
+          if next_token.token_type == "OTHER" && next_token.value == "(" {
+            if let Some((_, bc_idx)) =
+              find_next_token(index, tokens, "OTHER", Some(")"), None)
+            {
+              let mut arg_tokens = Vec::new();
+              let mut arg_idx = cidx + 1;
+              
+              while arg_idx < bc_idx {
+                arg_tokens.push(&tokens[arg_idx]);
+                arg_idx += 1;
+              }
+              
+              args = arg_tokens.iter().map(|t| t.value.clone()).collect::<Vec<String>>().join("");
+              
+              next_token = if let Some((token, _, new_idx)) = get_next_token(bc_idx, 1, tokens) {
+                cidx = new_idx;
+                token
+              } else {
+                Token {
+                  token_type: "OTHER".to_string(),
+                  value: "".to_string()
+                }
+              };
+            }
+          }
+          if next_token.token_type == "IDENTIFIER" {
+            println!("Token found");
+            println!("{}", next_token.value);
+            str.push_str(format!(
+              "{} = {} ",
+              next_token.value,
+              decl.replacement.clone()
+            ).as_str());
+            if let Some((_, eq_idx)) =
+              find_next_token(index, tokens, "OTHER", Some("="), Some(("WHITESPACE", Some("\n"))))
+            {
+              if !args.is_empty() {
+                str.push_str(args.as_str());
+                str.push_str(",");
+              }
+              additional_idx = eq_idx - index 
+            } else {
+              if !args.is_empty() {
+                str.push_str(args.as_str());
+              } else {
+                str = String::from(str.trim());
+                str.push_str("()");
+              }
+              additional_idx = cidx - index;
+            }
+          } else {
+            return None;
+          }
+          return Some((index + 1 + additional_idx, str));
+        } else {
+          return Some((index + 1 + additional_idx, decl.replacement.clone()));
         }
       }
     }
   }
+  None
 }
 
 fn get_string_until(tokens: &[Token], start: usize, end_chars: &[&str]) -> (String, usize) {
@@ -298,9 +427,10 @@ fn handle_import(tokens: &[Token], i: usize) -> (String, usize) {
   }
 
   if let Some((assert_token, assert_idx)) =
-    find_next_token(current_idx, tokens, "IDENTIFIER", Some("assert"))
+    find_next_token(current_idx, tokens, "IDENTIFIER", Some("assert"), None)
   {
-    if let Some((from_token, _)) = find_next_token(current_idx - 1, tokens, "STRING", None) {
+    if let Some((from_token, _)) = find_next_token(current_idx - 1, tokens, "STRING", None, None)
+    {
       result.push_str(&format!("{}, ", from_token.value.trim()));
     }
     current_idx = assert_idx + 1;
@@ -317,6 +447,54 @@ fn handle_import(tokens: &[Token], i: usize) -> (String, usize) {
   (result, current_idx)
 }
 
+// New function to handle declaration-based transformations
+fn transform_line_with_declarations(
+  line: &str,
+  local_declarations: &HashMap<String, Declaration>,
+  global_declarations: &HashMap<String, Declaration>,
+) -> String {
+  let mut output = line.to_string();
+
+  // First, check for function-style declarations: sayhello(arg1, arg2) VAR = SOMETHING
+  let func_pattern = Regex::new(r"(\w+)\(([^)]*)\)\s+(\w+)\s*=\s*(.+)").unwrap();
+  if let Some(caps) = func_pattern.captures(&output) {
+    let func_name = &caps[1];
+    let args = &caps[2];
+    let var_name = &caps[3];
+    let value = &caps[4];
+
+    // Check if this function name matches a declaration
+    for decl in local_declarations.values().chain(global_declarations.values()) {
+      if decl.trigger == func_name {
+        return format!("{} = {} {}, {}", var_name, decl.replacement, args, value);
+      }
+    }
+  }
+
+  // Then check for simple declarations: sayhello VAR = SOMETHING
+  let simple_pattern = Regex::new(r"(\w+)\s+(\w+)\s*=\s*(.+)").unwrap();
+  if let Some(caps) = simple_pattern.captures(&output) {
+    let trigger = &caps[1];
+    let var_name = &caps[2];
+    let value = &caps[3];
+
+    // Check if this trigger matches a declaration
+    for decl in local_declarations.values().chain(global_declarations.values()) {
+      if decl.trigger == trigger {
+        if decl.is_constructor {
+          return format!("{} = new {}({})", var_name, decl.replacement, value);
+        } else if decl.is_definition {
+          return format!("{} = {}()", var_name, decl.replacement);
+        } else {
+          return format!("{} = {} {}", var_name, decl.replacement, value);
+        }
+      }
+    }
+  }
+
+  output
+}
+
 // i hate this function too!
 pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result<CompilerResults> {
   let tokens = tokenize_coffee_script(content);
@@ -325,7 +503,8 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
   let mut hooks: Vec<Hook> = Vec::new();
   let mut multiline_declare_buffer: Vec<String> = Vec::new();
   let mut multiline_declare = false;
-  let mut aliases = options.aliases.clone();
+  let mut local_declarations = options.local_declarations.clone();
+  let mut global_declarations = options.global_declarations.clone();
 
   while i < tokens.len() {
     let token = &tokens[i];
@@ -354,6 +533,7 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
       }
     }
 
+    // Handle multiline declarations
     if (token.token_type == "COMMENT" && multiline_declare)
       || (token.token_type != "COMMENT" && multiline_declare)
     {
@@ -368,13 +548,7 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
         if token.value.trim().ends_with(';') {
           multiline_declare = false;
           let combined = multiline_declare_buffer.join("\n");
-          declare_alias(
-            &mut aliases,
-            &(Token {
-              token_type: "COMMENT".to_string(),
-              value: combined,
-            }),
-          );
+          process_declaration_comment(&combined, &mut local_declarations, &mut global_declarations);
           multiline_declare_buffer.clear();
         }
       } else {
@@ -383,30 +557,28 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
       }
     }
 
-    if token.token_type == "COMMENT" && token.value.starts_with("#alias") {
-      let mut value = "#declare".to_string();
+    // Process single-line declarations
+    if token.token_type == "COMMENT" && token.value.trim_start().starts_with("#declare") {
+      let value = token.value.trim_start().to_string();
 
-      if token.value.contains("#alias*") {
-        value.push('*');
+      if value.ends_with(';') {
+        // Single-line declare
+        process_declaration_comment(&value, &mut local_declarations, &mut global_declarations);
+      } else {
+        // Begin multiline declare block
+        multiline_declare = true;
+        multiline_declare_buffer.clear();
+        let cleaned = if value.starts_with("###") {
+          value[3..].trim().to_string()
+        } else if value.starts_with("#") {
+          value[1..].trim().to_string()
+        } else {
+          value
+        };
+        multiline_declare_buffer.push(cleaned);
       }
-
-      let subs = token.value.replace("#alias", "");
-
-      value.push_str(" key");
-
-      let re = Regex::new(r"([\S]+)\s*=\s*([\S]+)").unwrap();
-      let replaced = re.replace_all(&subs, "\"$1\" = $2").to_string();
-
-      value.push_str(replaced.trim());
-      value.push(';');
-
-      declare_alias(
-        &mut aliases,
-        &(Token {
-          token_type: "COMMENT".to_string(),
-          value,
-        }),
-      );
+      i += 1;
+      continue;
     }
 
     // Handle JSX pragma
@@ -439,18 +611,16 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
       && !options.keep_imports
     {
       let (import_str, new_idx) = handle_import(&tokens, i);
-      println!("import_str: {}", import_str);
       result.push_str(&import_str);
       i = new_idx;
       continue;
     }
 
-    if let Some(alias_map) = aliases.get(&token.token_type) {
-      if let Some(replacement) = alias_map.get(&token.value) {
-        result.push_str(replacement);
-        i += 1;
-        continue;
-      }
+    // Apply declarations
+    if let Some((new_idx, replacement)) = apply_declarations(token, i, &tokens, &local_declarations, &global_declarations) {
+      result.push_str(&replacement);
+      i = new_idx;
+      continue;
     }
 
     result.push_str(&token.value);
@@ -467,7 +637,7 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
   }
 
   if options.included {
-    options.aliases = aliases;
+    options.local_declarations = local_declarations;
   }
 
   let compiler_results = CompilerResults {
@@ -481,12 +651,14 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
         cls: false,
         included: false,
         filename: None,
-        aliases: HashMap::new(),
         compiler_type: String::new(),
+        local_declarations: HashMap::new(),
+        global_declarations: HashMap::new(),
       },
     ),
     code: result,
   };
 
+  println!("{}", compiler_results.code);
   Ok(compiler_results)
 }

@@ -4,9 +4,11 @@ use std::path::Path;
 use std::path::PathBuf;
 use tokio;
 
-pub mod ext;
+pub mod builtins;
 mod civet;
 mod compiler;
+mod declarations;
+pub mod ext;
 mod runtime;
 mod runtime_script;
 mod utils;
@@ -43,24 +45,28 @@ async fn main() -> anyhow::Result<()> {
   let cli = Cli::parse();
 
   match &cli.command {
-    Commands::Run { file, watch, compile } => {
+    Commands::Run {
+      file,
+      watch,
+      compile,
+    } => {
       println!("Running file: {}", file.display().to_string().green());
-      
+
       if *watch {
         println!("Watch mode enabled");
         // TODO: Implement watch mode
       }
-      
+
       if *compile {
         println!("Compile mode enabled");
         // TODO: Implement compile-only mode
       }
-      
+
       println!("New runtime initiation");
       let mut runtime = RewRuntime::new()?;
       runtime.run_file(file).await?;
       println!("Execution Done");
-    },
+    }
     Commands::Exec { code } => {
       println!("Executing code: {}", code.blue());
       // TODO: Implement code execution
