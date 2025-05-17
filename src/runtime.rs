@@ -6,6 +6,7 @@ use crate::declarations::{Declaration, DeclarationEngine};
 use crate::ext::{console, ffi, url, web, webidl};
 use crate::runtime_script::get_runtime_script;
 use crate::utils::find_app_path;
+use crate::data_manager::{DataManager, DataFormat};
 use anyhow::{Context, Result};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use deno_core::error::CoreError;
@@ -22,6 +23,8 @@ use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use serde_yaml;
+use std::sync::Mutex;
+use once_cell::sync::Lazy;
 
 #[derive(Default)]
 struct RuntimeState {
@@ -29,7 +32,7 @@ struct RuntimeState {
 }
 
 pub struct RewRuntime {
-  runtime: JsRuntime,
+  pub runtime: JsRuntime,
   compiler_runtime: JsRuntime,
   declaration_engine: DeclarationEngine,
 }
@@ -52,7 +55,17 @@ extension!(
     op_find_app,
     op_yaml_to_string,
     op_string_to_yaml,
-    op_app_loadconfig
+    op_app_loadconfig,
+    op_data_read,
+    op_data_write,
+    op_data_delete,
+    op_data_exists,
+    op_data_list,
+    op_data_read_binary,
+    op_data_write_binary,
+    op_data_read_yaml,
+    op_data_write_yaml,
+    op_data_get_info,
   ]
 );
 
@@ -924,9 +937,8 @@ fn op_find_app(
   _: Rc<RefCell<OpState>>,
 ) -> Result<String, CoreError> {
   let current_file = Path::new(&filepath);
-  let dir_path = current_file.parent().unwrap_or(Path::new("/"));
 
-  let app_path = find_app_path(dir_path);
+  let app_path = find_app_path(current_file);
 
   Ok(String::from(
     app_path.unwrap_or(PathBuf::from("")).to_str().unwrap(),
@@ -991,5 +1003,145 @@ fn op_app_loadconfig(
     .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::InvalidData, e)))?;
   
   Ok(config)
+}
+
+// Helper function to get DataManager for a specific app package
+fn get_data_manager_for_package(app_package: &str) -> Result<DataManager, CoreError> {
+    // For now, use "default" as the user ID
+    // In a real implementation, you'd get this from user authentication
+    let user_id = "default";
+    
+    DataManager::new(user_id, app_package)
+        .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))
+}
+
+#[op2]
+#[string]
+fn op_data_read(
+    #[string] app_package: String,
+    #[string] key: String,
+    _: Rc<RefCell<OpState>>,
+) -> Result<String, CoreError> {
+    let data_manager = get_data_manager_for_package(&app_package)?;
+    data_manager.read(&key)
+        .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))
+}
+
+#[op2(async)]
+async fn op_data_write(
+    #[string] app_package: String,
+    #[string] key: String,
+    #[string] content: String,
+    _: Rc<RefCell<OpState>>,
+) -> Result<(), CoreError> {
+    let data_manager = get_data_manager_for_package(&app_package)?;
+    data_manager.write(&key, &content)
+        .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))
+}
+
+#[op2(async)]
+async fn op_data_delete(
+    #[string] app_package: String,
+    #[string] key: String,
+    _: Rc<RefCell<OpState>>,
+) -> Result<(), CoreError> {
+    let data_manager = get_data_manager_for_package(&app_package)?;
+    data_manager.delete(&key)
+        .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))
+}
+
+#[op2(fast)]
+fn op_data_exists(
+    #[string] app_package: String,
+    #[string] key: String,
+    _: Rc<RefCell<OpState>>,
+) -> Result<bool, CoreError> {
+    let data_manager = get_data_manager_for_package(&app_package)?;
+    Ok(data_manager.exists(&key))
+}
+
+#[op2]
+#[string]
+fn op_data_list(
+    #[string] app_package: String,
+    #[string] prefix: String,
+    _: Rc<RefCell<OpState>>,
+) -> Result<String, CoreError> {
+    let data_manager = get_data_manager_for_package(&app_package)?;
+    let files = data_manager.list(&prefix)
+        .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))?;
+    
+    serde_json::to_string(&files)
+        .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))
+}
+
+#[op2]
+#[serde]
+fn op_data_read_binary(
+    #[string] app_package: String,
+    #[string] key: String,
+    _: Rc<RefCell<OpState>>,
+) -> Result<Vec<u8>, CoreError> {
+    let data_manager = get_data_manager_for_package(&app_package)?;
+    data_manager.read_binary(&key)
+        .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))
+}
+
+#[op2(async)]
+async fn op_data_write_binary(
+    #[string] app_package: String,
+    #[string] key: String,
+    #[serde] data: Vec<u8>,
+    _: Rc<RefCell<OpState>>,
+) -> Result<(), CoreError> {
+    let data_manager = get_data_manager_for_package(&app_package)?;
+    data_manager.write_binary(&key, &data)
+        .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))
+}
+
+#[op2]
+#[serde]
+fn op_data_read_yaml(
+    #[string] app_package: String,
+    #[string] key: String,
+    _: Rc<RefCell<OpState>>,
+) -> Result<serde_json::Value, CoreError> {
+    let data_manager = get_data_manager_for_package(&app_package)?;
+    data_manager.read_yaml(&key)
+        .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))
+}
+
+#[op2(async)]
+async fn op_data_write_yaml(
+    #[string] app_package: String,
+    #[string] key: String,
+    #[serde] data: serde_json::Value,
+    _: Rc<RefCell<OpState>>,
+) -> Result<(), CoreError> {
+    let data_manager = get_data_manager_for_package(&app_package)?;
+    data_manager.write_yaml(&key, &data)
+        .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))
+}
+
+#[op2]
+#[serde]
+fn op_data_get_info(
+    #[string] app_package: String,
+    #[string] key: String,
+    _: Rc<RefCell<OpState>>,
+) -> Result<(bool, String), CoreError> {
+    let data_manager = get_data_manager_for_package(&app_package)?;
+    let (exists, format) = data_manager.get_file_info(&key)
+        .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))?;
+    
+    // Convert format to string
+    let format_str = match format {
+        DataFormat::Text => "text",
+        DataFormat::Json => "json",
+        DataFormat::Yaml => "yaml",
+        DataFormat::Binary => "binary",
+    };
+    
+    Ok((exists, format_str.to_string()))
 }
 

@@ -5,6 +5,7 @@ use tokio;
 use std::fs;
 
 pub mod builtins;
+pub mod data_manager;
 mod civet;
 mod compiler;
 mod declarations;

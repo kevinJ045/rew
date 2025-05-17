@@ -143,6 +143,7 @@ pub fn find_app_path(dir_path: &Path) -> Option<PathBuf> {
     // Walk up the directory tree looking for app.yaml
     while let Some(parent) = current.parent() {
         let config_path = parent.join("app.yaml");
+        println!("{}", config_path.display());
         if config_path.exists() {
             return Some(parent.to_path_buf());
         }
