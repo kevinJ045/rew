@@ -2,19 +2,21 @@ use super::civet::get_civet_script;
 use super::compiler::{compile_rew_stuff, CompilerOptions};
 use crate::builtins::BUILTIN_MODULES;
 use crate::compiler::CompilerResults;
+use crate::data_manager::{DataFormat, DataManager};
 use crate::declarations::{Declaration, DeclarationEngine};
 use crate::ext::{console, ffi, url, web, webidl};
 use crate::runtime_script::get_runtime_script;
 use crate::utils::find_app_path;
-use crate::data_manager::{DataManager, DataFormat};
 use anyhow::{Context, Result};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use deno_core::error::CoreError;
+use deno_core::OpState;
+use deno_core::PollEventLoopOptions;
 use deno_core::{extension, op2, JsRuntime, RuntimeOptions};
-use deno_core::{OpState};
-use deno_core::{PollEventLoopOptions};
+use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use serde_yaml;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -22,9 +24,7 @@ use std::fs::{self, File};
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
-use serde_yaml;
 use std::sync::Mutex;
-use once_cell::sync::Lazy;
 
 #[derive(Default)]
 struct RuntimeState {
@@ -80,7 +80,6 @@ fn get_compiler_runtime() -> JsRuntime {
 impl RewRuntime {
   pub fn new() -> Result<Self> {
     let compiler_runtime = get_compiler_runtime();
-    
 
     let mut extensions = vec![rewextension::init_ops()];
 
@@ -128,7 +127,7 @@ impl RewRuntime {
 
   pub fn resolve_includes_recursive_from<P: AsRef<Path>>(
     filepath: P,
-  ) -> Result<Vec<(PathBuf, String, bool)>> {  
+  ) -> Result<Vec<(PathBuf, String, bool)>> {
     let filepath = filepath
       .as_ref()
       .canonicalize()
@@ -150,17 +149,15 @@ impl RewRuntime {
         return Ok(());
       }
 
-
       let mut should_preprocess = false;
       let file_path_unf = file_path.to_str().unwrap_or("");
       let file_path_str = if file_path_unf.ends_with('!') {
         should_preprocess = true;
-        &file_path_unf[0..file_path_unf.len()-1]
+        &file_path_unf[0..file_path_unf.len() - 1]
       } else {
         file_path_unf
       };
 
-      
       let content = if file_path_str.starts_with("#") {
         if let Some(builtin_content) = BUILTIN_MODULES.get(file_path_str) {
           builtin_content.to_string()
@@ -175,46 +172,47 @@ impl RewRuntime {
       };
 
       visited.insert(PathBuf::from(file_path_str));
-      
-      
-      result.push((PathBuf::from(file_path_str), content.clone(), should_preprocess));
+
+      result.push((
+        PathBuf::from(file_path_str),
+        content.clone(),
+        should_preprocess,
+      ));
 
       let parent = file_path.parent().unwrap_or(Path::new("."));
 
       for cap in import_re.captures_iter(&content) {
         let relative_path = cap[1].to_string();
-        
+
         if relative_path.starts_with("#") {
-          
           let builtin_path = PathBuf::from(&relative_path);
           visit_file(&builtin_path, visited, result, import_re)?;
-        } else if !relative_path.contains("/") && !relative_path.contains("\\") && !relative_path.starts_with(".") {
-          
+        } else if !relative_path.contains("/")
+          && !relative_path.contains("\\")
+          && !relative_path.starts_with(".")
+        {
           if let Some(app_entry) = crate::utils::resolve_app_entry(&relative_path, None) {
             visit_file(&app_entry, visited, result, import_re)?;
           } else {
-            return Err(anyhow::anyhow!(
-              "App not found: {}",
-              relative_path
-            ));
+            return Err(anyhow::anyhow!("App not found: {}", relative_path));
           }
         } else if relative_path.contains("/") && !relative_path.starts_with(".") {
-          
           let parts: Vec<&str> = relative_path.splitn(2, "/").collect();
           if parts.len() == 2 {
             let package_name = parts[0];
             let entry_name = parts[1];
-            
-            if let Some(app_entry) = crate::utils::resolve_app_entry(package_name, Some(entry_name)) {
+
+            if let Some(app_entry) = crate::utils::resolve_app_entry(package_name, Some(entry_name))
+            {
               visit_file(&app_entry, visited, result, import_re)?;
             } else {
               return Err(anyhow::anyhow!(
                 "App entry not found: {}/{}",
-                package_name, entry_name
+                package_name,
+                entry_name
               ));
             }
           } else {
-            
             let included_path = parent
               .join(relative_path)
               .canonicalize()
@@ -223,7 +221,6 @@ impl RewRuntime {
             visit_file(&included_path, visited, result, import_re)?;
           }
         } else {
-          
           let included_path = parent
             .join(relative_path)
             .canonicalize()
@@ -251,19 +248,16 @@ impl RewRuntime {
       let compiled = self.compile_and_run(&source, &path).await?;
       let mod_id = path.to_str().unwrap_or("unknown");
       let mut mod_alias = String::new();
-      
-      
+
       if let Some(app_info) = crate::utils::find_app_info(&path) {
         if let Some(manifest) = &app_info.config.manifest {
           if let Some(package) = &manifest.package {
-            
             if let Some(rel_path) = path.strip_prefix(&app_info.path).ok() {
               let rel_path_str = rel_path.to_str().unwrap_or("");
-              
+
               if let Some(entries) = &app_info.config.entries {
                 for (key, value) in entries {
                   if value == rel_path_str {
-                    
                     mod_alias.push_str(&format!("[\"app://{}/{}\"]", package, key));
                     break;
                   }
@@ -275,17 +269,16 @@ impl RewRuntime {
       }
 
       if mod_id.starts_with('#') {
-        module_wrappers.push_str(&format!(
-          r#"{compiled}"#,
-          compiled = compiled
-        ));
+        module_wrappers.push_str(&format!("(function(module){{\n{compiled}\n}})({{filename: \"{id}\"}});", 
+        id = mod_id,
+        compiled = compiled));
       } else {
         module_wrappers.push_str(&format!(
-          r#"rew.prototype.mod.prototype.defineNew("{id}", function(context){{
-            with (context) {{
+          r#"rew.prototype.mod.prototype.defineNew("{id}", function(globalThis){{
+            with (globalThis) {{
               {compiled}
             }}
-            return context.module.exports;
+            return globalThis.module.exports;
           }}, {mod_alias});"#,
           id = mod_id,
           mod_alias = mod_alias,
@@ -296,19 +289,16 @@ impl RewRuntime {
 
     let entry_mod_id = entry.to_str().unwrap_or("entry");
     let mut entry_app_id = None;
-    
-    
+
     if let Some(app_info) = crate::utils::find_app_info(entry) {
       if let Some(manifest) = &app_info.config.manifest {
         if let Some(package) = &manifest.package {
-          
           if let Some(rel_path) = entry.strip_prefix(&app_info.path).ok() {
             let rel_path_str = rel_path.to_str().unwrap_or("");
-            
+
             if let Some(entries) = &app_info.config.entries {
               for (key, value) in entries {
                 if value == rel_path_str {
-                  
                   entry_app_id = Some(format!("app://{}/{}", package, key));
                   break;
                 }
@@ -319,7 +309,6 @@ impl RewRuntime {
       }
     }
 
-    
     let final_entry_id = entry_app_id.unwrap_or_else(|| entry_mod_id.to_string());
 
     let final_script = format!(
@@ -338,13 +327,10 @@ impl RewRuntime {
   }
 
   pub async fn compile_and_run(&mut self, source: &str, filepath: &Path) -> Result<String> {
-    
     let local_declarations = self.declaration_engine.process_script(source);
-    
-    
+
     let global_declarations = self.declaration_engine.global_declarations.clone();
-    
-    
+
     let processed = self.preprocess_rew(source, local_declarations, global_declarations)?;
 
     let code = format!(
@@ -360,7 +346,7 @@ impl RewRuntime {
       processed.code.replace("`", "\\`"),
       filepath.to_str().unwrap_or("unknown")
     );
-    
+
     let result = self
       .compiler_runtime
       .execute_script("<rew>", code.clone())?;
@@ -371,7 +357,12 @@ impl RewRuntime {
     Ok(result_code)
   }
 
-  fn preprocess_rew(&mut self, source: &str, local_declarations: HashMap<String, Declaration>, global_declarations: HashMap<String, Declaration>) -> Result<CompilerResults> {
+  fn preprocess_rew(
+    &mut self,
+    source: &str,
+    local_declarations: HashMap<String, Declaration>,
+    global_declarations: HashMap<String, Declaration>,
+  ) -> Result<CompilerResults> {
     let mut options = CompilerOptions {
       keep_imports: false,
       disable_use: false,
@@ -384,7 +375,7 @@ impl RewRuntime {
       local_declarations,
       global_declarations,
     };
-    
+
     compile_rew_stuff(source, &mut options)
   }
 
@@ -394,30 +385,28 @@ impl RewRuntime {
       .canonicalize()
       .with_context(|| format!("Failed to resolve file path: {:?}", filepath.as_ref()))?;
 
-    
     let files_with_flags = RewRuntime::resolve_includes_recursive_from(&filepath)?;
-  
-    
+
     for (path, content, preprocess) in &files_with_flags {
       if *preprocess {
         // println!("Preprocessing declarations from: {}", path.display());
-        
+
         let local_declarations = self.declaration_engine.process_script(&content);
-      
-        
+
         for (name, decl) in local_declarations {
-          self.declaration_engine.global_declarations.insert(name, decl);
+          self
+            .declaration_engine
+            .global_declarations
+            .insert(name, decl);
         }
       }
     }
-  
-    
+
     let files: Vec<(PathBuf, String)> = files_with_flags
       .into_iter()
       .map(|(path, content, _)| (path, content))
       .collect();
 
-    
     self.include_and_run(files, &filepath).await?;
 
     Ok(())
@@ -427,9 +416,6 @@ impl RewRuntime {
 impl Drop for RewRuntime {
   fn drop(&mut self) {}
 }
-
-
-
 
 #[op2(async)]
 #[serde]
@@ -448,12 +434,10 @@ async fn op_fs_read(
   let options = options.unwrap_or_default();
 
   if options.binary {
-    
     let mut file = File::open(&full_path).map_err(CoreError::Io)?;
     let mut buffer = Vec::new();
     file.read_to_end(&mut buffer).map_err(CoreError::Io)?;
 
-    
     Ok(serde_json::Value::Array(
       buffer
         .into_iter()
@@ -461,7 +445,6 @@ async fn op_fs_read(
         .collect(),
     ))
   } else {
-    
     let content = fs::read_to_string(&full_path).map_err(CoreError::Io)?;
     Ok(serde_json::Value::String(content))
   }
@@ -494,7 +477,6 @@ async fn op_fs_write(
   }
 
   if options.binary {
-    
     if let serde_json::Value::Array(bytes) = content {
       let buffer: Result<Vec<u8>, _> = bytes
         .iter()
@@ -523,7 +505,6 @@ async fn op_fs_write(
       )));
     }
   } else {
-    
     if let serde_json::Value::String(text) = content {
       let mut file = File::create(&full_path).map_err(CoreError::Io)?;
       file.write_all(text.as_bytes()).map_err(CoreError::Io)?;
@@ -728,7 +709,6 @@ struct DirEntryInfo {
   created: Option<u64>,
 }
 
-
 #[op2]
 #[string]
 fn op_fs_stats(
@@ -860,12 +840,8 @@ fn op_fs_cwd(state: Rc<RefCell<OpState>>) -> Result<String, CoreError> {
 #[string]
 fn op_to_base64(#[serde] data: serde_json::Value) -> Result<String, CoreError> {
   match data {
-    serde_json::Value::String(text) => {
-      
-      Ok(BASE64.encode(text.as_bytes()))
-    }
+    serde_json::Value::String(text) => Ok(BASE64.encode(text.as_bytes())),
     serde_json::Value::Array(bytes) => {
-      
       let buffer: Result<Vec<u8>, _> = bytes
         .iter()
         .map(|v| {
@@ -910,12 +886,10 @@ fn op_from_base64(
     .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::InvalidData, e)))?;
 
   if options.as_string {
-    
     let text = String::from_utf8(decoded)
       .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::InvalidData, e)))?;
     Ok(serde_json::Value::String(text))
   } else {
-    
     Ok(serde_json::Value::Array(
       decoded
         .into_iter()
@@ -932,10 +906,7 @@ struct Base64DecodeOptions {
 
 #[op2]
 #[string]
-fn op_find_app(
-  #[string] filepath: String,
-  _: Rc<RefCell<OpState>>,
-) -> Result<String, CoreError> {
+fn op_find_app(#[string] filepath: String, _: Rc<RefCell<OpState>>) -> Result<String, CoreError> {
   let current_file = Path::new(&filepath);
 
   let app_path = find_app_path(current_file);
@@ -945,7 +916,6 @@ fn op_find_app(
   ))
 }
 
-
 #[op2]
 #[string]
 fn op_yaml_to_string(
@@ -954,10 +924,9 @@ fn op_yaml_to_string(
 ) -> Result<String, CoreError> {
   let yaml = serde_yaml::to_string(&data)
     .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::InvalidData, e)))?;
-  
+
   Ok(yaml)
 }
-
 
 #[op2]
 #[serde]
@@ -967,10 +936,9 @@ fn op_string_to_yaml(
 ) -> Result<serde_json::Value, CoreError> {
   let value: serde_json::Value = serde_yaml::from_str(&yaml_str)
     .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::InvalidData, e)))?;
-  
+
   Ok(value)
 }
-
 
 #[op2]
 #[serde]
@@ -979,169 +947,175 @@ fn op_app_loadconfig(
   _: Rc<RefCell<OpState>>,
 ) -> Result<serde_json::Value, CoreError> {
   let app_path = Path::new(&app_path);
-  
+
   if !app_path.exists() {
     return Err(CoreError::Io(io::Error::new(
       io::ErrorKind::NotFound,
       format!("App path not found: {}", app_path.display()),
     )));
   }
-  
+
   let config_path = app_path.join("app.yaml");
-  
+
   if !config_path.exists() {
     return Err(CoreError::Io(io::Error::new(
       io::ErrorKind::NotFound,
       format!("App config not found: {}", config_path.display()),
     )));
   }
-  
+
   let config_str = fs::read_to_string(&config_path)
     .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))?;
-  
+
   let config: serde_json::Value = serde_yaml::from_str(&config_str)
     .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::InvalidData, e)))?;
-  
+
   Ok(config)
 }
 
 // Helper function to get DataManager for a specific app package
 fn get_data_manager_for_package(app_package: &str) -> Result<DataManager, CoreError> {
-    // For now, use "default" as the user ID
-    // In a real implementation, you'd get this from user authentication
-    let user_id = "default";
-    
-    DataManager::new(user_id, app_package)
-        .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))
+  // For now, use "default" as the user ID
+  // In a real implementation, you'd get this from user authentication
+  let user_id = "default";
+
+  DataManager::new(user_id, app_package)
+    .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))
 }
 
 #[op2]
 #[string]
 fn op_data_read(
-    #[string] app_package: String,
-    #[string] key: String,
-    _: Rc<RefCell<OpState>>,
+  #[string] app_package: String,
+  #[string] key: String,
+  _: Rc<RefCell<OpState>>,
 ) -> Result<String, CoreError> {
-    let data_manager = get_data_manager_for_package(&app_package)?;
-    data_manager.read(&key)
-        .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))
+  let data_manager = get_data_manager_for_package(&app_package)?;
+  data_manager
+    .read(&key)
+    .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))
 }
 
 #[op2(async)]
 async fn op_data_write(
-    #[string] app_package: String,
-    #[string] key: String,
-    #[string] content: String,
-    _: Rc<RefCell<OpState>>,
+  #[string] app_package: String,
+  #[string] key: String,
+  #[string] content: String,
+  _: Rc<RefCell<OpState>>,
 ) -> Result<(), CoreError> {
-    let data_manager = get_data_manager_for_package(&app_package)?;
-    data_manager.write(&key, &content)
-        .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))
+  let data_manager = get_data_manager_for_package(&app_package)?;
+  data_manager
+    .write(&key, &content)
+    .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))
 }
 
 #[op2(async)]
 async fn op_data_delete(
-    #[string] app_package: String,
-    #[string] key: String,
-    _: Rc<RefCell<OpState>>,
+  #[string] app_package: String,
+  #[string] key: String,
+  _: Rc<RefCell<OpState>>,
 ) -> Result<(), CoreError> {
-    let data_manager = get_data_manager_for_package(&app_package)?;
-    data_manager.delete(&key)
-        .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))
+  let data_manager = get_data_manager_for_package(&app_package)?;
+  data_manager
+    .delete(&key)
+    .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))
 }
 
 #[op2(fast)]
 fn op_data_exists(
-    #[string] app_package: String,
-    #[string] key: String,
-    _: Rc<RefCell<OpState>>,
+  #[string] app_package: String,
+  #[string] key: String,
+  _: Rc<RefCell<OpState>>,
 ) -> Result<bool, CoreError> {
-    let data_manager = get_data_manager_for_package(&app_package)?;
-    Ok(data_manager.exists(&key))
+  let data_manager = get_data_manager_for_package(&app_package)?;
+  Ok(data_manager.exists(&key))
 }
 
 #[op2]
 #[string]
 fn op_data_list(
-    #[string] app_package: String,
-    #[string] prefix: String,
-    _: Rc<RefCell<OpState>>,
+  #[string] app_package: String,
+  #[string] prefix: String,
+  _: Rc<RefCell<OpState>>,
 ) -> Result<String, CoreError> {
-    let data_manager = get_data_manager_for_package(&app_package)?;
-    let files = data_manager.list(&prefix)
-        .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))?;
-    
-    serde_json::to_string(&files)
-        .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))
+  let data_manager = get_data_manager_for_package(&app_package)?;
+  let files = data_manager
+    .list(&prefix)
+    .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))?;
+
+  serde_json::to_string(&files).map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))
 }
 
 #[op2]
 #[serde]
 fn op_data_read_binary(
-    #[string] app_package: String,
-    #[string] key: String,
-    _: Rc<RefCell<OpState>>,
+  #[string] app_package: String,
+  #[string] key: String,
+  _: Rc<RefCell<OpState>>,
 ) -> Result<Vec<u8>, CoreError> {
-    let data_manager = get_data_manager_for_package(&app_package)?;
-    data_manager.read_binary(&key)
-        .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))
+  let data_manager = get_data_manager_for_package(&app_package)?;
+  data_manager
+    .read_binary(&key)
+    .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))
 }
 
 #[op2(async)]
 async fn op_data_write_binary(
-    #[string] app_package: String,
-    #[string] key: String,
-    #[serde] data: Vec<u8>,
-    _: Rc<RefCell<OpState>>,
+  #[string] app_package: String,
+  #[string] key: String,
+  #[serde] data: Vec<u8>,
+  _: Rc<RefCell<OpState>>,
 ) -> Result<(), CoreError> {
-    let data_manager = get_data_manager_for_package(&app_package)?;
-    data_manager.write_binary(&key, &data)
-        .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))
+  let data_manager = get_data_manager_for_package(&app_package)?;
+  data_manager
+    .write_binary(&key, &data)
+    .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))
 }
 
 #[op2]
 #[serde]
 fn op_data_read_yaml(
-    #[string] app_package: String,
-    #[string] key: String,
-    _: Rc<RefCell<OpState>>,
+  #[string] app_package: String,
+  #[string] key: String,
+  _: Rc<RefCell<OpState>>,
 ) -> Result<serde_json::Value, CoreError> {
-    let data_manager = get_data_manager_for_package(&app_package)?;
-    data_manager.read_yaml(&key)
-        .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))
+  let data_manager = get_data_manager_for_package(&app_package)?;
+  data_manager
+    .read_yaml(&key)
+    .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))
 }
 
 #[op2(async)]
 async fn op_data_write_yaml(
-    #[string] app_package: String,
-    #[string] key: String,
-    #[serde] data: serde_json::Value,
-    _: Rc<RefCell<OpState>>,
+  #[string] app_package: String,
+  #[string] key: String,
+  #[serde] data: serde_json::Value,
+  _: Rc<RefCell<OpState>>,
 ) -> Result<(), CoreError> {
-    let data_manager = get_data_manager_for_package(&app_package)?;
-    data_manager.write_yaml(&key, &data)
-        .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))
+  let data_manager = get_data_manager_for_package(&app_package)?;
+  data_manager
+    .write_yaml(&key, &data)
+    .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))
 }
 
 #[op2]
 #[serde]
 fn op_data_get_info(
-    #[string] app_package: String,
-    #[string] key: String,
-    _: Rc<RefCell<OpState>>,
+  #[string] app_package: String,
+  #[string] key: String,
+  _: Rc<RefCell<OpState>>,
 ) -> Result<(bool, String), CoreError> {
-    let data_manager = get_data_manager_for_package(&app_package)?;
-    let (exists, format) = data_manager.get_file_info(&key)
-        .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))?;
-    
-    // Convert format to string
-    let format_str = match format {
-        DataFormat::Text => "text",
-        DataFormat::Json => "json",
-        DataFormat::Yaml => "yaml",
-        DataFormat::Binary => "binary",
-    };
-    
-    Ok((exists, format_str.to_string()))
-}
+  let data_manager = get_data_manager_for_package(&app_package)?;
+  let (exists, format) = data_manager
+    .get_file_info(&key)
+    .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))?;
 
+  let format_str = match format {
+    DataFormat::Text => "text",
+    DataFormat::Json => "json",
+    DataFormat::Yaml => "yaml",
+    DataFormat::Binary => "binary",
+  };
+
+  Ok((exists, format_str.to_string()))
+}

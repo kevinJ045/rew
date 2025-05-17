@@ -1,64 +1,40 @@
-rew.prototype.mod.prototype.defineNew("/home/makano/workspace/rew-rust/test/s.coffee", function(context){
-            with (context) {
-              var data, text, userData, user, configData, config, binaryData, readBinary;
+rew.prototype.mod.prototype.defineNew("/home/makano/workspace/rew-rust/test/ffi.coffee", function(globalThis){
+            with (globalThis) {
+              var ins, init_socket, recv_message, send_message, loopm;
+rew.prototype.mod.prototype.find(module, "#std.ffi!")
 using(namespace(rew.prototype.ns()))
-data = rew.prototype.data
 
-// Working with text data
-data.prototype.write("notes.txt", "This is a simple text note.")
-text = data.prototype.read("notes.txt")
-print("Text note:", text)
+ins = instantiate(class {
+  init_socket = rew.prototype.ffi.prototype.typed( function() { return 'i32' })
+  recv_message = rew.prototype.ffi.prototype.typed(ffi.prototype.ptr, 'usize', function() { return 'i32' })
+  send_message = rew.prototype.ffi.prototype.typed(ffi.prototype.ptr, ffi.prototype.pre('i32', Number))
+});
 
-// Working with JSON data
-userData = {
-  name: "User",
-  age: 30,
-  preferences: {
-    theme: "dark",
-    fontSize: 14
+({ init_socket, recv_message, send_message } = ffi.prototype.open('/home/makano/workspace/testing/rustyscript/test_ffi/target/release/libmy_add_lib.so', ins))
+
+init_socket()
+
+loopm = function() {
+  var buf;
+  buf = new Uint8Array(40960)
+  if (recv_message(rew.prototype.ptr.prototype.of(buf), 40960) > 0) {
+    print(rew.prototype.encoding.prototype.bytesToString(buf))
   }
+  return setTimeout(loopm, 1)
 }
-data.prototype.writeJSON("user.json", userData)
-user = data.prototype.readJSON("user.json")
-print("User name:", user.name)
-print("User preferences:", user.preferences)
 
-// Working with YAML data
-configData = {
-  server: {
-    host: "localhost",
-    port: 8080
-  },
-  database: {
-    url: "postgres://user:pass@localhost/db",
-    maxConnections: 10
-  },
-  features: [
-    "authentication",
-    "logging",
-    "api"
-  ]
-}
-data.prototype.writeYAML("config.yaml", configData)
-config = data.prototype.readYAML("config.yaml")
-print("Server host:", config.server.host)
-print("Enabled features:", config.features.join(", "))
+loopm()
 
-// Working with binary data
-binaryData = new Uint8Array([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A])  // PNG header
-data.prototype.writeBinary("sample.bin", binaryData)
-readBinary = data.prototype.readBinary("sample.bin")
-print("Binary data length:", readBinary.length)
-print("First bytes:", rew.prototype.encoding.prototype.bytesToHex(readBinary.slice(0, 4)))
 
-// Using auto-detection
-data.prototype.writeAuto("config2.yaml", configData)  // Will be written as YAML
-data.prototype.writeAuto("user2.json", userData)      // Will be written as JSON
-data.prototype.writeAuto("binary.dat", binaryData)    // Will be written as binary
 
-// Reading with auto-detection
+setTimeout(() => send_message(rew.prototype.ptr.prototype.of(rew.prototype.encoding.prototype.stringToBytes("Hello from JS"))), 1000)
+
 
             }
-            return context.module.exports;
-          }, );
-rew.prototype.mod.prototype.get('/home/makano/workspace/rew-rust/test/s.coffee');
+            return globalThis.module.exports;
+          }, );(function(module){
+
+//declare* "=ffi_type" = rew::ffi::typed;
+
+})({filename: "#std.ffi"});
+rew.prototype.mod.prototype.get('/home/makano/workspace/rew-rust/test/ffi.coffee');

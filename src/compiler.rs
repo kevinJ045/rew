@@ -170,7 +170,7 @@ fn find_next_token(
   let mut idx = start;
   while idx < tokens.len() {
     let token = &tokens[idx];
-    
+
     if let Some((break_type, break_value)) = break_on_find {
       if token.token_type == break_type {
         if let Some(val) = break_value {
@@ -182,7 +182,7 @@ fn find_next_token(
         }
       }
     }
-    
+
     if token.token_type != "WHITESPACE" {
       if token.token_type == expected_type {
         if let Some(val) = expected_value {
@@ -208,7 +208,9 @@ fn apply_declarations(
 ) -> Option<(usize, String)> {
   let mut additional_idx = 0;
   if token.token_type == "IDENTIFIER" {
-    let values = global_declarations.values().chain(local_declarations.values());
+    let values = global_declarations
+      .values()
+      .chain(local_declarations.values());
     for decl in values {
       let mut isDeclaration = false;
       let trigger = if decl.trigger.starts_with("=") {
@@ -219,10 +221,10 @@ fn apply_declarations(
       };
 
       // println!("==> Token value: {}, needed: {}", token.value, decl.trigger.clone());
-      
+
       if token.value == trigger {
         let mut conditions_met = true;
-        
+
         if let Some(prev_condition) = &decl.condition_prev {
           let mut prev_idx = index;
           while prev_idx > 0 {
@@ -233,7 +235,7 @@ fn apply_declarations(
           }
 
           // println!("==> Prev value: {}", tokens[prev_idx].value);
-          
+
           if prev_idx < index {
             if tokens[prev_idx].value != *prev_condition {
               conditions_met = false;
@@ -242,7 +244,7 @@ fn apply_declarations(
             conditions_met = false;
           }
         }
-        
+
         if let Some(next_condition) = &decl.condition_next {
           if let Some((next_token, _, _)) = get_next_token(index, 1, tokens) {
             if next_token.value != *next_condition {
@@ -252,7 +254,7 @@ fn apply_declarations(
             conditions_met = false;
           }
         }
-        
+
         if conditions_met {
           if isDeclaration {
             let mut str = String::new();
@@ -264,48 +266,51 @@ fn apply_declarations(
             } else {
               Token {
                 token_type: "OTHER".to_string(),
-                value: "".to_string()
+                value: "".to_string(),
               }
             };
             if next_token.token_type == "OTHER" && next_token.value == "(" {
-              if let Some((_, bc_idx)) =
-                find_next_token(index, tokens, "OTHER", Some(")"), None)
-              {
+              if let Some((_, bc_idx)) = find_next_token(index, tokens, "OTHER", Some(")"), None) {
                 let mut arg_tokens = Vec::new();
                 let mut arg_idx = cidx + 1;
-                
+
                 while arg_idx < bc_idx {
                   arg_tokens.push(&tokens[arg_idx]);
                   arg_idx += 1;
                 }
-                
-                args = arg_tokens.iter().map(|t| t.value.clone()).collect::<Vec<String>>().join("");
-                
+
+                args = arg_tokens
+                  .iter()
+                  .map(|t| t.value.clone())
+                  .collect::<Vec<String>>()
+                  .join("");
+
                 next_token = if let Some((token, _, new_idx)) = get_next_token(bc_idx, 1, tokens) {
                   cidx = new_idx;
                   token
                 } else {
                   Token {
                     token_type: "OTHER".to_string(),
-                    value: "".to_string()
+                    value: "".to_string(),
                   }
                 };
               }
             }
             if next_token.token_type == "IDENTIFIER" {
-              str.push_str(format!(
-                "{} = {} ",
-                next_token.value,
-                decl.replacement.clone()
-              ).as_str());
-              if let Some((_, eq_idx)) =
-                find_next_token(index, tokens, "OTHER", Some("="), Some(("WHITESPACE", Some("\n"))))
-              {
+              str
+                .push_str(format!("{} = {} ", next_token.value, decl.replacement.clone()).as_str());
+              if let Some((_, eq_idx)) = find_next_token(
+                index,
+                tokens,
+                "OTHER",
+                Some("="),
+                Some(("WHITESPACE", Some("\n"))),
+              ) {
                 if !args.is_empty() {
                   str.push_str(args.as_str());
                   str.push_str(",");
                 }
-                additional_idx = eq_idx - index 
+                additional_idx = eq_idx - index
               } else {
                 if !args.is_empty() {
                   str.push_str(args.as_str());
@@ -410,10 +415,7 @@ fn handle_import(tokens: &[Token], i: usize) -> (String, usize) {
             let (imports, new_idx) = get_string_until(tokens, current_idx + 1, &["}"]);
             let re = Regex::new(r"(\w+)\s+as\s+(\w+)").unwrap();
             let replaced_imports = re.replace_all(&imports, "$1: $2").to_string();
-            default_name.insert_str(0, &format!(
-              "{{ {} }} = ",
-              replaced_imports
-            ));
+            default_name.insert_str(0, &format!("{{ {} }} = ", replaced_imports));
             used_multiple = true;
             current_idx = new_idx + 1;
           }
@@ -423,13 +425,12 @@ fn handle_import(tokens: &[Token], i: usize) -> (String, usize) {
         current_idx += 1;
 
         if let Ok((should_handle, _)) = finalize_handle_import(tokens, current_idx) {
-          let slug = if used_multiple {
-            "="
-          } else {
-            ":="
-          };
+          let slug = if used_multiple { "=" } else { ":=" };
           if should_handle {
-            result.push_str(&format!("{} {} rew::mod::find module, ", default_name, slug));
+            result.push_str(&format!(
+              "{} {} rew::mod::find module, ",
+              default_name, slug
+            ));
           }
         }
       }
@@ -440,8 +441,7 @@ fn handle_import(tokens: &[Token], i: usize) -> (String, usize) {
   if let Some((assert_token, assert_idx)) =
     find_next_token(current_idx, tokens, "IDENTIFIER", Some("assert"), None)
   {
-    if let Some((from_token, _)) = find_next_token(current_idx - 1, tokens, "STRING", None, None)
-    {
+    if let Some((from_token, _)) = find_next_token(current_idx - 1, tokens, "STRING", None, None) {
       result.push_str(&format!("{}, ", from_token.value.trim()));
     }
     current_idx = assert_idx + 1;
@@ -471,7 +471,10 @@ fn transform_line_with_declarations(
     let var_name = &caps[3];
     let value = &caps[4];
 
-    for decl in local_declarations.values().chain(global_declarations.values()) {
+    for decl in local_declarations
+      .values()
+      .chain(global_declarations.values())
+    {
       if decl.trigger == func_name {
         return format!("{} = {} {}, {}", var_name, decl.replacement, args, value);
       }
@@ -484,7 +487,10 @@ fn transform_line_with_declarations(
     let var_name = &caps[2];
     let value = &caps[3];
 
-    for decl in local_declarations.values().chain(global_declarations.values()) {
+    for decl in local_declarations
+      .values()
+      .chain(global_declarations.values())
+    {
       if decl.trigger == trigger {
         if decl.is_constructor {
           return format!("{} = new {}({})", var_name, decl.replacement, value);
@@ -550,7 +556,9 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
       options.cls = true;
     }
 
-    if prev_token.clone().map_or(true, |(t, _, _)| t.value == "export")
+    if prev_token
+      .clone()
+      .map_or(true, |(t, _, _)| t.value == "export")
       && token.token_type == "IDENTIFIER"
       && token.value == "default"
       && !options.keep_imports
@@ -572,9 +580,7 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
           if next_token.value == "default" {
             i += 1;
           }
-          result.push_str(
-            format!("module.exports.{} = ", next_token.value).as_str()
-          );
+          result.push_str(format!("module.exports.{} = ", next_token.value).as_str());
         }
       }
       i += 1;
@@ -592,7 +598,9 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
       continue;
     }
 
-    if let Some((new_idx, replacement)) = apply_declarations(token, i, &tokens, &local_declarations, &global_declarations) {
+    if let Some((new_idx, replacement)) =
+      apply_declarations(token, i, &tokens, &local_declarations, &global_declarations)
+    {
       result.push_str(&replacement);
       i = new_idx;
       continue;
