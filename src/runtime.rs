@@ -26,9 +26,37 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::Mutex;
 
+fn encode_cake_file(content: &str) -> String {
+    BASE64.encode(content.as_bytes())
+}
+
+fn decode_cake_file(encoded: &str) -> Result<String> {
+    let decoded = BASE64.decode(encoded.trim())
+        .map_err(|e| anyhow::anyhow!("Failed to decode cake file: {}", e))?;
+    
+    String::from_utf8(decoded)
+        .map_err(|e| anyhow::anyhow!("Failed to convert decoded bytes to string: {}", e))
+}
+
 #[derive(Default)]
 struct RuntimeState {
   current_dir: PathBuf,
+}
+
+
+#[derive(Debug, Clone)]
+pub struct BuildOptions {
+  pub bundle_all: bool,
+  pub entry_file: Option<PathBuf>,  
+}
+
+impl Default for BuildOptions {
+  fn default() -> Self {
+    BuildOptions {
+      bundle_all: false,
+      entry_file: None,
+    }
+  }
 }
 
 pub struct RewRuntime {
@@ -135,6 +163,8 @@ impl RewRuntime {
 
     let import_re = Regex::new(r#"(?m)^\s*import\s+(?:[^;]*?\s+from\s+)?["']([^"']+)["']"#)
       .context("Invalid regex pattern")?;
+    let external_re = Regex::new(r#"(?m)^\s*// external\s+['"]([^'"]+)['"]"#)
+      .context("Invalid regex pattern")?;
 
     let mut visited = HashSet::new();
     let mut result = Vec::new();
@@ -143,13 +173,15 @@ impl RewRuntime {
       file_path: &Path,
       visited: &mut HashSet<PathBuf>,
       result: &mut Vec<(PathBuf, String, bool)>,
+      preprocess_import: bool,
       import_re: &Regex,
+      external_re: &Regex,
     ) -> Result<()> {
       if visited.contains(file_path) {
         return Ok(());
       }
 
-      let mut should_preprocess = false;
+      let mut should_preprocess = preprocess_import.clone();
       let file_path_unf = file_path.to_str().unwrap_or("");
       let file_path_str = if file_path_unf.ends_with('!') {
         should_preprocess = true;
@@ -157,6 +189,8 @@ impl RewRuntime {
       } else {
         file_path_unf
       };
+      
+      let is_cake_file = file_path.extension().map_or(false, |ext| ext == "cake");
 
       let content = if file_path_str.starts_with("#") {
         if let Some(builtin_content) = BUILTIN_MODULES.get(file_path_str) {
@@ -166,6 +200,12 @@ impl RewRuntime {
             "Builtin module not found: {}",
             file_path_str
           ));
+        }
+      } else if is_cake_file {
+        if let Ok(decoded) = decode_cake_file(&fs::read_to_string(file_path).with_context(|| format!("Failed to read {:?}", file_path))?) {
+          decoded
+        } else {
+          fs::read_to_string(file_path).with_context(|| format!("Failed to read {:?}", file_path))?
         }
       } else {
         fs::read_to_string(file_path).with_context(|| format!("Failed to read {:?}", file_path))?
@@ -181,36 +221,81 @@ impl RewRuntime {
 
       let parent = file_path.parent().unwrap_or(Path::new("."));
 
-      for cap in import_re.captures_iter(&content) {
-        let relative_path = cap[1].to_string();
 
-        if relative_path.starts_with("#") {
-          let builtin_path = PathBuf::from(&relative_path);
-          visit_file(&builtin_path, visited, result, import_re)?;
-        } else if !relative_path.contains("/")
-          && !relative_path.contains("\\")
-          && !relative_path.starts_with(".")
-        {
-          if let Some(app_entry) = crate::utils::resolve_app_entry(&relative_path, None) {
-            visit_file(&app_entry, visited, result, import_re)?;
+      if is_cake_file {
+        
+        for cap in external_re.captures_iter(&content) {
+          let external_app_path = cap[1].to_string();
+          let mut should_preprocess_import = false;
+          let external_app = if external_app_path.ends_with('!') {
+            should_preprocess_import = true;
+            &external_app_path[0..external_app_path.len() - 1]
           } else {
-            return Err(anyhow::anyhow!("App not found: {}", relative_path));
-          }
-        } else if relative_path.contains("/") && !relative_path.starts_with(".") {
-          let parts: Vec<&str> = relative_path.splitn(2, "/").collect();
-          if parts.len() == 2 {
-            let package_name = parts[0];
-            let entry_name = parts[1];
+            &external_app_path
+          };
+          
+          if external_app.contains('/') {
+            let parts: Vec<&str> = external_app.split('/').collect();
+            if parts.len() == 2 {
+              let package_name = parts[0];
+              let entry_name = parts[1];
 
-            if let Some(app_entry) = crate::utils::resolve_app_entry(package_name, Some(entry_name))
-            {
-              visit_file(&app_entry, visited, result, import_re)?;
+              if let Some(app_entry) = crate::utils::resolve_app_entry(package_name, Some(entry_name)) {
+                visit_file(&app_entry, visited, result, should_preprocess_import, import_re, external_re)?;
+              }
+            }
+          } else {
+            if let Some(app_entry) = crate::utils::resolve_app_entry(&external_app, None) {
+              visit_file(&app_entry, visited, result, should_preprocess_import, import_re, external_re)?;
+            }
+          }
+        }
+      } else {
+        for cap in import_re.captures_iter(&content) {
+          let relative_path_raw = cap[1].to_string();
+          let mut should_preprocess_import = false;
+          let relative_path = if relative_path_raw.ends_with('!') {
+            should_preprocess_import = true;
+            &relative_path_raw[0..relative_path_raw.len() - 1]
+          } else {
+            &relative_path_raw
+          };
+
+          if relative_path.starts_with("#") {
+            let builtin_path = PathBuf::from(&relative_path);
+            visit_file(&builtin_path, visited, result, should_preprocess_import, import_re, external_re)?;
+          } else if !relative_path.contains("/")
+            && !relative_path.contains("\\")
+            && !relative_path.starts_with(".")
+          {
+            if let Some(app_entry) = crate::utils::resolve_app_entry(&relative_path, None) {
+              visit_file(&app_entry, visited, result, should_preprocess_import, import_re, external_re)?;
             } else {
-              return Err(anyhow::anyhow!(
-                "App entry not found: {}/{}",
-                package_name,
-                entry_name
-              ));
+              return Err(anyhow::anyhow!("App not found: {}", relative_path));
+            }
+          } else if relative_path.contains("/") && !relative_path.starts_with(".") {
+            let parts: Vec<&str> = relative_path.splitn(2, "/").collect();
+            if parts.len() == 2 {
+              let package_name = parts[0];
+              let entry_name = parts[1];
+
+              if let Some(app_entry) = crate::utils::resolve_app_entry(package_name, Some(entry_name))
+              {
+                visit_file(&app_entry, visited, result, should_preprocess_import, import_re, external_re)?;
+              } else {
+                return Err(anyhow::anyhow!(
+                  "App entry not found: {}/{}",
+                  package_name,
+                  entry_name
+                ));
+              }
+            } else {
+              let included_path = parent
+                .join(relative_path)
+                .canonicalize()
+                .with_context(|| format!("Failed to resolve import"))?;
+
+              visit_file(&included_path, visited, result, should_preprocess_import, import_re, external_re)?;
             }
           } else {
             let included_path = parent
@@ -218,31 +303,25 @@ impl RewRuntime {
               .canonicalize()
               .with_context(|| format!("Failed to resolve import"))?;
 
-            visit_file(&included_path, visited, result, import_re)?;
+            visit_file(&included_path, visited, result, should_preprocess_import, import_re, external_re)?;
           }
-        } else {
-          let included_path = parent
-            .join(relative_path)
-            .canonicalize()
-            .with_context(|| format!("Failed to resolve import"))?;
-
-          visit_file(&included_path, visited, result, import_re)?;
         }
       }
 
       Ok(())
     }
 
-    visit_file(&filepath, &mut visited, &mut result, &import_re)?;
+    visit_file(&filepath, &mut visited, &mut result, false, &import_re, &external_re)?;
     Ok(result)
   }
 
-  pub async fn include_and_run(
+  pub async fn prepare(
     &mut self,
     files: Vec<(PathBuf, String)>,
-    entry: &Path,
-  ) -> Result<()> {
+    entry: Option<&Path>,
+  ) -> Result<String> {
     let mut module_wrappers = String::new();
+    let mut entry_calls = Vec::new();
 
     for (path, source) in files {
       let compiled = self.compile_and_run(&source, &path).await?;
@@ -263,6 +342,11 @@ impl RewRuntime {
                   }
                 }
               }
+
+              let base_name = Path::new(rel_path_str).with_extension("").to_string_lossy().into_owned();
+              if mod_alias.is_empty() {
+                mod_alias.push_str(&format!("[\"app://{}/{}\"]", package, base_name))
+              }
             }
           }
         }
@@ -272,14 +356,22 @@ impl RewRuntime {
         module_wrappers.push_str(&format!("(function(module){{\n{compiled}\n}})({{filename: \"{id}\"}});", 
         id = mod_id,
         compiled = compiled));
+      } else if mod_id.ends_with(".cake") {
+        module_wrappers.push_str(compiled.as_str());
+        
+        let entry_regex = Regex::new(r#"//\s*entry\s*"([^"]+)""#).unwrap();
+        for cap in entry_regex.captures_iter(&compiled) {
+          let entry_file = cap[1].to_string();
+          entry_calls.push(format!("rew.prototype.mod.prototype.get('{}');", entry_file));
+        }
       } else {
         module_wrappers.push_str(&format!(
           r#"rew.prototype.mod.prototype.defineNew("{id}", function(globalThis){{
-            with (globalThis) {{
-              {compiled}
-            }}
-            return globalThis.module.exports;
-          }}, {mod_alias});"#,
+with (globalThis) {{
+  {compiled}
+}}
+return globalThis.module.exports;
+}}, {mod_alias});"#,
           id = mod_id,
           mod_alias = mod_alias,
           compiled = compiled
@@ -287,36 +379,137 @@ impl RewRuntime {
       }
     }
 
-    let entry_mod_id = entry.to_str().unwrap_or("entry");
-    let mut entry_app_id = None;
+    // Add the entry point from the function parameter if provided
+    if let Some(entry) = entry {
+      let entry_mod_id = entry.to_str().unwrap_or("entry");
+      let mut entry_app_id = None;
 
-    if let Some(app_info) = crate::utils::find_app_info(entry) {
-      if let Some(manifest) = &app_info.config.manifest {
-        if let Some(package) = &manifest.package {
-          if let Some(rel_path) = entry.strip_prefix(&app_info.path).ok() {
-            let rel_path_str = rel_path.to_str().unwrap_or("");
+      if let Some(app_info) = crate::utils::find_app_info(entry) {
+        if let Some(manifest) = &app_info.config.manifest {
+          if let Some(package) = &manifest.package {
+            if let Some(rel_path) = entry.strip_prefix(&app_info.path).ok() {
+              let rel_path_str = rel_path.to_str().unwrap_or("");
 
-            if let Some(entries) = &app_info.config.entries {
-              for (key, value) in entries {
-                if value == rel_path_str {
-                  entry_app_id = Some(format!("app://{}/{}", package, key));
-                  break;
+              if let Some(entries) = &app_info.config.entries {
+                for (key, value) in entries {
+                  if value == rel_path_str {
+                    entry_app_id = Some(format!("app://{}/{}", package, key));
+                    break;
+                  }
                 }
               }
             }
           }
         }
       }
+
+      let final_entry_id = entry_app_id.unwrap_or_else(|| entry_mod_id.to_string());
+      if !final_entry_id.ends_with(".cake") {
+        entry_calls.push(format!("rew.prototype.mod.prototype.get('{}');", final_entry_id));
+      }
     }
 
-    let final_entry_id = entry_app_id.unwrap_or_else(|| entry_mod_id.to_string());
+    for entry_call in entry_calls {
+      module_wrappers.push_str(&format!("\n{}", entry_call));
+    }
 
-    let final_script = format!(
-      "{}\nrew.prototype.mod.prototype.get('{}');",
-      module_wrappers, final_entry_id
+    fs::write("out.js", module_wrappers.clone())?;
+
+    Ok(module_wrappers.to_string())
+  }
+
+
+  pub async fn build_file<P: AsRef<Path>>(&mut self, filepath: P, options: BuildOptions) -> Result<String> {
+    let filepath = filepath
+      .as_ref()
+      .canonicalize()
+      .with_context(|| format!("Failed to resolve file path: {:?}", filepath.as_ref()))?;
+
+    let files_with_flags = RewRuntime::resolve_includes_recursive_from(&filepath)?;
+    let mut excluded: Vec<String> = Vec::new();
+
+    let files_with_flags = if !options.bundle_all {
+      let main_app_path = crate::utils::find_app_path(&filepath);
+      
+      files_with_flags
+        .into_iter()
+        .filter(|(path, source, _)| {
+          if let Some(app_path) = &main_app_path {
+            if !path.starts_with(app_path) || path.to_str().unwrap_or("").starts_with("#") {
+              if path.to_str().unwrap_or("").starts_with("#") {
+                excluded.push(path.to_str().unwrap_or("").to_string());
+              } else {
+                if let Some(app_info) = crate::utils::find_app_info(&path) {
+                  if let Some(manifest) = &app_info.config.manifest {
+                    if let Some(package) = &manifest.package {
+                      if let Some(rel_path) = path.strip_prefix(&app_info.path).ok() {
+                        let rel_path_str = rel_path.to_str().unwrap_or("");
+          
+                        if let Some(entries) = &app_info.config.entries {
+                          for (key, value) in entries {
+                            if value == rel_path_str {
+                              let entry_id = format!("{}/{}", package, key);
+
+                              if !excluded.contains(&entry_id) {
+                                excluded.push(entry_id.clone());
+                              }
+                              break;
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              self.declaration_engine.process_script(source);
+            }
+            path.starts_with(app_path)
+          } else {
+            true
+          }
+        })
+        .collect()
+    } else {
+      files_with_flags
+    };
+
+    let files: Vec<(PathBuf, String)> = files_with_flags
+      .into_iter()
+      .map(|(path, content, _)| (path, content))
+      .collect();
+
+    let entry = if let Some(entry) = options.entry_file {
+      entry.canonicalize().unwrap_or(filepath)
+    } else {
+      filepath
+    };
+
+    let mut string = self.prepare(files, None).await?;
+    string.insert_str(0, 
+      format!("{}\n", excluded
+      .into_iter()
+      .map(|item| format!("// external \"{}\"", item))
+      .collect::<Vec<String>>()
+      .join("\n")
+      ).as_str()
     );
+    string.insert_str(0, format!("\n// entry \"{}\" \n", entry.to_str().unwrap_or("unknown")).as_str());
+    string.push_str("\n");
 
-    fs::write("out.js", final_script.clone())?;
+    // Encode the content if it's a cake file
+    string = encode_cake_file(&string);
+
+    Ok(string)
+  }
+
+  pub async fn include_and_run(
+    &mut self,
+    files: Vec<(PathBuf, String)>,
+    entry: &Path,
+  ) -> Result<()> {
+    let final_script = self.prepare(files, Some(entry)).await?;
+    
 
     self.runtime.execute_script("<main>", final_script)?;
     self
@@ -327,6 +520,12 @@ impl RewRuntime {
   }
 
   pub async fn compile_and_run(&mut self, source: &str, filepath: &Path) -> Result<String> {
+
+    if filepath.extension().map_or(false, |ext| ext == "cake" || ext == "js") || source.starts_with("\"no-compile\"") {
+      // self.declaration_engine.process_script(source);
+      return Ok(source.to_string());
+    }
+
     let local_declarations = self.declaration_engine.process_script(source);
 
     let global_declarations = self.declaration_engine.global_declarations.clone();
@@ -379,6 +578,7 @@ impl RewRuntime {
     compile_rew_stuff(source, &mut options)
   }
 
+
   pub async fn run_file<P: AsRef<Path>>(&mut self, filepath: P) -> Result<()> {
     let filepath = filepath
       .as_ref()
@@ -389,7 +589,6 @@ impl RewRuntime {
 
     for (path, content, preprocess) in &files_with_flags {
       if *preprocess {
-        // println!("Preprocessing declarations from: {}", path.display());
 
         let local_declarations = self.declaration_engine.process_script(&content);
 

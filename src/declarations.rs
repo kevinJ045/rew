@@ -80,7 +80,7 @@ impl DeclarationEngine {
     line: &str,
     local_declarations: &mut HashMap<String, Declaration>,
   ) -> bool {
-    let tokens = crate::compiler::tokenize_coffee_script(line.replace("#", "").as_str());
+    let tokens = crate::compiler::tokenize_coffee_script(line.replace("#", "").replace("//", "").as_str());
     // println!("{}", line);
     // Check if this is a declaration
     if tokens.len() < 4 {
@@ -184,7 +184,7 @@ impl DeclarationEngine {
       }
 
       // Check for declaration start
-      if trimmed.starts_with("#declare") {
+      if trimmed.starts_with("#declare") || trimmed.starts_with("//declare") {
         if trimmed.ends_with(';') {
           // Single line declaration
           self.parse_declaration(trimmed, &mut local_declarations);

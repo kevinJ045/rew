@@ -1,0 +1,11 @@
+
+// entry "/home/makano/workspace/rew-rust/test/external.coffee" 
+// external "gaga.daga/main"
+rew.prototype.mod.prototype.defineNew("/home/makano/workspace/rew-rust/test/external.coffee", function(globalThis){
+            with (globalThis) {
+              const j = rew.prototype.mod.prototype.find(module,  "gaga.daga")
+rew.prototype.io.prototype.out.print(j)
+
+            }
+            return globalThis.module.exports;
+          }, ["app://test.app/external"]);

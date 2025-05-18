@@ -31,19 +31,6 @@ print module.app
 
 print ffi
 
-class MyClass
-  name = "Context"
-  
-  ffi_type init = -> rew::ffi::ptr
-  ffi_type(ffi::ptr) lsusb = -> rew::ffi::void
-  ffi_type(ffi::ptr, 'u16', 'u16') open = -> rew::ffi::ptr
-  ffi_type(ffi::ptr) dealloc = -> rew::ffi::void
-
-Context = ffi::open '/home/makano/workspace/testing/rustyscript/deno_bindgen/example/target/debug/libdeno_usb.so', MyClass
-
-ctx = new Context
-ctx.lsusb();
-
 f = ->
   print await read './d.coffee', { binary: true }
 

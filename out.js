@@ -1,40 +1,51 @@
-rew.prototype.mod.prototype.defineNew("/home/makano/workspace/rew-rust/test/ffi.coffee", function(globalThis){
-            with (globalThis) {
-              var ins, init_socket, recv_message, send_message, loopm;
-rew.prototype.mod.prototype.find(module, "#std.ffi!")
-using(namespace(rew.prototype.ns()))
 
-ins = instantiate(class {
-  init_socket = rew.prototype.ffi.prototype.typed( function() { return 'i32' })
-  recv_message = rew.prototype.ffi.prototype.typed(ffi.prototype.ptr, 'usize', function() { return 'i32' })
-  send_message = rew.prototype.ffi.prototype.typed(ffi.prototype.ptr, ffi.prototype.pre('i32', Number))
-});
+// entry "/home/makano/.rew/apps/gg.kf/main.coffee" 
+// external "gaga.daga/main"
+rew.prototype.mod.prototype.defineNew("/home/makano/.rew/apps/gg.kf/main.coffee", function(globalThis){
+with (globalThis) {
+  const j = rew.prototype.mod.prototype.find(module,  "gaga.daga!")
+rew.prototype.io.prototype.out.print(j)
+rew.prototype.io.prototype.out.print('hi')
 
-({ init_socket, recv_message, send_message } = ffi.prototype.open('/home/makano/workspace/testing/rustyscript/test_ffi/target/release/libmy_add_lib.so', ins))
+}
+return globalThis.module.exports;
+}, ["app://gg.kf/main"]);
 
-init_socket()
+// entry "/home/makano/.rew/apps/gaga.daga/main.coffee" 
 
-loopm = function() {
-  var buf;
-  buf = new Uint8Array(40960)
-  if (recv_message(rew.prototype.ptr.prototype.of(buf), 40960) > 0) {
-    print(rew.prototype.encoding.prototype.bytesToString(buf))
-  }
-  return setTimeout(loopm, 1)
+rew.prototype.mod.prototype.defineNew("/home/makano/.rew/apps/gaga.daga/main.coffee", function(globalThis){
+with (globalThis) {
+  
+const submodule = rew.prototype.mod.prototype.find(module,  "./help.coffee")
+const sn = rew.prototype.mod.prototype.find(module,  "./src/main.coffee")
+
+//declare* "sayhello" = rew::io::out.print('hi');
+
+module.exports = {
+	isMain: true,
+	submodule,
+	sn
 }
 
-loopm()
+}
+return globalThis.module.exports;
+}, ["app://gaga.daga/main"]);rew.prototype.mod.prototype.defineNew("/home/makano/.rew/apps/gaga.daga/help.coffee", function(globalThis){
+with (globalThis) {
+  module.exports = {
+	submodule: true
+}
 
+}
+return globalThis.module.exports;
+}, ["app://gaga.daga/help"]);rew.prototype.mod.prototype.defineNew("/home/makano/.rew/apps/gaga.daga/src/main.coffee", function(globalThis){
+with (globalThis) {
+  var fgh;
+module.exports.fgh =  fgh = "hello"
 
+}
+return globalThis.module.exports;
+}, ["app://gaga.daga/src/main"]);
 
-setTimeout(() => send_message(rew.prototype.ptr.prototype.of(rew.prototype.encoding.prototype.stringToBytes("Hello from JS"))), 1000)
-
-
-            }
-            return globalThis.module.exports;
-          }, );(function(module){
-
-//declare* "=ffi_type" = rew::ffi::typed;
-
-})({filename: "#std.ffi"});
-rew.prototype.mod.prototype.get('/home/makano/workspace/rew-rust/test/ffi.coffee');
+rew.prototype.mod.prototype.get('/home/makano/.rew/apps/gg.kf/main.coffee');
+rew.prototype.mod.prototype.get('/home/makano/.rew/apps/gaga.daga/main.coffee');
+rew.prototype.mod.prototype.get('app://gg.kf/main');

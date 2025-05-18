@@ -58,7 +58,11 @@ pub fn find_app_by_package(package_name: &str) -> Option<AppInfo> {
     return None;
   }
 
-  // Try to find the app directory
+  // let app_dir = apps_dir.join(package_name);
+  // let config_path = app_dir.join("app.yaml");
+
+  // println!("{}", config_path.display());
+
   let app_dirs = fs::read_dir(&apps_dir).ok()?;
 
   for dir_entry in app_dirs {
