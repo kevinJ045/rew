@@ -1,8 +1,14 @@
 
+import "#std.ffi!";
 import imported, { hello } from "./d.coffee"
 import * as smn from "agamada.domago"
 import * as tst from "agamada.domago/test"
+
+
+
 using namespace rew::ns()
+
+# print 'ffi: ', rew::ffi
 
 my_linked_fn = ->->->->->->->->-> '=============>> linked fn result'
 
@@ -31,8 +37,4 @@ print module.app
 
 print ffi
 
-f = ->
-  print await read './d.coffee', { binary: true }
-
-f()
 # print rew::encoding::toBase64 await rew::fs::read './d.coffee', { binary: true }

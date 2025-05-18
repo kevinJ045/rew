@@ -1,5 +1,6 @@
-import "#std!"
+import "#std.conf";
 using namespace rew::ns()
+print "c", Object.keys(rew::),typeof rew::conf
 data = rew::conf
 
 # Working with text data

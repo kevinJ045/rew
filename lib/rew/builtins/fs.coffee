@@ -1,28 +1,24 @@
 
-unless then rew.extensions.add 'fs', rew.extensions.createClass({
-  cwd(){
-    return "";
+unless rew.extensions.has('fs') then rew.extensions.add 'fs', (Deno, module) -> rew.extensions.createClass({
+  _namespace(){
+    return this;
   },
   
   async read(path, options = { binary: false }) {
-    const result = await ops.op_fs_read(this.cwd(), path, options);
+    const result = await rew.ops.op_fs_read(module.filename, path, options);
     if (options.binary) {
-      // Convert array of numbers to Uint8Array
-      return new Uint8Array(result);
+      # return new Uint8Array(result);
     }
     return result;
   },
   
-  // Write file (accepts string for text, Uint8Array/Array for binary)
   async write(path, content, options = { binary: false, create_dirs: false }) {
     if (options.binary && content instanceof Uint8Array) {
-      // Convert Uint8Array to regular array for serialization
       content = Array.from(content);
     }
-    return await ops.op_fs_write(this.cwd(), path, content, options);
+    return await rew.ops.op_fs_write(module.filename, path, content, options);
   },
   
-  // Utility methods for binary data
   async readBinary(path) {
     return await this.read(path, { binary: true });
   },
@@ -31,56 +27,44 @@ unless then rew.extensions.add 'fs', rew.extensions.createClass({
     return await this.write(path, data, { binary: true, create_dirs: true });
   },
   
-  // Convert string to binary data
   stringToBytes(str) {
     const encoder = new TextEncoder();
     return encoder.encode(str);
   },
   
-  // Convert binary data to string
   bytesToString(bytes) {
     const decoder = new TextDecoder();
     return decoder.decode(bytes);
   },
   
-  // Other methods remain the same
   exists(path) {
-    return ops.op_fs_exists(this.cwd(), path);
+    return rew.ops.op_fs_exists(module.filename, path);
   },
   
   async rm(path, options = {}) {
-    return trackPromise(ops.op_fs_rm(this.cwd(), path, options));
+    return trackPromise(rew.ops.op_fs_rm(module.filename, path, options));
   },
   
   stats(path) {
-    const statsJson = ops.op_fs_stats(this.cwd(), path);
+    const statsJson = rew.ops.op_fs_stats(module.filename, path);
     return JSON.parse(statsJson);
   },
   
   async mkdir(path, options = {}) {
-    return trackPromise(ops.op_fs_mkdir(this.cwd(), path, options));
+    return trackPromise(rew.ops.op_fs_mkdir(module.filename, path, options));
   },
   
   readdir(path, options = {}) {
-    const entriesJson = ops.op_fs_readdir(this.cwd(), path, options);
+    const entriesJson = rew.ops.op_fs_readdir(module.filename, path, options);
     return JSON.parse(entriesJson);
   },
   
   async copy(src, dest, options = {}) {
-    return trackPromise(ops.op_fs_copy(this.cwd(), src, dest, options));
+    return trackPromise(rew.ops.op_fs_copy(module.filename, src, dest, options));
   },
   
   async rename(src, dest) {
-    return trackPromise(ops.op_fs_rename(this.cwd(), src, dest));
-  },
-  
-  cwd() {
-    return ops.op_fs_cwd();
-  },
-  
-  resolve(path) {
-    if (!path) return ".";
-    return rew.prototype.path.prototype.resolve(this.cwd(), path);
+    return trackPromise(rew.ops.op_fs_rename(module.filename, src, dest));
   },
   
   async ensureDir(path) {
