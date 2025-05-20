@@ -1,12 +1,12 @@
 [package]
-name = "rew"
+name = "rew_runtime"
 version = "0.0.1"
 edition = "2021"
 authors = ["makano"]
 description = "A mini runtime for coffeescript"
 repository = "https://github.com/kevinj045/rew"
 readme = "README.md"
-licence = "MIT" 
+license = "MIT" 
 keywords = ["cli", "rew", "coffeescript"]
 categories = ["command-line-utilities"]
 include = [
