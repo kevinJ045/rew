@@ -1,3 +1,8 @@
 import "#std.ffi!"
 import "#std.conf"
+import "#std.encoding"
 import "#std.fs"
+import "#std.os"
+import "#std.path"
+import "#std.shell"
+import "#std.threads"

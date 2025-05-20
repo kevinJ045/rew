@@ -25,14 +25,21 @@ use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::Mutex;
+use crate::workers::{
+  op_thread_spawn,
+  op_thread_message,
+  op_thread_post_message,
+  op_thread_terminate,
+  op_thread_receive,
+};
 
-fn encode_cake_file(content: &str) -> String {
+fn encode_brew_file(content: &str) -> String {
     BASE64.encode(content.as_bytes())
 }
 
-fn decode_cake_file(encoded: &str) -> Result<String> {
+fn decode_brew_file(encoded: &str) -> Result<String> {
     let decoded = BASE64.decode(encoded.trim())
-        .map_err(|e| anyhow::anyhow!("Failed to decode cake file: {}", e))?;
+        .map_err(|e| anyhow::anyhow!("Failed to decode brew file: {}", e))?;
     
     String::from_utf8(decoded)
         .map_err(|e| anyhow::anyhow!("Failed to convert decoded bytes to string: {}", e))
@@ -94,6 +101,12 @@ extension!(
     op_data_read_yaml,
     op_data_write_yaml,
     op_data_get_info,
+    op_thread_spawn,
+    op_thread_message,
+    op_thread_post_message,
+    op_thread_terminate,
+    op_thread_receive,
+    op_get_env
   ]
 );
 
@@ -190,7 +203,7 @@ impl RewRuntime {
         file_path_unf
       };
       
-      let is_cake_file = file_path.extension().map_or(false, |ext| ext == "cake");
+      let is_brew_file = file_path.extension().map_or(false, |ext| ext == "brew");
 
       let content = if file_path_str.starts_with("#") {
         if let Some(builtin_content) = BUILTIN_MODULES.get(file_path_str) {
@@ -201,8 +214,8 @@ impl RewRuntime {
             file_path_str
           ));
         }
-      } else if is_cake_file {
-        if let Ok(decoded) = decode_cake_file(&fs::read_to_string(file_path).with_context(|| format!("Failed to read {:?}", file_path))?) {
+      } else if is_brew_file {
+        if let Ok(decoded) = decode_brew_file(&fs::read_to_string(file_path).with_context(|| format!("Failed to read {:?}", file_path))?) {
           decoded
         } else {
           fs::read_to_string(file_path).with_context(|| format!("Failed to read {:?}", file_path))?
@@ -222,7 +235,7 @@ impl RewRuntime {
       let parent = file_path.parent().unwrap_or(Path::new("."));
 
 
-      if is_cake_file {
+      if is_brew_file {
         
         for cap in external_re.captures_iter(&content) {
           let external_app_path = cap[1].to_string();
@@ -356,7 +369,7 @@ impl RewRuntime {
         module_wrappers.push_str(&format!("(function(module){{\n{compiled}\n}})({{filename: \"{id}\"}});", 
         id = mod_id,
         compiled = compiled));
-      } else if mod_id.ends_with(".cake") {
+      } else if mod_id.ends_with(".brew") {
         module_wrappers.push_str(compiled.as_str());
         
         let entry_regex = Regex::new(r#"//\s*entry\s*"([^"]+)""#).unwrap();
@@ -404,7 +417,7 @@ return globalThis.module.exports;
       }
 
       let final_entry_id = entry_app_id.unwrap_or_else(|| entry_mod_id.to_string());
-      if !final_entry_id.ends_with(".cake") {
+      if !final_entry_id.ends_with(".brew") {
         entry_calls.push(format!("rew.prototype.mod.prototype.get('{}');", final_entry_id));
       }
     }
@@ -497,8 +510,7 @@ return globalThis.module.exports;
     string.insert_str(0, format!("\n// entry \"{}\" \n", entry.to_str().unwrap_or("unknown")).as_str());
     string.push_str("\n");
 
-    // Encode the content if it's a cake file
-    string = encode_cake_file(&string);
+    string = encode_brew_file(&string);
 
     Ok(string)
   }
@@ -521,7 +533,7 @@ return globalThis.module.exports;
 
   pub async fn compile_and_run(&mut self, source: &str, filepath: &Path) -> Result<String> {
 
-    if filepath.extension().map_or(false, |ext| ext == "cake" || ext == "js") || source.starts_with("\"no-compile\"") {
+    if filepath.extension().map_or(false, |ext| ext == "brew" || ext == "js") || source.starts_with("\"no-compile\"") {
       // self.declaration_engine.process_script(source);
       return Ok(source.to_string());
     }
@@ -1256,6 +1268,32 @@ fn op_data_read_binary(
   data_manager
     .read_binary(&key)
     .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))
+}
+
+
+#[op2]
+#[string]
+fn op_get_env(
+  _: Rc<RefCell<OpState>>,
+) -> Result<String, CoreError> {
+  let env_vars: HashMap<String, String> = std::env::vars().collect();
+  let cwd = std::env::current_dir()
+    .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))?
+    .to_string_lossy()
+    .to_string();
+  let exec_path = std::env::current_exe()
+    .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))?
+    .to_string_lossy()
+    .to_string();
+
+  let result = serde_json::json!({
+    "env": env_vars,
+    "cwd": cwd,
+    "execPath": exec_path
+  });
+
+  serde_json::to_string(&result)
+    .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::InvalidData, e)))
 }
 
 #[op2(async)]

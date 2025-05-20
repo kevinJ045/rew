@@ -1,7 +1,19 @@
 [package]
 name = "rew"
-version = "1.5.5"
+version = "0.0.1"
 edition = "2021"
+authors = ["makano"]
+description = "A mini runtime for coffeescript"
+repository = "https://github.com/kevinj045/rew"
+readme = "README.md"
+keywords = ["cli", "rew", "coffeescript"]
+categories = ["command-line-utilities"]
+include = [
+  "src/**",
+  "lib/**",
+  "Cargo.toml",
+  "README.md",
+]
 
 
 [dependencies]
@@ -10,6 +22,7 @@ tokio = { version = "1.43.0", features = ["full"] }
 anyhow = "1.0.96"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+lazy_static = "1.4"
 serde_yaml = "0.9"
 clap = { version = "4.5", features = ["derive"] }
 colored = "2.1"

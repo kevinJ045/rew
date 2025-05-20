@@ -7,7 +7,38 @@ entries:
 assets:
   icon: assets/icon.png
   folder: ./assets
-install:
-  requirements: []
-  commands:
-    - sh $installPath/install.sh
+pimmy.install:
+  dependencies:
+    - rew.webkitui (1.0.0)
+    - rew.appguard (1.0.0)
+    - github:someone/third.party (1.0.0)
+    - github:someone/third.party#commit
+    - github:someone/third.party@branch#commit
+    - file+unzip:https://example.com/example.zip (1.0.0)
+    - file+tar(tar -xf \$file -C \$path):https://example.com/example.tar
+    - file+sha(SHA)+tar(tar -xf \$file -C \$path):https://example.com/example.tar
+  bin:
+    test: test.qrew 
+  preinstall:
+    scripts:
+      - _install.coffee
+    shell:
+      - sh ${path}/_install.sh
+  build: 
+    entry:
+      - main.coffee
+    flags:
+      - -f
+      - -o
+      - ${path}/build/main
+  postinstall:
+    scripts:
+      - _postinstall.coffee
+    shell:
+      - sh ${path}/_postinstall.sh
+  uninstall:
+    scripts:
+      - _uninstall.coffee
+    shell:
+      - sh ${path}/_uninstall.sh
+  

@@ -10,9 +10,10 @@ mod compiler;
 pub mod data_manager;
 mod declarations;
 pub mod ext;
-mod runtime;
+pub mod runtime;
 mod runtime_script;
 mod utils;
+mod workers;
 use runtime::RewRuntime;
 
 fn ensure_rew_dirs() -> anyhow::Result<()> {
@@ -74,10 +75,10 @@ enum Commands {
     #[arg(name = "FILE")]
     file: Option<PathBuf>,
 
-    #[arg(name = "OUTPUT", default_value = "output.cake")]
+    #[arg(name = "OUTPUT", default_value = "output.brew")]
     output: PathBuf,
     
-    #[arg(short, long, help = "Create a cake or a slice for your app.")]
+    #[arg(short, long, help = "Create a brew for your app.")]
     bundle_all: bool,
     
     #[arg(short, long, help = "Specify an entry file different from the main file")]

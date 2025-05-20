@@ -1,6 +1,9 @@
 # Rusty Rew (RuRe)
 Rusty rew is a project made to remake [rew](https://kevinj045.github.io/rew-docs/) with rust to give it extra functionality and better usage.
 
+## Original rew
+The original rew has been moved to [rew-node](https://github.com/kevinj045/rew-node/).
+
 ## Available features
 ### Core Runtime
 
@@ -13,7 +16,7 @@ Rusty rew is a project made to remake [rew](https://kevinj045.github.io/rew-docs
 | `__rew_symbols` Support     | Exposes available FFI functions/types via JSON             | ✅ Implemented |
 | Multi-threaded Runtime      | Support for running multiple runtimes in parallel          | 🕓 Planned     |
 | Runtime Metrics             | Collect and expose runtime performance metrics             | 🕓 Planned     |
-| Threads Feature             | Enables running tasks in other threads                    | 🕓 Planned     |
+| Threads Feature             | Enables running tasks in other threads                    | ✅ Implemented     |
 
 ### FFI System
 
@@ -75,11 +78,11 @@ Rusty rew is a project made to remake [rew](https://kevinj045.github.io/rew-docs
 
 | Feature                     | Description                                                | Status         |
 |-----------------------------|------------------------------------------------------------|----------------|
-| CLI Runner (`rew run`)      | CLI tool to run `.rew` files                               | ✅ Implemented |
+| CLI Runner (`rew run`)      | CLI tool to run `.coffee` files                               | ✅ Implemented |
 | Linter                      | Basic syntax checking and semantic warnings                | 🕓 Planned     |
-| Formatter                   | Pretty printer for `.rew` source code                      | 🕓 Planned     |
+| Formatter                   | Pretty printer for `.coffee` source code                      | 🕓 Planned     |
 | Language Server (LSP)       | IDE support with diagnostics, autocomplete, etc.           | 🕓 Planned     |
 | Test Runner                 | Built-in testing framework for `.rew` files                | 🕓 Planned     |
 | Documentation Generator     | Generate API documentation from `.rew` files               | 🕓 Planned     |
 | Building Language           | A language for defining build processes                   | 🕓 Planned     |
-| Bundling Rew Files          | Build and bundle `.rew` files into deployable artifacts    | ✅ Implemented |
+| Bundling Rew Files          | Build and bundle `.brew` files into deployable artifacts    | ✅ Implemented |
