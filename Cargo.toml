@@ -6,6 +6,7 @@ authors = ["makano"]
 description = "A mini runtime for coffeescript"
 repository = "https://github.com/kevinj045/rew"
 readme = "README.md"
+licence = "MIT" 
 keywords = ["cli", "rew", "coffeescript"]
 categories = ["command-line-utilities"]
 include = [
