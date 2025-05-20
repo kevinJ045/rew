@@ -15,6 +15,9 @@ include = [
   "README.md",
 ]
 
+[lib]
+name = "rew"
+path = "src/lib.rs"
 
 [dependencies]
 deno_core = "0.338.0"
@@ -36,13 +39,3 @@ deno_permissions = "0.52.0"
 deno_webidl = "0.193.0"
 deno_console = "0.193.0"
 deno_url = "0.193.0"
-#deno_error = "0.5.5"
-#denort_helper = "0.1.0"
-#libffi = "4.1.0"
-#libffi-sys = "3.3.1"
-#thiserror = "2.0.12"
-#num-bigint = "0.4.6"
-#memmap2 = "0.9.5"
-#dlopen2 = "0.7.0"
-#cranelift = "0.117.0"
-#cranelift-native = "0.117.0"

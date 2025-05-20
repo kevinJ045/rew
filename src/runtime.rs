@@ -531,6 +531,21 @@ return globalThis.module.exports;
     Ok(())
   }
 
+  pub async fn run_as(
+    &mut self,
+    name: String,
+    code: String,
+  ) -> Result<()> {
+    let name_static: &'static str = Box::leak(name.into_boxed_str());
+    let code_static: &'static str = Box::leak(code.into_boxed_str());
+
+    self.runtime.execute_script(name_static, code_static)?;
+    self.runtime
+      .run_event_loop(PollEventLoopOptions::default())
+      .await?;
+    Ok(())
+  }
+
   pub async fn compile_and_run(&mut self, source: &str, filepath: &Path) -> Result<String> {
 
     if filepath.extension().map_or(false, |ext| ext == "brew" || ext == "js") || source.starts_with("\"no-compile\"") {
