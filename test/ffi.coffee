@@ -1,4 +1,5 @@
 import "#std.ffi!"
+import "#std.encoding"
 using namespace rew::ns()
 
 ins = instantiate class
@@ -13,7 +14,7 @@ init_socket()
 loopm = ->
   buf = new Uint8Array(40960)
   if recv_message(rew::ptr::of(buf), 40960) > 0
-    print rew::encoding::bytesToString(buf)
+    rew::io::out.print rew::encoding::bytesToString(buf)
   setTimeout(loopm, 1)
 
 loopm()

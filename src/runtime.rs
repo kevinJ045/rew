@@ -8,6 +8,7 @@ use crate::ext::{console, ffi, url, web, webidl};
 use crate::runtime_script::get_runtime_script;
 use crate::utils::find_app_path;
 use anyhow::{Context, Result};
+use base64::decode;
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use deno_core::error::CoreError;
 use deno_core::OpState;
@@ -44,6 +45,16 @@ fn decode_brew_file(encoded: &str) -> Result<String> {
     String::from_utf8(decoded)
         .map_err(|e| anyhow::anyhow!("Failed to convert decoded bytes to string: {}", e))
 }
+
+pub static VIRTUAL_FILES: Lazy<Mutex<Vec<(String, String)>>> = Lazy::new(|| {
+  Mutex::new(vec![])
+});
+
+pub fn add_virtual_file(path: &str, contents: &str) {
+  let mut files = VIRTUAL_FILES.lock().unwrap();
+  files.push((path.to_string(), contents.to_string()));
+}
+
 
 #[derive(Default)]
 struct RuntimeState {
@@ -203,7 +214,15 @@ impl RewRuntime {
         file_path_unf
       };
       
-      let is_brew_file = file_path.extension().map_or(false, |ext| ext == "brew");
+      let is_brew_file = file_path.extension().map_or(false, |ext| ext == "brew" || ext == "qrew");
+
+      let real_content = if let Some(v) = VIRTUAL_FILES.lock().unwrap().iter().find(|(p, _)| p == file_path_str) {
+        v.1.clone()
+      } else if file_path_str.starts_with("#") {
+        "".to_string()
+      } else {
+        fs::read_to_string(file_path).with_context(|| format!("Failed to read {:?}", file_path))?
+      };
 
       let content = if file_path_str.starts_with("#") {
         if let Some(builtin_content) = BUILTIN_MODULES.get(file_path_str) {
@@ -215,13 +234,13 @@ impl RewRuntime {
           ));
         }
       } else if is_brew_file {
-        if let Ok(decoded) = decode_brew_file(&fs::read_to_string(file_path).with_context(|| format!("Failed to read {:?}", file_path))?) {
+        if let Ok(decoded) = decode_brew_file(&real_content) {
           decoded
         } else {
-          fs::read_to_string(file_path).with_context(|| format!("Failed to read {:?}", file_path))?
+          real_content
         }
       } else {
-        fs::read_to_string(file_path).with_context(|| format!("Failed to read {:?}", file_path))?
+        real_content
       };
 
       visited.insert(PathBuf::from(file_path_str));
@@ -258,9 +277,7 @@ impl RewRuntime {
               }
             }
           } else {
-            if let Some(app_entry) = crate::utils::resolve_app_entry(&external_app, None) {
-              visit_file(&app_entry, visited, result, should_preprocess_import, import_re, external_re)?;
-            }
+            visit_file(&PathBuf::from(external_app), visited, result, should_preprocess_import, import_re, external_re)?;
           }
         }
       } else {
@@ -369,7 +386,7 @@ impl RewRuntime {
         module_wrappers.push_str(&format!("(function(module){{\n{compiled}\n}})({{filename: \"{id}\"}});", 
         id = mod_id,
         compiled = compiled));
-      } else if mod_id.ends_with(".brew") {
+      } else if mod_id.ends_with(".brew") || mod_id.ends_with(".qrew") {
         module_wrappers.push_str(compiled.as_str());
         
         let entry_regex = Regex::new(r#"//\s*entry\s*"([^"]+)""#).unwrap();
@@ -417,7 +434,7 @@ return globalThis.module.exports;
       }
 
       let final_entry_id = entry_app_id.unwrap_or_else(|| entry_mod_id.to_string());
-      if !final_entry_id.ends_with(".brew") {
+      if !final_entry_id.ends_with(".brew") && !final_entry_id.ends_with(".qrew") {
         entry_calls.push(format!("rew.prototype.mod.prototype.get('{}');", final_entry_id));
       }
     }
@@ -531,24 +548,9 @@ return globalThis.module.exports;
     Ok(())
   }
 
-  pub async fn run_as(
-    &mut self,
-    name: String,
-    code: String,
-  ) -> Result<()> {
-    let name_static: &'static str = Box::leak(name.into_boxed_str());
-    let code_static: &'static str = Box::leak(code.into_boxed_str());
-
-    self.runtime.execute_script(name_static, code_static)?;
-    self.runtime
-      .run_event_loop(PollEventLoopOptions::default())
-      .await?;
-    Ok(())
-  }
-
   pub async fn compile_and_run(&mut self, source: &str, filepath: &Path) -> Result<String> {
 
-    if filepath.extension().map_or(false, |ext| ext == "brew" || ext == "js") || source.starts_with("\"no-compile\"") {
+    if filepath.extension().map_or(false, |ext| ext == "brew" || ext == "js" || ext == "qrew") || source.starts_with("\"no-compile\"") {
       // self.declaration_engine.process_script(source);
       return Ok(source.to_string());
     }

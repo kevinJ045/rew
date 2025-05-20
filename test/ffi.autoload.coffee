@@ -1,5 +1,4 @@
 import "#std.ffi!"
-import "#std.crypto"
 using namespace rew::ns()
 
 symbols = ffi::autoload '/home/makano/.rew/apps/rew_bindgen_test/target/release/librew_bindgen_test.so'

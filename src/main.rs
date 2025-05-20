@@ -71,7 +71,7 @@ enum Commands {
     #[arg(name = "CODE")]
     code: String,
   },
-  Bake {
+  Brew {
     #[arg(name = "FILE")]
     file: Option<PathBuf>,
 
@@ -153,7 +153,7 @@ async fn main() -> anyhow::Result<()> {
       let mut runtime = RewRuntime::new()?;
       // TODO: Add a method to execute code directly
     },
-    Commands::Bake { file, output, bundle_all, entry } => {
+    Commands::Brew { file, output, bundle_all, entry } => {
       if let Some(file_path) = file {
         println!("Building file: {} to {}", file_path.display().to_string().green(), output.display().to_string().green());
         
