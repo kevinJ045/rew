@@ -1,3 +1,6 @@
-.direnv
+.direnv/
+**/.direnv
+**/.envrc
 .envrc
-/target
+target/
+**/target/

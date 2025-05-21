@@ -1,5 +1,0 @@
-[ ] building
-[ ] bundling
-[ ] external app resolver
-[ ] bundled app running
-[ ] building to binary

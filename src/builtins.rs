@@ -8,9 +8,9 @@ const FS_MODULE: &str = include_str!("../lib/rew/builtins/fs.coffee");
 const ENCODING_MODULE: &str = include_str!("../lib/rew/builtins/encoding.js");
 const ALL_MODULE: &str = include_str!("../lib/rew/builtins/all.coffee");
 const THREADS_MODULE: &str = include_str!("../lib/rew/builtins/threads.js");
-const OS_MODULE: &str = include_str!("../lib/rew/builtins/threads.js");
-const PATH_MODULE: &str = include_str!("../lib/rew/builtins/threads.js");
-const SHELL_MODULE: &str = include_str!("../lib/rew/builtins/threads.js");
+const OS_MODULE: &str = include_str!("../lib/rew/builtins/os.js");
+const PATH_MODULE: &str = include_str!("../lib/rew/builtins/path.js");
+const SHELL_MODULE: &str = include_str!("../lib/rew/builtins/shell.js");
 
 pub static BUILTIN_MODULES: Lazy<HashMap<&'static str, &'static str>> = Lazy::new(|| {
     let mut m = HashMap::new();

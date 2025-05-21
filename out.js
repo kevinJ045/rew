@@ -1,39 +1,50 @@
-rew.prototype.mod.prototype.defineNew("/home/makano/workspace/rew-rust/test/ffi.coffee", function(globalThis){
+rew.prototype.mod.prototype.defineNew("/home/makano/workspace/rew-rust/test/old.coffee", function(globalThis){
 with (globalThis) {
-  var ins, init_socket, recv_message, send_message, loopm;
-rew.prototype.mod.prototype.find(module, "#std.ffi!")
-rew.prototype.mod.prototype.find(module, "#std.encoding")
+  
+var hello, imported, my_linked_fn, f;
+rew.prototype.mod.prototype.find(module, "#std.ffi!");
+({  hello  } = imported = rew.prototype.mod.prototype.find(module,  "./d.coffee"))
+const smn = rew.prototype.mod.prototype.find(module,  "agamada.domago")
+const tst = rew.prototype.mod.prototype.find(module,  "agamada.domago/test")
+
+
+
 using(namespace(rew.prototype.ns()))
 
-ins = instantiate(class {
-  init_socket = rew.prototype.ffi.prototype.typed( function() { return 'i32' })
-  recv_message = rew.prototype.ffi.prototype.typed(ffi.prototype.ptr, 'usize', function() { return 'i32' })
-  send_message = rew.prototype.ffi.prototype.typed(ffi.prototype.ptr, ffi.prototype.pre('i32', Number))
-});
+// print 'ffi: ', rew::ffi
 
-({ init_socket, recv_message, send_message } = ffi.prototype.open('/home/makano/workspace/testing/rustyscript/test_ffi/target/release/libmy_add_lib.so', ins))
+my_linked_fn = function() {return (function() {return (function() {return (function() {return (function() {return (function() {return (function() {return (function() {return (function() { return '=============>> linked fn result' }) }) }) }) }) }) }) }) }
 
-init_socket()
+print(my_linked_fn()()()()()()()()())
 
-loopm = function() {
-  var buf;
-  buf = new Uint8Array(40960)
-  if (recv_message(rew.prototype.ptr.prototype.of(buf), 40960) > 0) {
-    rew.prototype.io.prototype.out.print(rew.prototype.encoding.prototype.bytesToString(buf))
-  }
-  return setTimeout(loopm, 1)
-}
-
-loopm()
+//d=eclare "=default" = ONLYIF(prev="export") rew::mod::export; 
+//de=clare "=export" = rew::mod::export;
+//dec=lare "export" = ONLYIF(next="default"); 
+f = 1
+module.exports =  { f }
+// export default f = 1
 
 
+module.exports.default =  f
 
-setTimeout(() => send_message(rew.prototype.ptr.prototype.of(rew.prototype.encoding.prototype.stringToBytes("Hello from JS"))), 1000)
+//ifdef Garmenanarnarnaruman
+print('Chaugemagangemaug', 'Gaugemachangemaug', 'Garmanarnar')
+//endif
 
+print(smn)
+print(tst)
+print(imported, hello)
+// print magnificento
+
+print(module.app)
+
+print(ffi)
+
+// print rew::encoding::toBase64 await rew::fs::read './d.coffee', { binary: true }
 
 }
 return globalThis.module.exports;
-}, ["app://test.app/ffi"]);(function(module){
+}, ["app://test.app/old"]);(function(module){
 "no-compile"
 //declare* "=ffi_type" = rew::ffi::typed;
 if(!rew.extensions.has('ffi')) rew.extensions.add('ffi', (Deno) => rew.extensions.createClass({
@@ -274,68 +285,64 @@ if(!rew.extensions.has('ffi')) rew.extensions.add('ffi', (Deno) => rew.extension
     }
   }
 }));
-})({filename: "#std.ffi"});(function(module){
-"no-compile"
-if(!rew.extensions.has('encoding')) rew.extensions.add('encoding', (Deno, module) => rew.extensions.createClass({
+})({filename: "#std.ffi"});rew.prototype.mod.prototype.defineNew("/home/makano/workspace/rew-rust/test/d.coffee", function(globalThis){
+with (globalThis) {
+  var sayhello, g, hello, name;
+rew.prototype.mod.prototype.find(module, "./e.coffee")
+using(namespace(rew.prototype.ns()))
 
-  toBase64(data) {
-    if (data instanceof Uint8Array) {
-      return rew.ops.op_to_base64(Array.from(data));
-    }
-    return rew.ops.op_to_base64(data);
-  },
+print(module.options)
+print("Imported Script from")
+
+
+sayhello = function(...a) {
+  return print("hello", ...a)
+}
+
+sayhello(g = "")
+
+module.exports.hello =  hello = "shhshsh"
+module.exports.name =  name = "jjj"
+}
+return globalThis.module.exports;
+}, ["app://test.app/d"]);rew.prototype.mod.prototype.defineNew("/home/makano/workspace/rew-rust/test/e.coffee", function(globalThis){
+with (globalThis) {
   
-  fromBase64(encoded, options = { asString: false }) {
-    const result = rew.ops.op_from_base64(encoded, { as_string: options.asString });
-    if (!options.asString) {
-      return new Uint8Array(result);
-    }
-    return result;
-  },
-  
-  stringToBytes(str) {
-    return Deno.core.encode(str);
-  },
-  
-  bytesToString(bytes) {
-    return Deno.core.decode(bytes);
-  },
-  
-  encodeURIComponent(str) {
-    return encodeURIComponent(str);
-  },
-  
-  decodeURIComponent(str) {
-    return decodeURIComponent(str);
-  },
-  
-  bytesToHex(bytes) {
-    if (!(bytes instanceof Uint8Array)) {
-      throw new Error("Expected Uint8Array");
-    }
-    return Array.from(bytes)
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('');
-  },
-  
-  hexToBytes(hex) {
-    if (typeof hex !== 'string') {
-      throw new Error("Expected string");
-    }
-    
-    hex = hex.startsWith('0x') ? hex.slice(2) : hex;
-    
-    if (hex.length % 2 !== 0) {
-      hex = '0' + hex;
-    }
-    
-    const bytes = new Uint8Array(hex.length / 2);
-    for (let i = 0; i < hex.length; i += 2) {
-      bytes[i / 2] = parseInt(hex.substr(i, 2), 16);
-    }
-    
-    return bytes;
-  }
-}));
-})({filename: "#std.encoding"});
-rew.prototype.mod.prototype.get('/home/makano/workspace/rew-rust/test/ffi.coffee');
+var x;
+x = 1
+
+rew.prototype.io.prototype.out.print("eeeeeeeeeeeeeeeeeeeeeee")
+
+
+
+
+}
+return globalThis.module.exports;
+}, ["app://test.app/e"]);rew.prototype.mod.prototype.defineNew("/home/makano/.rew/apps/agama.domado/main.coffee", function(globalThis){
+with (globalThis) {
+  const submodule = rew.prototype.mod.prototype.find(module,  "./help.coffee")
+module.exports = {
+	isMain: true,
+	submodule
+}
+
+}
+return globalThis.module.exports;
+}, ["app://agamada.domago/main"]);rew.prototype.mod.prototype.defineNew("/home/makano/.rew/apps/agama.domado/help.coffee", function(globalThis){
+with (globalThis) {
+  module.exports = {
+	submodule: true
+}
+
+}
+return globalThis.module.exports;
+}, ["app://agamada.domago/help"]);rew.prototype.mod.prototype.defineNew("/home/makano/.rew/apps/agama.domado/test.coffee", function(globalThis){
+with (globalThis) {
+  module.exports = {
+	isTest: true
+}
+
+}
+return globalThis.module.exports;
+}, ["app://agamada.domago/test"]);
+rew.prototype.mod.prototype.get('/home/makano/workspace/rew-rust/test/old.coffee');

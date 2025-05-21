@@ -1,4 +1,5 @@
 import "#std.conf";
+import "#std.encoding";
 using namespace rew::ns()
 print "c", Object.keys(rew::),typeof rew::conf
 data = rew::conf
