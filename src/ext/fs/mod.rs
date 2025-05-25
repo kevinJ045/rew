@@ -1,0 +1,32 @@
+use std::path::Path;
+use std::path::PathBuf;
+use std::borrow::Cow;
+
+use super::{web::PermissionsContainer, ExtensionTrait};
+use deno_core::{extension, Extension};
+use deno_fs::{CheckedPath, FileSystemRc, FsPermissions, GetPath};
+use deno_io::fs::FsError;
+use deno_permissions::PermissionCheckError;
+
+extension!(
+    init_fs,
+    esm_entry_point = "ext:init_fs/init_fs.js",
+    esm = [ dir "src/ext/fs", "init_fs.js" ],
+);
+impl ExtensionTrait<()> for init_fs {
+    fn init((): ()) -> Extension {
+        init_fs::init()
+    }
+}
+impl ExtensionTrait<FileSystemRc> for deno_fs::deno_fs {
+    fn init(fs: FileSystemRc) -> Extension {
+        deno_fs::deno_fs::init::<deno_permissions::PermissionsContainer>(fs)
+    }
+}
+
+pub fn extensions(fs: FileSystemRc, is_snapshot: bool) -> Vec<Extension> {
+    vec![
+        deno_fs::deno_fs::build(fs, is_snapshot),
+        init_fs::build((), is_snapshot),
+    ]
+}

@@ -30,3 +30,8 @@ pub mod ffi;
 pub mod url;
 pub mod web;
 pub mod webidl;
+
+pub mod fs;
+pub mod io;
+pub mod process;
+

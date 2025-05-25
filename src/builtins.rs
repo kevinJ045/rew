@@ -13,17 +13,17 @@ const PATH_MODULE: &str = include_str!("../lib/rew/builtins/path.js");
 const SHELL_MODULE: &str = include_str!("../lib/rew/builtins/shell.js");
 
 pub static BUILTIN_MODULES: Lazy<HashMap<&'static str, &'static str>> = Lazy::new(|| {
-    let mut m = HashMap::new();
-    
-    m.insert("#std.ffi", FFI_MODULE);
-    m.insert("#std.conf", CONF_MODULE);
-    m.insert("#std.encoding", ENCODING_MODULE);
-    m.insert("#std.fs", FS_MODULE);
-    m.insert("#std.threads", THREADS_MODULE);
-    m.insert("#std.shell", SHELL_MODULE);
-    m.insert("#std.os", OS_MODULE);
-    m.insert("#std.path", PATH_MODULE);
-    m.insert("#std", ALL_MODULE);
-    
-    m
+  let mut m = HashMap::new();
+
+  m.insert("#std.ffi", FFI_MODULE);
+  m.insert("#std.conf", CONF_MODULE);
+  m.insert("#std.encoding", ENCODING_MODULE);
+  m.insert("#std.fs", FS_MODULE);
+  m.insert("#std.threads", THREADS_MODULE);
+  m.insert("#std.shell", SHELL_MODULE);
+  m.insert("#std.os", OS_MODULE);
+  m.insert("#std.path", PATH_MODULE);
+  m.insert("#std", ALL_MODULE);
+
+  m
 });

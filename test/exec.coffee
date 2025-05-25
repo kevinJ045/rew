@@ -1,3 +1,10 @@
 import "#std.shell";
 using namespace rew::ns();
-print rew::shell::exec 'echo hello'
+
+
+# channel = rew::channel::new 1, -> 
+f = =>
+  child = await rew::shell::spawn 'echo', ['hello']
+  print child
+  print await child.read()
+f()

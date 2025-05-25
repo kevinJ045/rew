@@ -1,50 +1,28 @@
-rew.prototype.mod.prototype.defineNew("/home/makano/workspace/rew-rust/test/old.coffee", function(globalThis){
+rew.prototype.mod.prototype.defineNew("/home/makano/workspace/rew-rust/test/ffi.autoload.coffee", function(globalThis){
 with (globalThis) {
-  
-var hello, imported, my_linked_fn, f;
-rew.prototype.mod.prototype.find(module, "#std.ffi!");
-({  hello  } = imported = rew.prototype.mod.prototype.find(module,  "./d.coffee"))
-const smn = rew.prototype.mod.prototype.find(module,  "agamada.domago")
-const tst = rew.prototype.mod.prototype.find(module,  "agamada.domago/test")
-
-
-
+  var symbols, cb, s;
+rew.prototype.mod.prototype.find(module, "#std.ffi!")
 using(namespace(rew.prototype.ns()))
 
-// print 'ffi: ', rew::ffi
+symbols = ffi.prototype.autoload('/home/makano/.rew/apps/rew_bindgen_test/target/release/librew_bindgen_test.so')
 
-my_linked_fn = function() {return (function() {return (function() {return (function() {return (function() {return (function() {return (function() {return (function() {return (function() { return '=============>> linked fn result' }) }) }) }) }) }) }) }) }
-
-print(my_linked_fn()()()()()()()()())
-
-//d=eclare "=default" = ONLYIF(prev="export") rew::mod::export; 
-//de=clare "=export" = rew::mod::export;
-//dec=lare "export" = ONLYIF(next="default"); 
-f = 1
-module.exports =  { f }
-// export default f = 1
+symbols.say_hello()
 
 
-module.exports.default =  f
 
-//ifdef Garmenanarnarnaruman
-print('Chaugemagangemaug', 'Gaugemachangemaug', 'Garmanarnar')
-//endif
+print(symbols.add(100, 10))
 
-print(smn)
-print(tst)
-print(imported, hello)
-// print magnificento
+cb = function() { return print("hi") }
 
-print(module.app)
+symbols.call_every_second(
+  rew.prototype.ptr.prototype.cb(cb, [], 'void').pointer
+)
 
-print(ffi)
-
-// print rew::encoding::toBase64 await rew::fs::read './d.coffee', { binary: true }
-
+s = function() { return setTimeout(s, 1) }
+s()
 }
 return globalThis.module.exports;
-}, ["app://test.app/old"]);(function(module){
+}, ["app://test.app/ffi.autoload"]);(function(module){
 "no-compile"
 //declare* "=ffi_type" = rew::ffi::typed;
 if(!rew.extensions.has('ffi')) rew.extensions.add('ffi', (Deno) => rew.extensions.createClass({
@@ -285,64 +263,5 @@ if(!rew.extensions.has('ffi')) rew.extensions.add('ffi', (Deno) => rew.extension
     }
   }
 }));
-})({filename: "#std.ffi"});rew.prototype.mod.prototype.defineNew("/home/makano/workspace/rew-rust/test/d.coffee", function(globalThis){
-with (globalThis) {
-  var sayhello, g, hello, name;
-rew.prototype.mod.prototype.find(module, "./e.coffee")
-using(namespace(rew.prototype.ns()))
-
-print(module.options)
-print("Imported Script from")
-
-
-sayhello = function(...a) {
-  return print("hello", ...a)
-}
-
-sayhello(g = "")
-
-module.exports.hello =  hello = "shhshsh"
-module.exports.name =  name = "jjj"
-}
-return globalThis.module.exports;
-}, ["app://test.app/d"]);rew.prototype.mod.prototype.defineNew("/home/makano/workspace/rew-rust/test/e.coffee", function(globalThis){
-with (globalThis) {
-  
-var x;
-x = 1
-
-rew.prototype.io.prototype.out.print("eeeeeeeeeeeeeeeeeeeeeee")
-
-
-
-
-}
-return globalThis.module.exports;
-}, ["app://test.app/e"]);rew.prototype.mod.prototype.defineNew("/home/makano/.rew/apps/agama.domado/main.coffee", function(globalThis){
-with (globalThis) {
-  const submodule = rew.prototype.mod.prototype.find(module,  "./help.coffee")
-module.exports = {
-	isMain: true,
-	submodule
-}
-
-}
-return globalThis.module.exports;
-}, ["app://agamada.domago/main"]);rew.prototype.mod.prototype.defineNew("/home/makano/.rew/apps/agama.domado/help.coffee", function(globalThis){
-with (globalThis) {
-  module.exports = {
-	submodule: true
-}
-
-}
-return globalThis.module.exports;
-}, ["app://agamada.domago/help"]);rew.prototype.mod.prototype.defineNew("/home/makano/.rew/apps/agama.domado/test.coffee", function(globalThis){
-with (globalThis) {
-  module.exports = {
-	isTest: true
-}
-
-}
-return globalThis.module.exports;
-}, ["app://agamada.domago/test"]);
-rew.prototype.mod.prototype.get('/home/makano/workspace/rew-rust/test/old.coffee');
+})({filename: "#std.ffi"});
+rew.prototype.mod.prototype.get('/home/makano/workspace/rew-rust/test/ffi.autoload.coffee');
