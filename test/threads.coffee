@@ -33,10 +33,14 @@ calculatorWorker.postMessage({ op: "subtract", value: 15 })
 calculatorWorker.postMessage({ op: "divide", value: 2 })
 
 
-rew::channel::new 1000, ->
+channel = rew::channel::new 1000, ->
   activeThreads = threads::list()
   print "Active threads:", activeThreads.length
+
 
 rew::channel::timeout 3000, ->
   print "Terminating the calculator worker..."
   calculatorWorker.terminate()
+
+rew::channel::timeout 5000, ->
+  channel.stop()

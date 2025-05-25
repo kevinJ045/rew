@@ -98,8 +98,8 @@ fn main() -> anyhow::Result<()> {
         .enable_all()
         .build()?
         .block_on(local.run_until(async {
-  let cli = Cli::parse_from(["rew", "run", "./test/fs.coffee"]);
-  // let cli = Cli::parse();
+  // let cli = Cli::parse_from(["rew", "run", "./test/fs.coffee"]);
+  let cli = Cli::parse();
 
   // Ensure Rew directories exist
   ensure_rew_dirs()?;

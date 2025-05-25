@@ -216,7 +216,7 @@ fn get_compiler_runtime() -> JsRuntime {
   compiler_runtime
 }
 
-pub fn get_rew_runtime() -> Result<JsRuntime> {
+pub fn get_rew_runtime(is_compiler: bool, is_main: bool) -> Result<JsRuntime> {
   let mut extensions = vec![rewextension::init()];
 
   extensions.extend(webidl::extensions(false));
@@ -235,7 +235,7 @@ pub fn get_rew_runtime() -> Result<JsRuntime> {
   let mut runtime = JsRuntime::new(RuntimeOptions {
     extensions: extensions,
     // module_loader: Some(Rc::new(deno_core::FsModuleLoader)),
-    is_main: true,
+    is_main: is_main,
     ..Default::default()
   });
 
@@ -257,6 +257,11 @@ globalThis._execVM = (namespace, fn) => {
 "#,
   )?;
   runtime.execute_script("<setup>", get_runtime_script())?;
+  if is_compiler {
+    runtime
+      .execute_script("<civet>", get_civet_script())
+      .unwrap();
+  }
   Ok(runtime)
 }
 
@@ -264,15 +269,15 @@ globalThis._execVM = (namespace, fn) => {
 
 pub struct RewRuntime {
   pub runtime: JsRuntime,
-  pub compiler_runtime: JsRuntime,
+  // pub compiler_runtime: JsRuntime,
   declaration_engine: DeclarationEngine,
 }
 
 impl RewRuntime {
   pub fn new() -> Result<Self> {
 
-    let mut runtime = get_rew_runtime()?;
-    let mut compiler_runtime = get_compiler_runtime();
+    let mut runtime = get_rew_runtime(true, true)?;
+    // let mut compiler_runtime = get_compiler_runtime();
 
     let declaration_engine = DeclarationEngine {
       global_declarations: HashMap::new(),
@@ -280,7 +285,7 @@ impl RewRuntime {
 
     Ok(Self {
       runtime,
-      compiler_runtime,
+      // compiler_runtime,
       declaration_engine,
     })
   }
@@ -730,11 +735,10 @@ return globalThis.module.exports;
     files: Vec<(PathBuf, String)>,
     entry: &Path,
   ) -> Result<()> {
-    let mut runtime = get_rew_runtime()?;
     let final_script = self.prepare(files, Some(entry)).await?;
 
-    runtime.execute_script("<main>", final_script)?;
-    runtime
+    self.runtime.execute_script("<main>", final_script)?;
+    self.runtime
       .run_event_loop(PollEventLoopOptions::default())
       .await?;
     Ok(())
@@ -773,12 +777,10 @@ return globalThis.module.exports;
       filepath.to_str().unwrap_or("unknown")
     );
 
-    let mut compiler_runtime = get_compiler_runtime();
-
-    let result = compiler_runtime
+    let result = self.runtime
       .execute_script("<rew>", code.clone())?;
-    let compiled = compiler_runtime.resolve_value(result).await?;
-    let scope = &mut compiler_runtime.handle_scope();
+    let compiled = self.runtime.resolve_value(result).await?;
+    let scope = &mut self.runtime.handle_scope();
     let result_code = compiled.open(scope).to_rust_string_lossy(scope);
 
     Ok(result_code)
