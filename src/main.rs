@@ -3,6 +3,7 @@ use colored::*;
 use std::fs;
 use std::path::PathBuf;
 use tokio;
+use tokio::task::LocalSet;
 
 pub mod builtins;
 mod civet;
@@ -91,10 +92,14 @@ enum Commands {
   },
 }
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-  // let cli = Cli::parse_from(["rew", "run", "./test/threads.coffee"]);
-  let cli = Cli::parse();
+fn main() -> anyhow::Result<()> {
+    let local = LocalSet::new();
+    tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()?
+        .block_on(local.run_until(async {
+  let cli = Cli::parse_from(["rew", "run", "./test/fs.coffee"]);
+  // let cli = Cli::parse();
 
   // Ensure Rew directories exist
   ensure_rew_dirs()?;
@@ -202,6 +207,6 @@ async fn main() -> anyhow::Result<()> {
       println!("Building complete");
     }
   }
-
-  Ok(())
+ Ok(())
+}))
 }

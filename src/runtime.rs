@@ -82,11 +82,6 @@ impl Default for BuildOptions {
   }
 }
 
-pub struct RewRuntime {
-  pub runtime: JsRuntime,
-  declaration_engine: DeclarationEngine,
-}
-
 #[derive(Debug, Clone)]
 struct TestPermissionDescriptorParser;
 
@@ -221,7 +216,7 @@ fn get_compiler_runtime() -> JsRuntime {
   compiler_runtime
 }
 
-fn get_rew_runtime() -> Result<JsRuntime> {
+pub fn get_rew_runtime() -> Result<JsRuntime> {
   let mut extensions = vec![rewextension::init()];
 
   extensions.extend(webidl::extensions(false));
@@ -239,7 +234,8 @@ fn get_rew_runtime() -> Result<JsRuntime> {
 
   let mut runtime = JsRuntime::new(RuntimeOptions {
     extensions: extensions,
-    module_loader: Some(Rc::new(deno_core::FsModuleLoader)),
+    // module_loader: Some(Rc::new(deno_core::FsModuleLoader)),
+    is_main: true,
     ..Default::default()
   });
 
@@ -264,10 +260,19 @@ globalThis._execVM = (namespace, fn) => {
   Ok(runtime)
 }
 
+
+
+pub struct RewRuntime {
+  pub runtime: JsRuntime,
+  pub compiler_runtime: JsRuntime,
+  declaration_engine: DeclarationEngine,
+}
+
 impl RewRuntime {
   pub fn new() -> Result<Self> {
 
     let mut runtime = get_rew_runtime()?;
+    let mut compiler_runtime = get_compiler_runtime();
 
     let declaration_engine = DeclarationEngine {
       global_declarations: HashMap::new(),
@@ -275,6 +280,7 @@ impl RewRuntime {
 
     Ok(Self {
       runtime,
+      compiler_runtime,
       declaration_engine,
     })
   }

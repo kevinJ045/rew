@@ -1,5 +1,5 @@
 use crate::ext::{console, ffi, url, web, webidl};
-use crate::runtime::RewRuntime;
+use crate::runtime::{get_rew_runtime, RewRuntime};
 use anyhow::Result;
 use deno_core::error::CoreError;
 use deno_core::{op2, OpState};
@@ -57,7 +57,7 @@ pub fn op_thread_spawn(
     // Create RewRuntime inside the Tokio runtime context
     let runtime_result = rt.block_on(async {
       // Create RewRuntime
-      let mut runtime = match RewRuntime::new() {
+      let mut runtime = match get_rew_runtime() {
         Ok(rt) => rt,
         Err(e) => {
           eprintln!("Failed to create RewRuntime: {}", e);
@@ -67,14 +67,14 @@ pub fn op_thread_spawn(
 
       // Store the worker ID and sender in the runtime state
       {
-        let op_state = runtime.runtime.op_state();
+        let op_state = runtime.op_state();
         let mut op_state = op_state.borrow_mut();
         op_state.put(worker_id.clone());
         op_state.put(from_worker_tx);
       }
 
       // Initialize the worker with postMessage function
-      if let Err(e) = runtime.runtime.execute_script(
+      if let Err(e) = runtime.execute_script(
         "<init>",
         r#"
               globalThis.onmessage = () => {};
@@ -88,7 +88,7 @@ pub fn op_thread_spawn(
       }
 
       // Load worker source
-      if let Err(e) = runtime.runtime.execute_script(
+      if let Err(e) = runtime.execute_script(
         "<worker>",
         format!(
           r#"
@@ -132,7 +132,7 @@ pub fn op_thread_spawn(
         };
 
         let js = format!("onmessage({});", msg_json);
-        if let Err(e) = runtime.runtime.execute_script("<message>", js.clone()) {
+        if let Err(e) = runtime.execute_script("<message>", js.clone()) {
           eprintln!("Failed to process message: {}", e);
           // Continue processing other messages even if one fails
         }
