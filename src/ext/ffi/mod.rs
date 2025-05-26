@@ -1,5 +1,5 @@
-use super::{web::PermissionsContainer, ExtensionTrait};
-use deno_core::{extension, Extension};
+use super::{ExtensionTrait, web::PermissionsContainer};
+use deno_core::{Extension, extension};
 
 extension!(
     init_ffi,

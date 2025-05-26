@@ -1,122 +1,43 @@
-rew.prototype.mod.prototype.defineNew("/home/makano/workspace/rew-rust/test/fs.coffee", function(globalThis){
+rew.prototype.mod.prototype.defineNew("/home/makano/workspace/rew-rust/test/s.coffee", function(globalThis){
 with (globalThis) {
-  var something, f, channel;
-rew.prototype.mod.prototype.find(module, "#std.fs")
-
-something = null
+  const s = rew.prototype.mod.prototype.find(module,  "./d.coffee")
 
 using(namespace(rew.prototype.ns()))
-// print rew::fs::read "./exec.coffee!"
-
-f = async function() {
-  something = await rew.prototype.fs.prototype.read("./ffi.coffee")
-  return rew.prototype.io.prototype.out.print(something)
-}
-
-f()
-
-channel = rew.prototype.channel.prototype.new(1000, function() {
-  if (something) return channel.stop();return
-})
+rew.prototype.io.prototype.out.print(s)
 }
 return globalThis.module.exports;
-}, ["app://test.app/fs"]);(function(module){
+}, ["app://test.app/s"]);rew.prototype.mod.prototype.defineNew("/home/makano/workspace/rew-rust/test/d.coffee", function(globalThis){
+with (globalThis) {
+  var sayhello, g, hello, name;
+rew.prototype.mod.prototype.find(module, "./e.coffee")
+using(namespace(rew.prototype.ns()))
 
-if (!rew.extensions.has('fs')) rew.extensions.add('fs', function(Deno, module) { return rew.extensions.createClass({
-  _namespace(){
-    return this;
-  },
+print(module.options)
+print("Imported Script from")
 
-  ...Deno.fs,
 
-  async read(path, options = { binary: false }) {
-    const result = await rew.ops.op_fs_read(module.filename, path, options);
-    if (options.binary) {
-      return new Uint8Array(result);
-    }
-    return result;
-  },
+sayhello = function(...a) {
+  return print("hello", ...a)
+}
+
+sayhello(g = "")
+
+module.exports.hello =  hello = "shhshsh"
+module.exports.name =  name = "jjj"
+}
+return globalThis.module.exports;
+}, ["app://test.app/d"]);rew.prototype.mod.prototype.defineNew("/home/makano/workspace/rew-rust/test/e.coffee", function(globalThis){
+with (globalThis) {
   
-  async write(path, content, options = { binary: false, create_dirs: false }) {
-    if (options.binary && content instanceof Uint8Array) {
-      content = Array.from(content);
-    }
-    return await rew.ops.op_fs_write(module.filename, path, content, options);
-  },
-  
-  async readBinary(path) {
-    return await this.read(path, { binary: true });
-  },
-  
-  async writeBinary(path, data) {
-    return await this.write(path, data, { binary: true, create_dirs: true });
-  },
-  
-  stringToBytes(str) {
-    const encoder = new TextEncoder();
-    return encoder.encode(str);
-  },
-  
-  bytesToString(bytes) {
-    const decoder = new TextDecoder();
-    return decoder.decode(bytes);
-  },
-  
-  exists(path) {
-    return rew.ops.op_fs_exists(module.filename, path);
-  },
-  
-  async rm(path, options = {}) {
-    return trackPromise(rew.ops.op_fs_rm(module.filename, path, options));
-  },
-  
-  stats(path) {
-    const statsJson = rew.ops.op_fs_stats(module.filename, path);
-    return JSON.parse(statsJson);
-  },
-  
-  async mkdir(path, options = {}) {
-    return trackPromise(rew.ops.op_fs_mkdir(module.filename, path, options));
-  },
-  
-  readdir(path, options = {}) {
-    const entriesJson = rew.ops.op_fs_readdir(module.filename, path, options);
-    return JSON.parse(entriesJson);
-  },
-  
-  async copy(src, dest, options = {}) {
-    return trackPromise(rew.ops.op_fs_copy(module.filename, src, dest, options));
-  },
-  
-  async rename(src, dest) {
-    return trackPromise(rew.ops.op_fs_rename(module.filename, src, dest));
-  },
-  
-  async ensureDir(path) {
-    return await this.mkdir(path, { recursive: true });
-  },
-  
-  async rmrf(path) {
-    return await this.rm(path, { recursive: true });
-  },
-  
-  isDirectory(path) {
-    try {
-      const stats = this.stats(path);
-      return stats.isDirectory;
-    } catch (e) {
-      return false;
-    }
-  },
-  
-  isFile(path) {
-    try {
-      const stats = this.stats(path);
-      return stats.isFile;
-    } catch (e) {
-      return false;
-    }
-  }
-}) })
-})({filename: "#std.fs"});
-rew.prototype.mod.prototype.get('/home/makano/workspace/rew-rust/test/fs.coffee');
+var x;
+x = 1
+
+rew.prototype.io.prototype.out.print("eeeeeeeeeeeeeeeeeeeeeee")
+
+
+
+
+}
+return globalThis.module.exports;
+}, ["app://test.app/e"]);
+rew.prototype.mod.prototype.get('/home/makano/workspace/rew-rust/test/s.coffee');

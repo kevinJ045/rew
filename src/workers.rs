@@ -1,16 +1,16 @@
-use crate::runtime::{get_rew_runtime};
+use crate::runtime::get_rew_runtime;
 use anyhow::Result;
 use deno_core::error::CoreError;
-use deno_core::{op2, OpState};
+use deno_core::{OpState, op2};
 use serde_json::Value;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::{
-  mpsc::{channel, Receiver, Sender},
   Arc, Mutex,
+  mpsc::{Receiver, Sender, channel},
 };
-use tokio::runtime::{Builder};
+use tokio::runtime::Builder;
 use uuid::Uuid;
 
 /// Represents a handle to a worker thread

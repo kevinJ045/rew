@@ -73,7 +73,6 @@ pub struct DeclarationEngine {
 }
 
 impl DeclarationEngine {
-
   pub fn parse_declaration(
     &mut self,
     line: &str,

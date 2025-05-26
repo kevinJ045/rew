@@ -1,8 +1,6 @@
 #![allow(unused_variables)]
 #![allow(clippy::derivable_impls)]
-use deno_core::{
-  Extension,
-};
+use deno_core::Extension;
 
 trait ExtensionTrait<A> {
   fn init(options: A) -> Extension;
@@ -34,4 +32,3 @@ pub mod fs;
 pub mod io;
 pub mod os;
 pub mod process;
-

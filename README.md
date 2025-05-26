@@ -50,7 +50,6 @@ The original rew has been moved to [rew-node](https://github.com/kevinj045/rew-n
 | HTTP/HTTPS Server           | `http.createServer`, serve requests/responses              | 🕓 Planned     |
 | Fetch API                   | `fetch()` or similar high-level HTTP client                | 🕓 Planned     |
 | Timer API                   | `setTimeout`, `setInterval`                                | 🕓 Planned     |
-| Crypto API                  | Hashing, UUIDs, secure random                              | 🕓 Planned     |
 | Database API                | Support for SQLite, Postgres, or other databases           | 🕓 Planned     |
 | Stream API                  | Support for readable/writable streams                      | 🕓 Planned     |
 

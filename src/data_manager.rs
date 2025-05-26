@@ -3,7 +3,7 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fs;
-use std::io::{Read};
+use std::io::Read;
 use std::path::{Path, PathBuf};
 pub struct DataManager {
   data_dir: PathBuf,
@@ -26,9 +26,7 @@ impl DataManager {
     fs::create_dir_all(&data_dir)
       .with_context(|| format!("Failed to create data directory: {:?}", data_dir))?;
 
-    Ok(Self {
-      data_dir,
-    })
+    Ok(Self { data_dir })
   }
 
   pub fn get_path(&self, key: &str) -> PathBuf {

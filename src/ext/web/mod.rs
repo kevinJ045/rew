@@ -1,5 +1,5 @@
 use super::ExtensionTrait;
-use deno_core::{extension, Extension};
+use deno_core::{Extension, extension};
 use std::sync::Arc;
 
 mod options;
@@ -29,10 +29,7 @@ impl ExtensionTrait<WebOptions> for init_web {
 
 impl ExtensionTrait<WebOptions> for deno_web::deno_web {
   fn init(options: WebOptions) -> Extension {
-    deno_web::deno_web::init::<PermissionsContainer>(
-      options.blob_store,
-      options.base_url,
-    )
+    deno_web::deno_web::init::<PermissionsContainer>(options.blob_store, options.base_url)
   }
 }
 

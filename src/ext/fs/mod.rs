@@ -1,6 +1,6 @@
-use super::{ExtensionTrait};
-use deno_core::{extension, Extension};
-use deno_fs::{FileSystemRc};
+use super::ExtensionTrait;
+use deno_core::{Extension, extension};
+use deno_fs::FileSystemRc;
 
 extension!(
     init_fs,
@@ -8,19 +8,19 @@ extension!(
     esm = [ dir "src/ext/fs", "init_fs.js" ],
 );
 impl ExtensionTrait<()> for init_fs {
-    fn init((): ()) -> Extension {
-        init_fs::init()
-    }
+  fn init((): ()) -> Extension {
+    init_fs::init()
+  }
 }
 impl ExtensionTrait<FileSystemRc> for deno_fs::deno_fs {
-    fn init(fs: FileSystemRc) -> Extension {
-        deno_fs::deno_fs::init::<deno_permissions::PermissionsContainer>(fs)
-    }
+  fn init(fs: FileSystemRc) -> Extension {
+    deno_fs::deno_fs::init::<deno_permissions::PermissionsContainer>(fs)
+  }
 }
 
 pub fn extensions(fs: FileSystemRc, is_snapshot: bool) -> Vec<Extension> {
-    vec![
-        deno_fs::deno_fs::build(fs, is_snapshot),
-        init_fs::build((), is_snapshot),
-    ]
+  vec![
+    deno_fs::deno_fs::build(fs, is_snapshot),
+    init_fs::build((), is_snapshot),
+  ]
 }

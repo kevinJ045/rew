@@ -1,5 +1,5 @@
 use super::ExtensionTrait;
-use deno_core::{extension, Extension};
+use deno_core::{Extension, extension};
 
 extension!(
     init_console,

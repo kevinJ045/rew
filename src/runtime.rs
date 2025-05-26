@@ -1,5 +1,5 @@
 use super::civet::get_civet_script;
-use super::compiler::{compile_rew_stuff, CompilerOptions};
+use super::compiler::{CompilerOptions, compile_rew_stuff};
 use crate::builtins::BUILTIN_MODULES;
 use crate::compiler::CompilerResults;
 use crate::data_manager::{DataFormat, DataManager};
@@ -12,11 +12,11 @@ use crate::workers::{
   op_thread_terminate,
 };
 use anyhow::{Context, Result};
-use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
-use deno_core::error::{CoreError};
+use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
+use deno_core::OpState;
 use deno_core::PollEventLoopOptions;
-use deno_core::{extension, op2, JsRuntime, RuntimeOptions};
-use deno_core::{OpState};
+use deno_core::error::CoreError;
+use deno_core::{JsRuntime, RuntimeOptions, extension, op2};
 use deno_fs::{FileSystem, RealFs};
 use deno_permissions::{
   AllowRunDescriptor, AllowRunDescriptorParseResult, DenyRunDescriptor, EnvDescriptor,
@@ -37,7 +37,6 @@ use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::Mutex;
-
 
 // use crate::shell::{op_shell_close, op_shell_kill, op_shell_read, op_shell_spawn, op_shell_write};
 
@@ -223,12 +222,18 @@ pub fn get_rew_runtime(is_compiler: bool, is_main: bool) -> Result<JsRuntime> {
   extensions.extend(url::extensions(false));
   extensions.extend(web::extensions(web::WebOptions::default(), false));
   extensions.extend(ffi::extensions(false));
-  extensions.extend(crate::ext::io::extensions(Some(deno_io::Stdio {
-    stdin: deno_io::StdioPipe::inherit(),
-    stderr: deno_io::StdioPipe::inherit(),
-    stdout: deno_io::StdioPipe::inherit(),
-  }), false));
-  extensions.extend(crate::ext::fs::extensions(std::rc::Rc::new(RealFs) as std::rc::Rc<dyn FileSystem>, false));
+  extensions.extend(crate::ext::io::extensions(
+    Some(deno_io::Stdio {
+      stdin: deno_io::StdioPipe::inherit(),
+      stderr: deno_io::StdioPipe::inherit(),
+      stdout: deno_io::StdioPipe::inherit(),
+    }),
+    false,
+  ));
+  extensions.extend(crate::ext::fs::extensions(
+    std::rc::Rc::new(RealFs) as std::rc::Rc<dyn FileSystem>,
+    false,
+  ));
   extensions.extend(crate::ext::os::extensions(false));
   extensions.extend(process::extensions(false));
 
@@ -265,8 +270,6 @@ globalThis._execVM = (namespace, fn) => {
   Ok(runtime)
 }
 
-
-
 pub struct RewRuntime {
   pub runtime: JsRuntime,
   // pub compiler_runtime: JsRuntime,
@@ -275,7 +278,6 @@ pub struct RewRuntime {
 
 impl RewRuntime {
   pub fn new() -> Result<Self> {
-
     let runtime = get_rew_runtime(true, true)?;
     // let mut compiler_runtime = get_compiler_runtime();
 
@@ -738,7 +740,8 @@ return globalThis.module.exports;
     let final_script = self.prepare(files, Some(entry)).await?;
 
     self.runtime.execute_script("<main>", final_script)?;
-    self.runtime
+    self
+      .runtime
       .run_event_loop(PollEventLoopOptions::default())
       .await?;
     Ok(())
@@ -777,8 +780,7 @@ return globalThis.module.exports;
       filepath.to_str().unwrap_or("unknown")
     );
 
-    let result = self.runtime
-      .execute_script("<rew>", code.clone())?;
+    let result = self.runtime.execute_script("<rew>", code.clone())?;
     let compiled = self.runtime.resolve_value(result).await?;
     let scope = &mut self.runtime.handle_scope();
     let result_code = compiled.open(scope).to_rust_string_lossy(scope);
