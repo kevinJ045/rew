@@ -55,7 +55,7 @@ pub fn op_thread_spawn(
     // Create RewRuntime inside the Tokio runtime context
     let runtime_result = rt.block_on(async {
       // Create RewRuntime
-      let mut runtime = match get_rew_runtime(false, false) {
+      let mut runtime = match get_rew_runtime(false, false, None) {
         Ok(rt) => rt,
         Err(e) => {
           eprintln!("Failed to create RewRuntime: {}", e);

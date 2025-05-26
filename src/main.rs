@@ -65,6 +65,9 @@ enum Commands {
 
     #[arg(short, long, help = "Specify an entry point for app packages")]
     entry: Option<String>,
+
+    #[arg(trailing_var_arg = true)]
+    args: Vec<String>,
   },
   Exec {
     #[arg(name = "CODE")]
@@ -102,14 +105,11 @@ fn main() -> anyhow::Result<()> {
       ensure_rew_dirs()?;
 
       match &cli.command {
-        Commands::Run { file, watch, entry } => {
+        Commands::Run { file, watch, entry, args } => {
           if *watch {}
-          // Check if file is a directory or an app package name
           if file.is_dir() {
-            // Find app.yaml in the directory
             let app_yaml = file.join("app.yaml");
             if app_yaml.exists() {
-              // Get the entry point from app.yaml or use the provided entry
               let entry_point = if let Some(entry_name) = entry {
                 entry_name
               } else {
@@ -123,7 +123,7 @@ fn main() -> anyhow::Result<()> {
                     if let Some(entry_file) = entries.get(&entry_point.clone()) {
                       let full_path = file.join(entry_file);
 
-                      let mut runtime = RewRuntime::new()?;
+                      let mut runtime = RewRuntime::new(Some(args.clone()))?;
                       runtime.run_file(&full_path).await?;
                       return Ok(());
                     }
@@ -143,14 +143,14 @@ fn main() -> anyhow::Result<()> {
             let entry_name = entry.as_deref().unwrap_or("main");
 
             if let Some(app_entry) = utils::resolve_app_entry(&package_name, Some(entry_name)) {
-              let mut runtime = RewRuntime::new()?;
+              let mut runtime = RewRuntime::new(Some(args.clone()))?;
               runtime.run_file(&app_entry).await?;
               return Ok(());
             } else {
               println!("App package not found: {}", package_name.red());
             }
           } else {
-            let mut runtime = RewRuntime::new()?;
+            let mut runtime = RewRuntime::new(Some(args.clone()))?;
             runtime.run_file(file).await?;
           }
         }
@@ -186,7 +186,7 @@ fn main() -> anyhow::Result<()> {
               );
             }
 
-            let mut runtime = RewRuntime::new()?;
+            let mut runtime = RewRuntime::new(None)?;
 
             let options = runtime::BuildOptions {
               bundle_all: *bundle_all,

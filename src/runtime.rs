@@ -40,6 +40,9 @@ use std::sync::Mutex;
 
 // use crate::shell::{op_shell_close, op_shell_kill, op_shell_read, op_shell_spawn, op_shell_write};
 
+#[derive(Default)]
+pub struct RuntimeArgs(pub Vec<String>);
+
 fn encode_brew_file(content: &str) -> String {
   BASE64.encode(content.as_bytes())
 }
@@ -63,6 +66,7 @@ pub fn add_virtual_file(path: &str, contents: &str) {
 #[derive(Default)]
 struct RuntimeState {
   current_dir: PathBuf,
+  args: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -215,7 +219,7 @@ fn get_compiler_runtime() -> JsRuntime {
   compiler_runtime
 }
 
-pub fn get_rew_runtime(is_compiler: bool, is_main: bool) -> Result<JsRuntime> {
+pub fn get_rew_runtime(is_compiler: bool, is_main: bool, args: Option<Vec<String>>) -> Result<JsRuntime> {
   let mut extensions = vec![rewextension::init()];
 
   extensions.extend(webidl::extensions(false));
@@ -249,6 +253,7 @@ pub fn get_rew_runtime(is_compiler: bool, is_main: bool) -> Result<JsRuntime> {
 
   let state = RuntimeState {
     current_dir: current_dir.clone(),
+    args: args.unwrap_or_default(),
   };
 
   runtime.op_state().borrow_mut().put(state);
@@ -278,8 +283,8 @@ pub struct RewRuntime {
 }
 
 impl RewRuntime {
-  pub fn new() -> Result<Self> {
-    let runtime = get_rew_runtime(true, true)?;
+  pub fn new(args: Option<Vec<String>>) -> Result<Self> {
+    let runtime = get_rew_runtime(true, true, args)?;
     // let mut compiler_runtime = get_compiler_runtime();
 
     let declaration_engine = DeclarationEngine {
@@ -848,13 +853,13 @@ impl Drop for RewRuntime {
 #[op2]
 #[serde]
 fn op_get_args(
-  _: Rc<RefCell<OpState>>,
+  state: Rc<RefCell<OpState>>,
 ) -> Result<serde_json::Value, CoreError> {
-  let args: Vec<String> = std::env::args().collect();
-  Ok(serde_json::Value::Array(
-    args.into_iter().map(|arg| serde_json::Value::String(arg)).collect(),
-  ))
+  let state = state.borrow();
+  let runtime_args = state.borrow::<RuntimeState>();
+  Ok(serde_json::json!(runtime_args.args.clone()))
 }
+
 
 #[op2(async)]
 #[serde]
