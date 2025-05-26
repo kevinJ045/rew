@@ -3,6 +3,8 @@ with (globalThis) {
   const s = rew.prototype.mod.prototype.find(module,  "./d.coffee")
 
 using(namespace(rew.prototype.ns()))
+rew.prototype.io.prototype.out.print(typeof s.default, new s.default)
+rew.prototype.io.prototype.out.print(typeof s.GGG, new s.GGG)
 rew.prototype.io.prototype.out.print(s)
 }
 return globalThis.module.exports;
@@ -22,6 +24,12 @@ sayhello = function(...a) {
 
 sayhello(g = "")
 
+module.exports.default =  class Gangarmada {
+  mmm = "mmm"
+}
+module.exports.GGG =  class GGG {
+  name = "sss"
+}
 module.exports.hello =  hello = "shhshsh"
 module.exports.name =  name = "jjj"
 }

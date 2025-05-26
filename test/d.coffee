@@ -10,5 +10,9 @@ sayhello = (...a) ->
 
 sayhello g = ""
 
+export default class Gangarmada
+  mmm = "mmm"
+export class GGG
+  name = "sss"
 export hello = "shhshsh"
 export name = "jjj"

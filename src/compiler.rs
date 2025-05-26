@@ -515,14 +515,21 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
       && token.value == "export"
       && !options.keep_imports
     {
-      if let Some((next_token, _, _)) = get_next_token(i, 1, &tokens) {
+      if let Some((next_token, _, idx)) = get_next_token(i, 1, &tokens) {
         if next_token.value == "{" {
           result.push_str("module.exports = ");
         } else {
+          let mut title = next_token.value.clone();
           if next_token.value == "default" {
             i += 1;
           }
-          result.push_str(format!("module.exports.{} = ", next_token.value).as_str());
+          if next_token.value == "class" {
+            if let Some((next_token, _, _)) = get_next_token(idx, 1, &tokens) {
+              println!("{}", next_token.value);
+              title = next_token.value.clone();
+            } 
+          }
+          result.push_str(format!("module.exports.{} = ", title).as_str());
         }
       }
       i += 1;
