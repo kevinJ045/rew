@@ -1,8 +1,7 @@
 #![allow(unused_variables)]
 #![allow(clippy::derivable_impls)]
 use deno_core::{
-  v8::{BackingStore, SharedRef},
-  CrossIsolateStore, Extension,
+  Extension,
 };
 
 trait ExtensionTrait<A> {
@@ -33,5 +32,6 @@ pub mod webidl;
 
 pub mod fs;
 pub mod io;
+pub mod os;
 pub mod process;
 

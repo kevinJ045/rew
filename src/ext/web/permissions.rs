@@ -1,4 +1,3 @@
-use deno_permissions::PermissionCheckError;
 use std::{
   borrow::Cow,
   collections::HashSet,

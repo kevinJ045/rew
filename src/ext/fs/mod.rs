@@ -1,12 +1,6 @@
-use std::path::Path;
-use std::path::PathBuf;
-use std::borrow::Cow;
-
-use super::{web::PermissionsContainer, ExtensionTrait};
+use super::{ExtensionTrait};
 use deno_core::{extension, Extension};
-use deno_fs::{CheckedPath, FileSystemRc, FsPermissions, GetPath};
-use deno_io::fs::FsError;
-use deno_permissions::PermissionCheckError;
+use deno_fs::{FileSystemRc};
 
 extension!(
     init_fs,

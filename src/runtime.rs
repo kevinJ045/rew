@@ -12,12 +12,11 @@ use crate::workers::{
   op_thread_terminate,
 };
 use anyhow::{Context, Result};
-use base64::decode;
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
-use deno_core::error::{AnyError, CoreError};
+use deno_core::error::{CoreError};
 use deno_core::PollEventLoopOptions;
 use deno_core::{extension, op2, JsRuntime, RuntimeOptions};
-use deno_core::{Extension, OpState};
+use deno_core::{OpState};
 use deno_fs::{FileSystem, RealFs};
 use deno_permissions::{
   AllowRunDescriptor, AllowRunDescriptorParseResult, DenyRunDescriptor, EnvDescriptor,
@@ -193,7 +192,7 @@ extension!(
     op_thread_post_message,
     op_thread_terminate,
     op_thread_receive,
-    op_get_env,
+    op_fetch_env,
     // op_shell_spawn,
     // op_shell_write,
     // op_shell_close,
@@ -230,6 +229,7 @@ pub fn get_rew_runtime(is_compiler: bool, is_main: bool) -> Result<JsRuntime> {
     stdout: deno_io::StdioPipe::inherit(),
   }), false));
   extensions.extend(crate::ext::fs::extensions(std::rc::Rc::new(RealFs) as std::rc::Rc<dyn FileSystem>, false));
+  extensions.extend(crate::ext::os::extensions(false));
   extensions.extend(process::extensions(false));
 
   let mut runtime = JsRuntime::new(RuntimeOptions {
@@ -276,7 +276,7 @@ pub struct RewRuntime {
 impl RewRuntime {
   pub fn new() -> Result<Self> {
 
-    let mut runtime = get_rew_runtime(true, true)?;
+    let runtime = get_rew_runtime(true, true)?;
     // let mut compiler_runtime = get_compiler_runtime();
 
     let declaration_engine = DeclarationEngine {
@@ -373,7 +373,7 @@ impl RewRuntime {
 
       let parent = file_path.parent().unwrap_or(Path::new("."));
 
-      if is_brew_file {
+      if is_brew_file || content.starts_with("\"no-compile\"") {
         for cap in external_re.captures_iter(&content) {
           let external_app_path = cap[1].to_string();
           let mut should_preprocess_import = false;
@@ -794,13 +794,10 @@ return globalThis.module.exports;
   ) -> Result<CompilerResults> {
     let mut options = CompilerOptions {
       keep_imports: false,
-      disable_use: false,
       jsx: false,
       jsx_pragma: None,
       cls: false,
       included: false,
-      filename: None,
-      compiler_type: "coffee".to_string(),
       local_declarations,
       global_declarations,
     };
@@ -816,7 +813,7 @@ return globalThis.module.exports;
 
     let files_with_flags = RewRuntime::resolve_includes_recursive_from(&filepath)?;
 
-    for (path, content, preprocess) in &files_with_flags {
+    for (_, content, preprocess) in &files_with_flags {
       if *preprocess {
         let local_declarations = self.declaration_engine.process_script(&content);
 
@@ -1488,7 +1485,7 @@ fn op_data_read_binary(
 
 #[op2]
 #[string]
-fn op_get_env(_: Rc<RefCell<OpState>>) -> Result<String, CoreError> {
+fn op_fetch_env(_: Rc<RefCell<OpState>>) -> Result<String, CoreError> {
   let env_vars: HashMap<String, String> = std::env::vars().collect();
   let cwd = std::env::current_dir()
     .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))?

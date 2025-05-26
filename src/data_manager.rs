@@ -1,14 +1,11 @@
 use crate::utils;
 use anyhow::{Context, Result};
-use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fs;
-use std::io::{self, Read, Write};
+use std::io::{Read};
 use std::path::{Path, PathBuf};
 pub struct DataManager {
-  user_id: String,
-  app_package: String,
   data_dir: PathBuf,
 }
 
@@ -30,8 +27,6 @@ impl DataManager {
       .with_context(|| format!("Failed to create data directory: {:?}", data_dir))?;
 
     Ok(Self {
-      user_id: user_id.to_string(),
-      app_package: app_package.to_string(),
       data_dir,
     })
   }

@@ -63,9 +63,6 @@ enum Commands {
     #[arg(short, long)]
     watch: bool,
 
-    #[arg(short, long)]
-    compile: bool,
-
     #[arg(short, long, help = "Specify an entry point for app packages")]
     entry: Option<String>,
   },
@@ -108,9 +105,9 @@ fn main() -> anyhow::Result<()> {
     Commands::Run {
       file,
       watch,
-      compile,
       entry,
     } => {
+      if *watch {}
       // Check if file is a directory or an app package name
       if file.is_dir() {
         // Find app.yaml in the directory
@@ -164,7 +161,7 @@ fn main() -> anyhow::Result<()> {
     Commands::Exec { code } => {
       println!("Executing code: {}", code.blue());
       // TODO: Implement code execution
-      let mut runtime = RewRuntime::new()?;
+      // let mut runtime = RewRuntime::new()?;
       // TODO: Add a method to execute code directly
     }
     Commands::Brew {

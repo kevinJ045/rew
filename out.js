@@ -1,131 +1,122 @@
-rew.prototype.mod.prototype.defineNew("/home/makano/workspace/rew-rust/test/exec.coffee", function(globalThis){
+rew.prototype.mod.prototype.defineNew("/home/makano/workspace/rew-rust/test/fs.coffee", function(globalThis){
 with (globalThis) {
-  var f;
-rew.prototype.mod.prototype.find(module, "#std.shell");
-rew.prototype.mod.prototype.find(module, "#std.encoding");
-using(namespace(rew.prototype.ns()));
+  var something, f, channel;
+rew.prototype.mod.prototype.find(module, "#std.fs")
 
+something = null
 
-// channel = rew::channel::new 1, -> 
-f = async () => {
-  var child;
-  child = await rew.prototype.shell.prototype.exec('echo hii')
-  return print(rew.prototype.encoding.prototype.bytesToString(await child.output))
+using(namespace(rew.prototype.ns()))
+// print rew::fs::read "./exec.coffee!"
+
+f = async function() {
+  something = await rew.prototype.fs.prototype.read("./ffi.coffee")
+  return rew.prototype.io.prototype.out.print(something)
 }
+
 f()
 
+channel = rew.prototype.channel.prototype.new(1000, function() {
+  if (something) return channel.stop();return
+})
 }
 return globalThis.module.exports;
-}, ["app://test.app/exec"]);(function(module){
-"no-compile"
-class ExecPipedError extends Error {
-  constructor(message) {
-    super(message);
-    this.name = "ExecPipedError";
-  }
-}
-if(!rew.extensions.has('shell')) rew.extensions.add('shell', (Deno) => rew.extensions.createClass({
-  _namespace(){
-    return 'shell';
-  },
-  kill(pid, signal = "SIGTERM") {
-    Deno.kill(pid, signal);
-  },
-  spawn(command, options = {}) {
-    return Deno.run({
-      cmd: Array.isArray(command) ? command : command.split(" "),
-      ...options,
-    });
-  },
-  async wait(process) {
-    const status = await process.status();
-    process.close();
-    return status;
-  },
-  fexec(command, options = {}) {
-    const process = this.spawn(command, { ...options, stdout: "piped", stderr: "piped" });
-    return this.wait(process).then((status) => {
-      return {
-        status,
-        output: process.output(),
-        error: process.stderrOutput(),
-      };
-    });
-  },
-  exec(command, options = {}) {
-    const process = this.spawn(command, { ...options, stdout: "piped", stderr: "piped" });
-    return this.wait(process).then((status) => {
-      if (status.success) {
-        return process.output();
-      }
-      return process.stderrOutput().then((error) => {
-        throw new ExecPipedError(`Command failed ${status.code}: ${error}`);
-      });
-    });
-  }
-}));
-})({filename: "#std.shell"});(function(module){
-"no-compile"
-if(!rew.extensions.has('encoding')) rew.extensions.add('encoding', (Deno, module) => rew.extensions.createClass({
+}, ["app://test.app/fs"]);(function(module){
 
-  toBase64(data) {
-    if (data instanceof Uint8Array) {
-      return rew.ops.op_to_base64(Array.from(data));
-    }
-    return rew.ops.op_to_base64(data);
+if (!rew.extensions.has('fs')) rew.extensions.add('fs', function(Deno, module) { return rew.extensions.createClass({
+  _namespace(){
+    return this;
   },
-  
-  fromBase64(encoded, options = { asString: false }) {
-    const result = rew.ops.op_from_base64(encoded, { as_string: options.asString });
-    if (!options.asString) {
+
+  ...Deno.fs,
+
+  async read(path, options = { binary: false }) {
+    const result = await rew.ops.op_fs_read(module.filename, path, options);
+    if (options.binary) {
       return new Uint8Array(result);
     }
     return result;
   },
   
+  async write(path, content, options = { binary: false, create_dirs: false }) {
+    if (options.binary && content instanceof Uint8Array) {
+      content = Array.from(content);
+    }
+    return await rew.ops.op_fs_write(module.filename, path, content, options);
+  },
+  
+  async readBinary(path) {
+    return await this.read(path, { binary: true });
+  },
+  
+  async writeBinary(path, data) {
+    return await this.write(path, data, { binary: true, create_dirs: true });
+  },
+  
   stringToBytes(str) {
-    return Deno.core.encode(str);
+    const encoder = new TextEncoder();
+    return encoder.encode(str);
   },
   
   bytesToString(bytes) {
-    return Deno.core.decode(bytes);
+    const decoder = new TextDecoder();
+    return decoder.decode(bytes);
   },
   
-  encodeURIComponent(str) {
-    return encodeURIComponent(str);
+  exists(path) {
+    return rew.ops.op_fs_exists(module.filename, path);
   },
   
-  decodeURIComponent(str) {
-    return decodeURIComponent(str);
+  async rm(path, options = {}) {
+    return trackPromise(rew.ops.op_fs_rm(module.filename, path, options));
   },
   
-  bytesToHex(bytes) {
-    if (!(bytes instanceof Uint8Array)) {
-      throw new Error("Expected Uint8Array");
-    }
-    return Array.from(bytes)
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('');
+  stats(path) {
+    const statsJson = rew.ops.op_fs_stats(module.filename, path);
+    return JSON.parse(statsJson);
   },
   
-  hexToBytes(hex) {
-    if (typeof hex !== 'string') {
-      throw new Error("Expected string");
+  async mkdir(path, options = {}) {
+    return trackPromise(rew.ops.op_fs_mkdir(module.filename, path, options));
+  },
+  
+  readdir(path, options = {}) {
+    const entriesJson = rew.ops.op_fs_readdir(module.filename, path, options);
+    return JSON.parse(entriesJson);
+  },
+  
+  async copy(src, dest, options = {}) {
+    return trackPromise(rew.ops.op_fs_copy(module.filename, src, dest, options));
+  },
+  
+  async rename(src, dest) {
+    return trackPromise(rew.ops.op_fs_rename(module.filename, src, dest));
+  },
+  
+  async ensureDir(path) {
+    return await this.mkdir(path, { recursive: true });
+  },
+  
+  async rmrf(path) {
+    return await this.rm(path, { recursive: true });
+  },
+  
+  isDirectory(path) {
+    try {
+      const stats = this.stats(path);
+      return stats.isDirectory;
+    } catch (e) {
+      return false;
     }
-    
-    hex = hex.startsWith('0x') ? hex.slice(2) : hex;
-    
-    if (hex.length % 2 !== 0) {
-      hex = '0' + hex;
+  },
+  
+  isFile(path) {
+    try {
+      const stats = this.stats(path);
+      return stats.isFile;
+    } catch (e) {
+      return false;
     }
-    
-    const bytes = new Uint8Array(hex.length / 2);
-    for (let i = 0; i < hex.length; i += 2) {
-      bytes[i / 2] = parseInt(hex.substr(i, 2), 16);
-    }
-    
-    return bytes;
   }
-}));
-})({filename: "#std.encoding"});
-rew.prototype.mod.prototype.get('/home/makano/workspace/rew-rust/test/exec.coffee');
+}) })
+})({filename: "#std.fs"});
+rew.prototype.mod.prototype.get('/home/makano/workspace/rew-rust/test/fs.coffee');

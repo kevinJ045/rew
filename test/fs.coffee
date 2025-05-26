@@ -1,6 +1,10 @@
 import "#std.fs"
 
 something = null
+
+using namespace rew::ns()
+# print rew::fs::read "./exec.coffee!"
+
 f = ->
   something = await rew::fs::read "./ffi.coffee"
   rew::io::out.print something

@@ -2425,6 +2425,7 @@ dependencies = [
  "deno_ffi",
  "deno_fs",
  "deno_io",
+ "deno_os",
  "deno_permissions",
  "deno_process",
  "deno_url",

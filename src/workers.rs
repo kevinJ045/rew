@@ -1,9 +1,7 @@
-use crate::ext::{console, ffi, url, web, webidl};
-use crate::runtime::{get_rew_runtime, RewRuntime};
+use crate::runtime::{get_rew_runtime};
 use anyhow::Result;
 use deno_core::error::CoreError;
 use deno_core::{op2, OpState};
-use deno_core::{JsRuntime, RuntimeOptions};
 use serde_json::Value;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -12,7 +10,7 @@ use std::sync::{
   mpsc::{channel, Receiver, Sender},
   Arc, Mutex,
 };
-use tokio::runtime::{Builder, Runtime};
+use tokio::runtime::{Builder};
 use uuid::Uuid;
 
 /// Represents a handle to a worker thread
@@ -29,7 +27,7 @@ lazy_static::lazy_static! {
 #[string]
 pub fn op_thread_spawn(
   #[string] source: String,
-  state: Rc<RefCell<OpState>>,
+  _: Rc<RefCell<OpState>>,
 ) -> Result<String, CoreError> {
   let (to_worker_tx, to_worker_rx) = channel::<Value>();
   let (from_worker_tx, from_worker_rx) = channel::<Value>();
@@ -219,6 +217,7 @@ pub fn op_thread_post_message(
 
   // Get the worker ID and sender from the state
   let state = state.borrow();
+  #[allow(unused)]
   let worker_id = state.borrow::<String>();
   let sender = state.borrow::<Sender<Value>>();
 

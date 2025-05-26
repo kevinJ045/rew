@@ -1,7 +1,5 @@
 use anyhow::Result;
-use deno_core::v8::ContextOptions;
 use regex::Regex;
-use serde_json::Value;
 use std::collections::HashMap;
 
 use crate::declarations::Declaration;
@@ -20,13 +18,10 @@ struct Hook {
 
 pub struct CompilerOptions {
   pub keep_imports: bool,
-  pub disable_use: bool,
   pub jsx: bool,
   pub jsx_pragma: Option<String>,
   pub cls: bool,
   pub included: bool,
-  pub filename: Option<String>,
-  pub compiler_type: String,
 
   pub local_declarations: HashMap<String, Declaration>,
   pub global_declarations: HashMap<String, Declaration>,
@@ -36,13 +31,10 @@ impl Default for CompilerOptions {
   fn default() -> Self {
     CompilerOptions {
       keep_imports: false,
-      disable_use: false,
       jsx: false,
       jsx_pragma: None,
       cls: false,
       included: false,
-      filename: None,
-      compiler_type: "coffee".to_string(),
       local_declarations: HashMap::new(),
       global_declarations: HashMap::new(),
     }
@@ -50,6 +42,7 @@ impl Default for CompilerOptions {
 }
 
 pub struct CompilerResults {
+  #[allow(unused)]
   pub options: CompilerOptions,
   pub code: String,
 }
@@ -62,7 +55,6 @@ pub fn tokenize_coffee_script(code: &str) -> Vec<Token> {
 
   while i < chars.len() {
     let char = chars[i];
-    let prev_char = if i > 0 { Some(chars[i - 1]) } else { None };
     let next_char = chars.get(i + 1).copied();
     let next_next_char = chars.get(i + 2).copied();
 
@@ -212,9 +204,9 @@ fn apply_declarations(
       .values()
       .chain(local_declarations.values());
     for decl in values {
-      let mut isDeclaration = false;
+      let mut is_declaration = false;
       let trigger = if decl.trigger.starts_with("=") {
-        isDeclaration = true;
+        is_declaration = true;
         decl.trigger.replace("=", "")
       } else {
         decl.trigger.clone()
@@ -256,7 +248,7 @@ fn apply_declarations(
         }
 
         if conditions_met {
-          if isDeclaration {
+          if is_declaration {
             let mut str = String::new();
             let mut args = String::new();
             let mut cidx = index;
@@ -438,7 +430,7 @@ fn handle_import(tokens: &[Token], i: usize) -> (String, usize) {
     _ => {}
   }
 
-  if let Some((assert_token, assert_idx)) =
+  if let Some((_, assert_idx)) =
     find_next_token(current_idx, tokens, "IDENTIFIER", Some("assert"), None)
   {
     if let Some((from_token, _)) = find_next_token(current_idx - 1, tokens, "STRING", None, None) {
@@ -457,55 +449,6 @@ fn handle_import(tokens: &[Token], i: usize) -> (String, usize) {
   (result, current_idx)
 }
 
-fn transform_line_with_declarations(
-  line: &str,
-  local_declarations: &HashMap<String, Declaration>,
-  global_declarations: &HashMap<String, Declaration>,
-) -> String {
-  let mut output = line.to_string();
-
-  let func_pattern = Regex::new(r"(\w+)\(([^)]*)\)\s+(\w+)\s*=\s*(.+)").unwrap();
-  if let Some(caps) = func_pattern.captures(&output) {
-    let func_name = &caps[1];
-    let args = &caps[2];
-    let var_name = &caps[3];
-    let value = &caps[4];
-
-    for decl in local_declarations
-      .values()
-      .chain(global_declarations.values())
-    {
-      if decl.trigger == func_name {
-        return format!("{} = {} {}, {}", var_name, decl.replacement, args, value);
-      }
-    }
-  }
-
-  let simple_pattern = Regex::new(r"(\w+)\s+(\w+)\s*=\s*(.+)").unwrap();
-  if let Some(caps) = simple_pattern.captures(&output) {
-    let trigger = &caps[1];
-    let var_name = &caps[2];
-    let value = &caps[3];
-
-    for decl in local_declarations
-      .values()
-      .chain(global_declarations.values())
-    {
-      if decl.trigger == trigger {
-        if decl.is_constructor {
-          return format!("{} = new {}({})", var_name, decl.replacement, value);
-        } else if decl.is_definition {
-          return format!("{} = {}()", var_name, decl.replacement);
-        } else {
-          return format!("{} = {} {}", var_name, decl.replacement, value);
-        }
-      }
-    }
-  }
-
-  output
-}
-
 // i hate this function too!
 pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result<CompilerResults> {
   let tokens = tokenize_coffee_script(content);
@@ -514,7 +457,6 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
   let mut hooks: Vec<Hook> = Vec::new();
   let local_declarations = options.local_declarations.clone();
   let global_declarations = options.global_declarations.clone();
-  let mut is_exporting = false;
 
   while i < tokens.len() {
     let token = &tokens[i];
@@ -628,13 +570,10 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
       options,
       CompilerOptions {
         keep_imports: false,
-        disable_use: false,
         jsx: false,
         jsx_pragma: None,
         cls: false,
         included: false,
-        filename: None,
-        compiler_type: String::new(),
         local_declarations: HashMap::new(),
         global_declarations: HashMap::new(),
       },
