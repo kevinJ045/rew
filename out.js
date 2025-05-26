@@ -5,6 +5,7 @@ with (globalThis) {
 using(namespace(rew.prototype.ns()))
 rew.prototype.io.prototype.out.print(typeof s.default, new s.default)
 rew.prototype.io.prototype.out.print(typeof s.GGG, new s.GGG)
+rew.prototype.io.prototype.out.print(rew.prototype.process.prototype.args)
 rew.prototype.io.prototype.out.print(s)
 }
 return globalThis.module.exports;

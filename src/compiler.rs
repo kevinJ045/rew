@@ -525,7 +525,6 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
           }
           if next_token.value == "class" {
             if let Some((next_token, _, _)) = get_next_token(idx, 1, &tokens) {
-              println!("{}", next_token.value);
               title = next_token.value.clone();
             } 
           }

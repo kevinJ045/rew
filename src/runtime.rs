@@ -192,6 +192,7 @@ extension!(
     op_thread_terminate,
     op_thread_receive,
     op_fetch_env,
+    op_get_args
     // op_shell_spawn,
     // op_shell_write,
     // op_shell_close,
@@ -841,6 +842,18 @@ return globalThis.module.exports;
 
 impl Drop for RewRuntime {
   fn drop(&mut self) {}
+}
+
+
+#[op2]
+#[serde]
+fn op_get_args(
+  _: Rc<RefCell<OpState>>,
+) -> Result<serde_json::Value, CoreError> {
+  let args: Vec<String> = std::env::args().collect();
+  Ok(serde_json::Value::Array(
+    args.into_iter().map(|arg| serde_json::Value::String(arg)).collect(),
+  ))
 }
 
 #[op2(async)]
