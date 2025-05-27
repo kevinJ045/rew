@@ -1,0 +1,9 @@
+[package]
+name = "rew-qrew-stub"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1.43.0" }
+rew = { path = "../" }
+anyhow = "1.0.96"

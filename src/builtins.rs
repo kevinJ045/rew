@@ -11,19 +11,23 @@ const THREADS_MODULE: &str = include_str!("../lib/rew/builtins/threads.js");
 const OS_MODULE: &str = include_str!("../lib/rew/builtins/os.js");
 const PATH_MODULE: &str = include_str!("../lib/rew/builtins/path.js");
 const SHELL_MODULE: &str = include_str!("../lib/rew/builtins/shell.js");
+const HTTP_MODULE: &str = include_str!("../lib/rew/builtins/http.js");
+const NET_MODULE: &str = include_str!("../lib/rew/builtins/net.js");
 
 pub static BUILTIN_MODULES: Lazy<HashMap<&'static str, &'static str>> = Lazy::new(|| {
-    let mut m = HashMap::new();
-    
-    m.insert("#std.ffi", FFI_MODULE);
-    m.insert("#std.conf", CONF_MODULE);
-    m.insert("#std.encoding", ENCODING_MODULE);
-    m.insert("#std.fs", FS_MODULE);
-    m.insert("#std.threads", THREADS_MODULE);
-    m.insert("#std.shell", SHELL_MODULE);
-    m.insert("#std.os", OS_MODULE);
-    m.insert("#std.path", PATH_MODULE);
-    m.insert("#std", ALL_MODULE);
-    
-    m
+  let mut m = HashMap::new();
+
+  m.insert("#std.ffi", FFI_MODULE);
+  m.insert("#std.conf", CONF_MODULE);
+  m.insert("#std.encoding", ENCODING_MODULE);
+  m.insert("#std.fs", FS_MODULE);
+  m.insert("#std.threads", THREADS_MODULE);
+  m.insert("#std.shell", SHELL_MODULE);
+  m.insert("#std.os", OS_MODULE);
+  m.insert("#std.path", PATH_MODULE);
+  m.insert("#std.http", HTTP_MODULE);
+  m.insert("#std.net", NET_MODULE);
+  m.insert("#std", ALL_MODULE);
+
+  m
 });

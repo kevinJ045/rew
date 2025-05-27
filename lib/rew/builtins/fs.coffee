@@ -3,11 +3,13 @@ unless rew.extensions.has('fs') then rew.extensions.add 'fs', (Deno, module) -> 
   _namespace(){
     return this;
   },
-  
+
+  ...Deno.fs,
+
   async read(path, options = { binary: false }) {
     const result = await rew.ops.op_fs_read(module.filename, path, options);
     if (options.binary) {
-      # return new Uint8Array(result);
+      return new Uint8Array(result);
     }
     return result;
   },

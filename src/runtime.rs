@@ -1,19 +1,30 @@
 use super::civet::get_civet_script;
-use super::compiler::{compile_rew_stuff, CompilerOptions};
+use super::compiler::{CompilerOptions, compile_rew_stuff};
 use crate::builtins::BUILTIN_MODULES;
 use crate::compiler::CompilerResults;
 use crate::data_manager::{DataFormat, DataManager};
 use crate::declarations::{Declaration, DeclarationEngine};
-use crate::ext::{console, ffi, url, web, webidl};
+use crate::ext::{console, ffi, process, url, web, webidl};
 use crate::runtime_script::get_runtime_script;
 use crate::utils::find_app_path;
+use crate::workers::{
+  op_thread_message, op_thread_post_message, op_thread_receive, op_thread_spawn,
+  op_thread_terminate,
+};
 use anyhow::{Context, Result};
-use base64::decode;
-use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
-use deno_core::error::{AnyError, CoreError};
-use deno_core::{Extension, OpState};
+use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
+use deno_core::OpState;
 use deno_core::PollEventLoopOptions;
-use deno_core::{extension, op2, JsRuntime, RuntimeOptions};
+use deno_core::error::CoreError;
+use deno_core::{JsRuntime, RuntimeOptions, extension, op2};
+use deno_fs::{FileSystem, RealFs};
+use deno_permissions::{
+  AllowRunDescriptor, AllowRunDescriptorParseResult, DenyRunDescriptor, EnvDescriptor,
+  EnvDescriptorParseError, FfiDescriptor, ImportDescriptor, NetDescriptor, NetDescriptorParseError,
+  PathQueryDescriptor, PathResolveError, PermissionDescriptorParser, PermissionsContainer,
+  ReadDescriptor, RunDescriptorParseError, RunQueryDescriptor, SysDescriptor,
+  SysDescriptorParseError, WriteDescriptor,
+};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -26,47 +37,42 @@ use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::Mutex;
-use crate::workers::{
-  op_thread_spawn,
-  op_thread_message,
-  op_thread_post_message,
-  op_thread_terminate,
-  op_thread_receive,
-};
-use deno_permissions::{AllowRunDescriptor, AllowRunDescriptorParseResult, DenyRunDescriptor, EnvDescriptor, EnvDescriptorParseError, FfiDescriptor, ImportDescriptor, NetDescriptor, NetDescriptorParseError, PathQueryDescriptor, PathResolveError, PermissionDescriptorParser, PermissionsContainer, ReadDescriptor, RunDescriptorParseError, RunQueryDescriptor, SysDescriptor, SysDescriptorParseError, WriteDescriptor};
+
+// use crate::shell::{op_shell_close, op_shell_kill, op_shell_read, op_shell_spawn, op_shell_write};
+
+#[derive(Default)]
+pub struct RuntimeArgs(pub Vec<String>);
 
 fn encode_brew_file(content: &str) -> String {
-    BASE64.encode(content.as_bytes())
+  BASE64.encode(content.as_bytes())
 }
 
 fn decode_brew_file(encoded: &str) -> Result<String> {
-    let decoded = BASE64.decode(encoded.trim())
-        .map_err(|e| anyhow::anyhow!("Failed to decode brew file: {}", e))?;
-    
-    String::from_utf8(decoded)
-        .map_err(|e| anyhow::anyhow!("Failed to convert decoded bytes to string: {}", e))
+  let decoded = BASE64
+    .decode(encoded.trim())
+    .map_err(|e| anyhow::anyhow!("Failed to decode brew file: {}", e))?;
+
+  String::from_utf8(decoded)
+    .map_err(|e| anyhow::anyhow!("Failed to convert decoded bytes to string: {}", e))
 }
 
-pub static VIRTUAL_FILES: Lazy<Mutex<Vec<(String, String)>>> = Lazy::new(|| {
-  Mutex::new(vec![])
-});
+pub static VIRTUAL_FILES: Lazy<Mutex<Vec<(String, String)>>> = Lazy::new(|| Mutex::new(vec![]));
 
 pub fn add_virtual_file(path: &str, contents: &str) {
   let mut files = VIRTUAL_FILES.lock().unwrap();
   files.push((path.to_string(), contents.to_string()));
 }
 
-
 #[derive(Default)]
 struct RuntimeState {
   current_dir: PathBuf,
+  args: Vec<String>,
 }
-
 
 #[derive(Debug, Clone)]
 pub struct BuildOptions {
   pub bundle_all: bool,
-  pub entry_file: Option<PathBuf>,  
+  pub entry_file: Option<PathBuf>,
 }
 
 impl Default for BuildOptions {
@@ -77,13 +83,6 @@ impl Default for BuildOptions {
     }
   }
 }
-
-pub struct RewRuntime {
-  pub runtime: JsRuntime,
-  compiler_runtime: JsRuntime,
-  declaration_engine: DeclarationEngine,
-}
-
 
 #[derive(Debug, Clone)]
 struct TestPermissionDescriptorParser;
@@ -99,24 +98,15 @@ impl TestPermissionDescriptorParser {
 }
 
 impl PermissionDescriptorParser for TestPermissionDescriptorParser {
-  fn parse_read_descriptor(
-    &self,
-    text: &str,
-  ) -> Result<ReadDescriptor, PathResolveError> {
+  fn parse_read_descriptor(&self, text: &str) -> Result<ReadDescriptor, PathResolveError> {
     Ok(ReadDescriptor(self.join_path_with_root(text)))
   }
 
-  fn parse_write_descriptor(
-    &self,
-    text: &str,
-  ) -> Result<WriteDescriptor, PathResolveError> {
+  fn parse_write_descriptor(&self, text: &str) -> Result<WriteDescriptor, PathResolveError> {
     Ok(WriteDescriptor(self.join_path_with_root(text)))
   }
 
-  fn parse_net_descriptor(
-    &self,
-    text: &str,
-  ) -> Result<NetDescriptor, NetDescriptorParseError> {
+  fn parse_net_descriptor(&self, text: &str) -> Result<NetDescriptor, NetDescriptorParseError> {
     NetDescriptor::parse(text)
   }
 
@@ -127,17 +117,11 @@ impl PermissionDescriptorParser for TestPermissionDescriptorParser {
     ImportDescriptor::parse(text)
   }
 
-  fn parse_env_descriptor(
-    &self,
-    text: &str,
-  ) -> Result<EnvDescriptor, EnvDescriptorParseError> {
+  fn parse_env_descriptor(&self, text: &str) -> Result<EnvDescriptor, EnvDescriptorParseError> {
     Ok(EnvDescriptor::new(text))
   }
 
-  fn parse_sys_descriptor(
-    &self,
-    text: &str,
-  ) -> Result<SysDescriptor, SysDescriptorParseError> {
+  fn parse_sys_descriptor(&self, text: &str) -> Result<SysDescriptor, SysDescriptorParseError> {
     SysDescriptor::parse(text.to_string())
   }
 
@@ -150,10 +134,7 @@ impl PermissionDescriptorParser for TestPermissionDescriptorParser {
     ))
   }
 
-  fn parse_deny_run_descriptor(
-    &self,
-    text: &str,
-  ) -> Result<DenyRunDescriptor, PathResolveError> {
+  fn parse_deny_run_descriptor(&self, text: &str) -> Result<DenyRunDescriptor, PathResolveError> {
     if text.contains("/") {
       Ok(DenyRunDescriptor::Path(self.join_path_with_root(text)))
     } else {
@@ -161,17 +142,11 @@ impl PermissionDescriptorParser for TestPermissionDescriptorParser {
     }
   }
 
-  fn parse_ffi_descriptor(
-    &self,
-    text: &str,
-  ) -> Result<FfiDescriptor, PathResolveError> {
+  fn parse_ffi_descriptor(&self, text: &str) -> Result<FfiDescriptor, PathResolveError> {
     Ok(FfiDescriptor(self.join_path_with_root(text)))
   }
 
-  fn parse_path_query(
-    &self,
-    path: &str,
-  ) -> Result<PathQueryDescriptor, PathResolveError> {
+  fn parse_path_query(&self, path: &str) -> Result<PathQueryDescriptor, PathResolveError> {
     Ok(PathQueryDescriptor {
       resolved: self.join_path_with_root(path),
       requested: path.to_string(),
@@ -185,8 +160,6 @@ impl PermissionDescriptorParser for TestPermissionDescriptorParser {
     RunQueryDescriptor::parse(requested).map_err(Into::into)
   }
 }
-
-
 
 extension!(
   rewextension,
@@ -222,12 +195,16 @@ extension!(
     op_thread_post_message,
     op_thread_terminate,
     op_thread_receive,
-    op_get_env
+    op_fetch_env,
+    op_get_args // op_shell_spawn,
+                // op_shell_write,
+                // op_shell_close,
+                // op_shell_read,
+                // op_shell_kill
   ],
   state = |state| {
-    let permissions = PermissionsContainer::allow_all(
-      std::sync::Arc::new(TestPermissionDescriptorParser)
-    );
+    let permissions =
+      PermissionsContainer::allow_all(std::sync::Arc::new(TestPermissionDescriptorParser));
 
     state.put::<PermissionsContainer>(permissions.clone());
   }
@@ -241,53 +218,88 @@ fn get_compiler_runtime() -> JsRuntime {
   compiler_runtime
 }
 
+pub fn get_rew_runtime(
+  is_compiler: bool,
+  is_main: bool,
+  args: Option<Vec<String>>,
+) -> Result<JsRuntime> {
+  let mut extensions = vec![rewextension::init()];
 
+  extensions.extend(webidl::extensions(false));
+  extensions.extend(console::extensions(false));
+  extensions.extend(url::extensions(false));
+  extensions.extend(web::extensions(web::WebOptions::default(), false));
+  extensions.extend(ffi::extensions(false));
+  extensions.extend(crate::ext::telemetry::extensions(false));
+  extensions.extend(crate::ext::networking::extensions(false));
+  extensions.extend(crate::ext::http::extensions(false));
+  extensions.extend(crate::ext::io::extensions(
+    Some(deno_io::Stdio {
+      stdin: deno_io::StdioPipe::inherit(),
+      stderr: deno_io::StdioPipe::inherit(),
+      stdout: deno_io::StdioPipe::inherit(),
+    }),
+    false,
+  ));
+  extensions.extend(crate::ext::fs::extensions(
+    std::rc::Rc::new(RealFs) as std::rc::Rc<dyn FileSystem>,
+    false,
+  ));
+  extensions.extend(crate::ext::os::extensions(false));
+  extensions.extend(process::extensions(false));
+
+  let mut runtime = JsRuntime::new(RuntimeOptions {
+    extensions: extensions,
+    // module_loader: Some(Rc::new(deno_core::FsModuleLoader)),
+    is_main: is_main,
+    ..Default::default()
+  });
+
+  let current_dir = std::env::current_dir()?;
+
+  let state = RuntimeState {
+    current_dir: current_dir.clone(),
+    args: args.unwrap_or_default(),
+  };
+
+  runtime.op_state().borrow_mut().put(state);
+  runtime.execute_script(
+    "<setup>",
+    r#"
+globalThis._execVM = (namespace, fn) => {
+  with(namespace){
+  eval(`(${fn.toString()})()`);
+  }
+}
+"#,
+  )?;
+  runtime.execute_script("<setup>", get_runtime_script())?;
+  if is_compiler {
+    runtime
+      .execute_script("<civet>", get_civet_script())
+      .unwrap();
+  }
+  Ok(runtime)
+}
+
+pub struct RewRuntime {
+  pub runtime: JsRuntime,
+  // pub compiler_runtime: JsRuntime,
+  declaration_engine: DeclarationEngine,
+}
 
 impl RewRuntime {
-  pub fn new() -> Result<Self> {
-    let compiler_runtime = get_compiler_runtime();
-
-
-    let mut extensions = vec![rewextension::init_ops()];
-
-    extensions.extend(webidl::extensions(false));
-    extensions.extend(console::extensions(false));
-    extensions.extend(url::extensions(false));
-    extensions.extend(web::extensions(web::WebOptions::default(), false));
-    extensions.extend(ffi::extensions(false));
-
-    let mut runtime = JsRuntime::new(RuntimeOptions {
-      extensions: extensions,
-      module_loader: Some(Rc::new(deno_core::FsModuleLoader)),
-      ..Default::default()
-    });
-
-    let current_dir = std::env::current_dir()?;
-
-    let state = RuntimeState {
-      current_dir: current_dir.clone(),
-    };
-
-    runtime.op_state().borrow_mut().put(state);
-    runtime.execute_script(
-      "<setup>",
-      r#"
-	globalThis._execVM = (namespace, fn) => {
-	 with(namespace){
-		eval(`(${fn.toString()})()`);
-	 }
-	}
-	"#,
-    )?;
-    runtime.execute_script("<setup>", get_runtime_script())?;
+  pub fn new(args: Option<Vec<String>>) -> Result<Self> {
+    let runtime = get_rew_runtime(true, true, args)?;
+    // let mut compiler_runtime = get_compiler_runtime();
 
     let declaration_engine = DeclarationEngine {
       global_declarations: HashMap::new(),
     };
 
     Ok(Self {
-      compiler_runtime,
       runtime,
+      // compiler_runtime,
       declaration_engine,
     })
   }
@@ -302,8 +314,8 @@ impl RewRuntime {
 
     let import_re = Regex::new(r#"(?m)^\s*import\s+(?:[^;]*?\s+from\s+)?["']([^"']+)["']"#)
       .context("Invalid regex pattern")?;
-    let external_re = Regex::new(r#"(?m)^\s*// external\s+['"]([^'"]+)['"]"#)
-      .context("Invalid regex pattern")?;
+    let external_re =
+      Regex::new(r#"(?m)^\s*// external\s+['"]([^'"]+)['"]"#).context("Invalid regex pattern")?;
 
     let mut visited = HashSet::new();
     let mut result = Vec::new();
@@ -328,10 +340,17 @@ impl RewRuntime {
       } else {
         file_path_unf
       };
-      
-      let is_brew_file = file_path.extension().map_or(false, |ext| ext == "brew" || ext == "qrew");
 
-      let real_content = if let Some(v) = VIRTUAL_FILES.lock().unwrap().iter().find(|(p, _)| p == file_path_str) {
+      let is_brew_file = file_path
+        .extension()
+        .map_or(false, |ext| ext == "brew" || ext == "qrew");
+
+      let real_content = if let Some(v) = VIRTUAL_FILES
+        .lock()
+        .unwrap()
+        .iter()
+        .find(|(p, _)| p == file_path_str)
+      {
         v.1.clone()
       } else if file_path_str.starts_with("#") {
         "".to_string()
@@ -368,9 +387,7 @@ impl RewRuntime {
 
       let parent = file_path.parent().unwrap_or(Path::new("."));
 
-
-      if is_brew_file {
-        
+      if is_brew_file || content.starts_with("\"no-compile\"") {
         for cap in external_re.captures_iter(&content) {
           let external_app_path = cap[1].to_string();
           let mut should_preprocess_import = false;
@@ -380,19 +397,35 @@ impl RewRuntime {
           } else {
             &external_app_path
           };
-          
+
           if external_app.contains('/') {
             let parts: Vec<&str> = external_app.split('/').collect();
             if parts.len() == 2 {
               let package_name = parts[0];
               let entry_name = parts[1];
 
-              if let Some(app_entry) = crate::utils::resolve_app_entry(package_name, Some(entry_name)) {
-                visit_file(&app_entry, visited, result, should_preprocess_import, import_re, external_re)?;
+              if let Some(app_entry) =
+                crate::utils::resolve_app_entry(package_name, Some(entry_name))
+              {
+                visit_file(
+                  &app_entry,
+                  visited,
+                  result,
+                  should_preprocess_import,
+                  import_re,
+                  external_re,
+                )?;
               }
             }
           } else {
-            visit_file(&PathBuf::from(external_app), visited, result, should_preprocess_import, import_re, external_re)?;
+            visit_file(
+              &PathBuf::from(external_app),
+              visited,
+              result,
+              should_preprocess_import,
+              import_re,
+              external_re,
+            )?;
           }
         }
       } else {
@@ -408,13 +441,27 @@ impl RewRuntime {
 
           if relative_path.starts_with("#") {
             let builtin_path = PathBuf::from(&relative_path);
-            visit_file(&builtin_path, visited, result, should_preprocess_import, import_re, external_re)?;
+            visit_file(
+              &builtin_path,
+              visited,
+              result,
+              should_preprocess_import,
+              import_re,
+              external_re,
+            )?;
           } else if !relative_path.contains("/")
             && !relative_path.contains("\\")
             && !relative_path.starts_with(".")
           {
             if let Some(app_entry) = crate::utils::resolve_app_entry(&relative_path, None) {
-              visit_file(&app_entry, visited, result, should_preprocess_import, import_re, external_re)?;
+              visit_file(
+                &app_entry,
+                visited,
+                result,
+                should_preprocess_import,
+                import_re,
+                external_re,
+              )?;
             } else {
               return Err(anyhow::anyhow!("App not found: {}", relative_path));
             }
@@ -424,9 +471,17 @@ impl RewRuntime {
               let package_name = parts[0];
               let entry_name = parts[1];
 
-              if let Some(app_entry) = crate::utils::resolve_app_entry(package_name, Some(entry_name))
+              if let Some(app_entry) =
+                crate::utils::resolve_app_entry(package_name, Some(entry_name))
               {
-                visit_file(&app_entry, visited, result, should_preprocess_import, import_re, external_re)?;
+                visit_file(
+                  &app_entry,
+                  visited,
+                  result,
+                  should_preprocess_import,
+                  import_re,
+                  external_re,
+                )?;
               } else {
                 return Err(anyhow::anyhow!(
                   "App entry not found: {}/{}",
@@ -440,7 +495,14 @@ impl RewRuntime {
                 .canonicalize()
                 .with_context(|| format!("Failed to resolve import"))?;
 
-              visit_file(&included_path, visited, result, should_preprocess_import, import_re, external_re)?;
+              visit_file(
+                &included_path,
+                visited,
+                result,
+                should_preprocess_import,
+                import_re,
+                external_re,
+              )?;
             }
           } else {
             let included_path = parent
@@ -448,7 +510,14 @@ impl RewRuntime {
               .canonicalize()
               .with_context(|| format!("Failed to resolve import"))?;
 
-            visit_file(&included_path, visited, result, should_preprocess_import, import_re, external_re)?;
+            visit_file(
+              &included_path,
+              visited,
+              result,
+              should_preprocess_import,
+              import_re,
+              external_re,
+            )?;
           }
         }
       }
@@ -456,7 +525,14 @@ impl RewRuntime {
       Ok(())
     }
 
-    visit_file(&filepath, &mut visited, &mut result, false, &import_re, &external_re)?;
+    visit_file(
+      &filepath,
+      &mut visited,
+      &mut result,
+      false,
+      &import_re,
+      &external_re,
+    )?;
     Ok(result)
   }
 
@@ -488,7 +564,10 @@ impl RewRuntime {
                 }
               }
 
-              let base_name = Path::new(rel_path_str).with_extension("").to_string_lossy().into_owned();
+              let base_name = Path::new(rel_path_str)
+                .with_extension("")
+                .to_string_lossy()
+                .into_owned();
               if mod_alias.is_empty() {
                 mod_alias.push_str(&format!("[\"app://{}/{}\"]", package, base_name))
               }
@@ -498,16 +577,21 @@ impl RewRuntime {
       }
 
       if mod_id.starts_with('#') {
-        module_wrappers.push_str(&format!("(function(module){{\n{compiled}\n}})({{filename: \"{id}\"}});", 
-        id = mod_id,
-        compiled = compiled));
+        module_wrappers.push_str(&format!(
+          "(function(module){{\n{compiled}\n}})({{filename: \"{id}\"}});",
+          id = mod_id,
+          compiled = compiled
+        ));
       } else if mod_id.ends_with(".brew") || mod_id.ends_with(".qrew") {
         module_wrappers.push_str(compiled.as_str());
-        
+
         let entry_regex = Regex::new(r#"//\s*entry\s*"([^"]+)""#).unwrap();
         for cap in entry_regex.captures_iter(&compiled) {
           let entry_file = cap[1].to_string();
-          entry_calls.push(format!("rew.prototype.mod.prototype.get('{}');", entry_file));
+          entry_calls.push(format!(
+            "rew.prototype.mod.prototype.get('{}');",
+            entry_file
+          ));
         }
       } else {
         module_wrappers.push_str(&format!(
@@ -550,7 +634,10 @@ return globalThis.module.exports;
 
       let final_entry_id = entry_app_id.unwrap_or_else(|| entry_mod_id.to_string());
       if !final_entry_id.ends_with(".brew") && !final_entry_id.ends_with(".qrew") {
-        entry_calls.push(format!("rew.prototype.mod.prototype.get('{}');", final_entry_id));
+        entry_calls.push(format!(
+          "rew.prototype.mod.prototype.get('{}');",
+          final_entry_id
+        ));
       }
     }
 
@@ -563,8 +650,11 @@ return globalThis.module.exports;
     Ok(module_wrappers.to_string())
   }
 
-
-  pub async fn build_file<P: AsRef<Path>>(&mut self, filepath: P, options: BuildOptions) -> Result<String> {
+  pub async fn build_file<P: AsRef<Path>>(
+    &mut self,
+    filepath: P,
+    options: BuildOptions,
+  ) -> Result<String> {
     let filepath = filepath
       .as_ref()
       .canonicalize()
@@ -575,7 +665,7 @@ return globalThis.module.exports;
 
     let files_with_flags = if !options.bundle_all {
       let main_app_path = crate::utils::find_app_path(&filepath);
-      
+
       files_with_flags
         .into_iter()
         .filter(|(path, source, _)| {
@@ -589,7 +679,7 @@ return globalThis.module.exports;
                     if let Some(package) = &manifest.package {
                       if let Some(rel_path) = path.strip_prefix(&app_info.path).ok() {
                         let rel_path_str = rel_path.to_str().unwrap_or("");
-          
+
                         if let Some(entries) = &app_info.config.entries {
                           for (key, value) in entries {
                             if value == rel_path_str {
@@ -631,15 +721,22 @@ return globalThis.module.exports;
     };
 
     let mut string = self.prepare(files, None).await?;
-    string.insert_str(0, 
-      format!("{}\n", excluded
-      .into_iter()
-      .map(|item| format!("// external \"{}\"", item))
-      .collect::<Vec<String>>()
-      .join("\n")
-      ).as_str()
+    string.insert_str(
+      0,
+      format!(
+        "{}\n",
+        excluded
+          .into_iter()
+          .map(|item| format!("// external \"{}\"", item))
+          .collect::<Vec<String>>()
+          .join("\n")
+      )
+      .as_str(),
     );
-    string.insert_str(0, format!("\n// entry \"{}\" \n", entry.to_str().unwrap_or("unknown")).as_str());
+    string.insert_str(
+      0,
+      format!("\n// entry \"{}\" \n", entry.to_str().unwrap_or("unknown")).as_str(),
+    );
     string.push_str("\n");
 
     string = encode_brew_file(&string);
@@ -653,7 +750,6 @@ return globalThis.module.exports;
     entry: &Path,
   ) -> Result<()> {
     let final_script = self.prepare(files, Some(entry)).await?;
-    
 
     self.runtime.execute_script("<main>", final_script)?;
     self
@@ -664,8 +760,11 @@ return globalThis.module.exports;
   }
 
   pub async fn compile_and_run(&mut self, source: &str, filepath: &Path) -> Result<String> {
-
-    if filepath.extension().map_or(false, |ext| ext == "brew" || ext == "js" || ext == "qrew") || source.starts_with("\"no-compile\"") {
+    if filepath
+      .extension()
+      .map_or(false, |ext| ext == "brew" || ext == "js" || ext == "qrew")
+      || source.starts_with("\"no-compile\"")
+    {
       // self.declaration_engine.process_script(source);
       return Ok(source.to_string());
     }
@@ -679,10 +778,16 @@ return globalThis.module.exports;
     let code = format!(
       r#"
     globalThis.result = compile(`{}`, {{
-     parseOptions: {{
-     coffeeCompat: true,
-     }},
-    filename: '{}'
+      parseOptions: {{
+        coffeePrototype: true,
+        autoVar: true,
+        coffeeInterpolation: true,
+        coffeeComment: true
+      }},
+      sync: true,
+      filename: '{}.civet',
+      bare: true,
+      js: true,
     }});
     globalThis.result
     "#,
@@ -690,11 +795,9 @@ return globalThis.module.exports;
       filepath.to_str().unwrap_or("unknown")
     );
 
-    let result = self
-      .compiler_runtime
-      .execute_script("<rew>", code.clone())?;
-    let compiled = self.compiler_runtime.resolve_value(result).await?;
-    let scope = &mut self.compiler_runtime.handle_scope();
+    let result = self.runtime.execute_script("<rew>", code.clone())?;
+    let compiled = self.runtime.resolve_value(result).await?;
+    let scope = &mut self.runtime.handle_scope();
     let result_code = compiled.open(scope).to_rust_string_lossy(scope);
 
     Ok(result_code)
@@ -708,20 +811,16 @@ return globalThis.module.exports;
   ) -> Result<CompilerResults> {
     let mut options = CompilerOptions {
       keep_imports: false,
-      disable_use: false,
       jsx: false,
       jsx_pragma: None,
       cls: false,
       included: false,
-      filename: None,
-      compiler_type: "coffee".to_string(),
       local_declarations,
       global_declarations,
     };
 
     compile_rew_stuff(source, &mut options)
   }
-
 
   pub async fn run_file<P: AsRef<Path>>(&mut self, filepath: P) -> Result<()> {
     let filepath = filepath
@@ -731,9 +830,8 @@ return globalThis.module.exports;
 
     let files_with_flags = RewRuntime::resolve_includes_recursive_from(&filepath)?;
 
-    for (path, content, preprocess) in &files_with_flags {
+    for (_, content, preprocess) in &files_with_flags {
       if *preprocess {
-
         let local_declarations = self.declaration_engine.process_script(&content);
 
         for (name, decl) in local_declarations {
@@ -758,6 +856,14 @@ return globalThis.module.exports;
 
 impl Drop for RewRuntime {
   fn drop(&mut self) {}
+}
+
+#[op2]
+#[serde]
+fn op_get_args(state: Rc<RefCell<OpState>>) -> Result<serde_json::Value, CoreError> {
+  let state = state.borrow();
+  let runtime_args = state.borrow::<RuntimeState>();
+  Ok(serde_json::json!(runtime_args.args.clone()))
 }
 
 #[op2(async)]
@@ -1402,12 +1508,9 @@ fn op_data_read_binary(
     .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))
 }
 
-
 #[op2]
 #[string]
-fn op_get_env(
-  _: Rc<RefCell<OpState>>,
-) -> Result<String, CoreError> {
+fn op_fetch_env(_: Rc<RefCell<OpState>>) -> Result<String, CoreError> {
   let env_vars: HashMap<String, String> = std::env::vars().collect();
   let cwd = std::env::current_dir()
     .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))?

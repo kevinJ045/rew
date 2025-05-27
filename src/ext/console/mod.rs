@@ -1,5 +1,5 @@
 use super::ExtensionTrait;
-use deno_core::{extension, Extension};
+use deno_core::{Extension, extension};
 
 extension!(
     init_console,
@@ -8,12 +8,12 @@ extension!(
 );
 impl ExtensionTrait<()> for init_console {
   fn init((): ()) -> Extension {
-    init_console::init_ops_and_esm()
+    init_console::init()
   }
 }
 impl ExtensionTrait<()> for deno_console::deno_console {
   fn init((): ()) -> Extension {
-    deno_console::deno_console::init_ops_and_esm()
+    deno_console::deno_console::init()
   }
 }
 

@@ -6,7 +6,9 @@ use uuid;
 pub struct Declaration {
   pub trigger: String,
   pub replacement: String,
+  #[allow(unused)]
   pub is_definition: bool,
+  #[allow(unused)]
   pub is_constructor: bool,
   pub condition_prev: Option<String>, // New field for ONLYIF prev condition
   pub condition_next: Option<String>, // New field for ONLYIF next condition
@@ -71,16 +73,13 @@ pub struct DeclarationEngine {
 }
 
 impl DeclarationEngine {
-  pub fn new() -> Self {
-    Self::default()
-  }
-
   pub fn parse_declaration(
     &mut self,
     line: &str,
     local_declarations: &mut HashMap<String, Declaration>,
   ) -> bool {
-    let tokens = crate::compiler::tokenize_coffee_script(line.replace("#", "").replace("//", "").as_str());
+    let tokens =
+      crate::compiler::tokenize_coffee_script(line.replace("#", "").replace("//", "").as_str());
     // println!("{}", line);
     // Check if this is a declaration
     if tokens.len() < 4 {

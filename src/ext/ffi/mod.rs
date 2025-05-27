@@ -1,5 +1,5 @@
-use super::{web::PermissionsContainer, ExtensionTrait};
-use deno_core::{extension, Extension};
+use super::{ExtensionTrait, web::PermissionsContainer};
+use deno_core::{Extension, extension};
 
 extension!(
     init_ffi,
@@ -8,12 +8,12 @@ extension!(
 );
 impl ExtensionTrait<()> for init_ffi {
   fn init((): ()) -> Extension {
-    init_ffi::init_ops_and_esm()
+    init_ffi::init()
   }
 }
 impl ExtensionTrait<()> for deno_ffi::deno_ffi {
   fn init((): ()) -> Extension {
-    deno_ffi::deno_ffi::init_ops_and_esm::<PermissionsContainer>()
+    deno_ffi::deno_ffi::init::<PermissionsContainer>(None)
   }
 }
 

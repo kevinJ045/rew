@@ -1,9 +1,6 @@
 #![allow(unused_variables)]
 #![allow(clippy::derivable_impls)]
-use deno_core::{
-  v8::{BackingStore, SharedRef},
-  CrossIsolateStore, Extension,
-};
+use deno_core::Extension;
 
 trait ExtensionTrait<A> {
   fn init(options: A) -> Extension;
@@ -30,3 +27,11 @@ pub mod ffi;
 pub mod url;
 pub mod web;
 pub mod webidl;
+
+pub mod fs;
+pub mod io;
+pub mod os;
+pub mod process;
+pub mod telemetry;
+pub mod networking;
+pub mod http;

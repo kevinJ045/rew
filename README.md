@@ -4,6 +4,14 @@ Rusty rew is a project made to remake [rew](https://kevinj045.github.io/rew-docs
 ## Original rew
 The original rew has been moved to [rew-node](https://github.com/kevinj045/rew-node/).
 
+## Stages.
+### \[Stone] (Current)
+The stage where it's barely functional with only the most basic features
+### \[Young]
+Stable to the point where it's possible to make real world apps
+### \[Mature]
+Trustable, optimized and with promising feature updates
+
 ## Available features
 ### Core Runtime
 
@@ -46,13 +54,12 @@ The original rew has been moved to [rew-node](https://github.com/kevinj045/rew-n
 |-----------------------------|------------------------------------------------------------|----------------|
 | Core FFI APIs               | Low-level interface for `rew.bind(...)`, etc.              | ✅ Implemented |
 | File System API             | `fs.readFile`, `fs.writeFile`, etc.                        | ✅ Implemented |
-| Networking API              | TCP/UDP sockets, basic `net.connect()`                     | 🕓 Planned     |
-| HTTP/HTTPS Server           | `http.createServer`, serve requests/responses              | 🕓 Planned     |
-| Fetch API                   | `fetch()` or similar high-level HTTP client                | 🕓 Planned     |
-| Timer API                   | `setTimeout`, `setInterval`                                | 🕓 Planned     |
-| Crypto API                  | Hashing, UUIDs, secure random                              | 🕓 Planned     |
+| Networking API              | TCP/UDP sockets, basic `net.connect()`                     | ✅ Basics     |
+| HTTP/HTTPS Server           | `http.createServer`, serve requests/responses              | ✅ Basics     |
+| Fetch API                   | `fetch()` or similar high-level HTTP client                | ✅ Basics     |
+| Timer API                   | `setTimeout`, `setInterval`                                | ✅ Implemented     |
 | Database API                | Support for SQLite, Postgres, or other databases           | 🕓 Planned     |
-| Stream API                  | Support for readable/writable streams                      | 🕓 Planned     |
+| Stream API                  | Support for readable/writable streams                      | ✅ Implemented   |
 
 ### Developer UX
 
