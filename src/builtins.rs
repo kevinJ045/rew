@@ -14,6 +14,7 @@ const SHELL_MODULE: &str = include_str!("../lib/rew/builtins/shell.js");
 const HTTP_MODULE: &str = include_str!("../lib/rew/builtins/http.js");
 const NET_MODULE: &str = include_str!("../lib/rew/builtins/net.js");
 const TYPES_MODULE: &str = include_str!("../lib/rew/builtins/types.js");
+const YAML_MODULE: &str = include_str!("../lib/rew/builtins/yaml.js");
 
 pub static BUILTIN_MODULES: Lazy<HashMap<&'static str, &'static str>> = Lazy::new(|| {
   let mut m = HashMap::new();
@@ -29,6 +30,7 @@ pub static BUILTIN_MODULES: Lazy<HashMap<&'static str, &'static str>> = Lazy::ne
   m.insert("#std.http", HTTP_MODULE);
   m.insert("#std.net", NET_MODULE);
   m.insert("#std.types", TYPES_MODULE);
+  m.insert("#std.yaml", YAML_MODULE);
   m.insert("#std", ALL_MODULE);
   
   m

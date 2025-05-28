@@ -796,8 +796,7 @@ return globalThis.module.exports;
         coffeePrototype: true,
         autoLet: true,
         coffeeInterpolation: true,
-        coffeeComment: true,
-        coffeeClasses: true,
+        coffeeComment: true
       }};
       ("{civet_options}").split(',').map(i => {{
         if(i.indexOf('.')){{
@@ -912,9 +911,9 @@ fn op_get_args(state: Rc<RefCell<OpState>>) -> Result<serde_json::Value, CoreErr
   Ok(serde_json::json!(runtime_args.args.clone()))
 }
 
-#[op2(async)]
+#[op2]
 #[serde]
-async fn op_fs_read(
+fn op_fs_read(
   #[string] current_file: String,
   #[string] filepath: String,
   #[serde] options: Option<ReadOptions>,
@@ -923,8 +922,6 @@ async fn op_fs_read(
   let current_file_path = Path::new(&current_file);
   let base_dir = current_file_path.parent().unwrap_or(Path::new("."));
   let full_path = base_dir.join(filepath);
-
-  // println!("{}", current_file);
 
   let options = options.unwrap_or_default();
 
@@ -1570,7 +1567,8 @@ fn op_fetch_env(_: Rc<RefCell<OpState>>) -> Result<String, CoreError> {
   let result = serde_json::json!({
     "env": env_vars,
     "cwd": cwd,
-    "execPath": exec_path
+    "execPath": exec_path,
+    "rewPath": crate::utils::get_rew_root()
   });
 
   serde_json::to_string(&result)

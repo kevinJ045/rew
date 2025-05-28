@@ -338,11 +338,14 @@ fn apply_declarations(
   None
 }
 
-fn get_string_until(tokens: &[Token], start: usize, end_chars: &[&str]) -> (String, usize) {
+fn get_string_until(tokens: &[Token], start: usize, end_chars: &[&str], end_types: &[&str]) -> (String, usize) {
   let mut result = String::new();
   let mut i = start;
   while i < tokens.len() {
     if end_chars.contains(&tokens[i].value.as_str()) {
+      break;
+    }
+    if end_types.contains(&tokens[i].token_type.as_str()) {
       break;
     }
     result.push_str(&tokens[i].value);
@@ -385,7 +388,7 @@ fn handle_import(tokens: &[Token], i: usize) -> (String, usize) {
     }
     "IDENTIFIER" | "OTHER" => {
       if token.value == "{" {
-        let (imports, new_idx) = get_string_until(tokens, current_idx + 1, &["}"]);
+        let (imports, new_idx) = get_string_until(tokens, current_idx + 1, &["}"], &[]);
         current_idx = new_idx + 1;
 
         while current_idx < tokens.len() && tokens[current_idx].value != "from" {
@@ -416,7 +419,7 @@ fn handle_import(tokens: &[Token], i: usize) -> (String, usize) {
               }
             }
           } else if tokens[current_idx].value == "{" {
-            let (imports, new_idx) = get_string_until(tokens, current_idx + 1, &["}"]);
+            let (imports, new_idx) = get_string_until(tokens, current_idx + 1, &["}"], &[]);
             let re = Regex::new(r"(\w+)\s+as\s+(\w+)").unwrap();
             let replaced_imports = re.replace_all(&imports, "$1: $2").to_string();
             default_name.insert_str(0, &format!("{{ {} }} = ", replaced_imports));
@@ -562,6 +565,21 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
     {
       i += 1;
       continue;
+    }
+
+    if prev_token.clone().map_or(true, |(t, _, _)| t.value != ".")
+      && prev_token.clone().map_or(true, |(t, _, _)| t.value != ":")
+      && token.token_type == "IDENTIFIER"
+      && token.value == "package"
+    {
+      if let Some((next_token, _, idx)) = get_next_token(i, 1, &tokens) {
+        if next_token.token_type == "IDENTIFIER" {
+          let (item, new_idx) = get_string_until(&tokens, idx, &[";"], &["WHITESPACE"]);
+          result.push_str(format!("rew::mod::package \"{}\"", item).as_str());
+          i = new_idx;
+        }
+        continue;
+      }
     }
 
     if prev_token.clone().map_or(true, |(t, _, _)| t.value != ".")

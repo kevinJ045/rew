@@ -6,6 +6,10 @@ with (globalThis) {
 
 
 var l;
+rew.prototype.mod.prototype.package("ss.sss")
+
+rew.prototype.io.prototype.out.print(ss.prototype.sss)
+
 l = 'ss'
 }
 return globalThis.module.exports;
