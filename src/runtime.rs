@@ -289,6 +289,8 @@ pub struct RewRuntime {
   declaration_engine: DeclarationEngine,
   sourcemap: bool,
   inlinemap: bool,
+
+  compile_options: Vec<String>
 }
 
 impl RewRuntime {
@@ -304,6 +306,7 @@ impl RewRuntime {
       runtime,
       inlinemap: false,
       sourcemap: false,
+      compile_options: vec![],
       // compiler_runtime,
       declaration_engine,
     })
@@ -782,32 +785,48 @@ return globalThis.module.exports;
 
     let processed = self.preprocess_rew(source, local_declarations, global_declarations, keep_imports)?;
 
+    let mut civet_options: Vec<String> = vec![];
+    civet_options.extend(processed.options.civet_options.clone());
+    civet_options.extend(self.compile_options.clone());
+
     let code = format!(
       r#"
     (() => {{
-      let _compiled = compile(`{}`, {{
-        parseOptions: {{
-          coffeePrototype: true,
-          autoLet: true,
-          coffeeInterpolation: true,
-          coffeeComment: true,
-          implicitReturns: false
-        }},
+      let options = {{
+        coffeePrototype: true,
+        autoLet: true,
+        coffeeInterpolation: true,
+        coffeeComment: true,
+        coffeeClasses: true,
+      }};
+      ("{civet_options}").split(',').map(i => {{
+        if(i.indexOf('.')){{
+          let [k, v] = i.split('.');
+          options[k] = v == 'off' || v == 'disable' ? false : true
+          if(options[k] == false) delete options[k];
+        }} else {{
+          if(i in options) options[i] = false;
+          else options[i] = true; 
+        }}
+      }});
+      let _compiled = compile(`{code}`, {{
+        parseOptions: options,
         sync: true,
-        filename: '{}.civet',
+        filename: '{file}.civet',
         bare: true,
         js: true,
-        inlineMap: {},
-        sourceMap: {},
+        inlineMap: {inp},
+        sourceMap: {smp},
       }});
 
       return _compiled;
     }})()
     "#,
-      processed.code.replace("`", "\\`"),
-      filepath.to_str().unwrap_or("unknown"),
-      self.sourcemap,
-      self.inlinemap,
+      code = processed.code.replace("`", "\\`"),
+      file = filepath.to_str().unwrap_or("unknown"),
+      smp = self.sourcemap,
+      inp = self.inlinemap,
+      civet_options = civet_options.join(",")
     );
 
     let result = self.runtime.execute_script("<rew>", code.clone())?;
@@ -816,9 +835,13 @@ return globalThis.module.exports;
     let mut result_code = compiled.open(scope).to_rust_string_lossy(scope);
 
 
-    if processed.code.contains("using JSX") {
+    if processed.options.jsx {
       result_code = compile_jsx(result_code, Some("__jsx__prefix".to_string()));
     }
+
+    // if processed.options.civet_global {
+      self.compile_options.extend(processed.options.civet_global.clone());
+    // }
 
     Ok(result_code)
   }
@@ -832,8 +855,10 @@ return globalThis.module.exports;
   ) -> Result<CompilerResults> {
     let mut options = CompilerOptions {
       keep_imports: keep_imports,
+      civet_global: vec![],
       jsx: false,
       jsx_pragma: None,
+      civet_options: vec![],
       cls: false,
       included: false,
       local_declarations,

@@ -20,6 +20,8 @@ pub struct CompilerOptions {
   pub keep_imports: bool,
   pub jsx: bool,
   pub jsx_pragma: Option<String>,
+  pub civet_options: Vec<String>,
+  pub civet_global: Vec<String>,
   pub cls: bool,
   pub included: bool,
 
@@ -32,7 +34,9 @@ impl Default for CompilerOptions {
     CompilerOptions {
       keep_imports: false,
       jsx: false,
+      civet_options: vec![],
       jsx_pragma: None,
+      civet_global: vec![],
       cls: false,
       included: false,
       local_declarations: HashMap::new(),
@@ -457,6 +461,32 @@ fn handle_import(tokens: &[Token], i: usize) -> (String, usize) {
   (result, current_idx)
 }
 
+fn handle_compiler_options(tokens: &[Token], options: &mut CompilerOptions, i: usize, isPub: bool) -> usize {
+  let mut current_idx = i + 1;
+
+  if let Some((name_token, idx)) = find_next_token(current_idx , &tokens, "IDENTIFIER", None, None) {
+    let mut name = name_token.value.clone();
+    current_idx = idx + 1;
+    if let Some((_dot, _, idx)) = get_next_token(idx, 1, &tokens) {
+      if _dot.value == "." {
+        if let Some((_state, _, idx)) = get_next_token(idx, 1, &tokens) {
+          current_idx = idx + 1;
+          if _state.token_type == "IDENTIFIER" {
+            name.push_str(format!(".{}", _state.value).as_str())
+          }
+        }
+      }
+    }
+
+    options.civet_options.push(name.clone());
+    if isPub {
+      options.civet_global.push(name.clone());
+    }
+  }
+
+  current_idx
+}
+
 // i hate this function too!
 pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result<CompilerResults> {
   let tokens = tokenize_coffee_script(content);
@@ -482,7 +512,7 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
     }
 
     if token.token_type == "IDENTIFIER" && token.value == "fn" && i < 2 {
-      if let Some((next, _, _)) = next_token {
+      if let Some((next, _, _)) = next_token.clone() {
         if prev_token.clone().map_or(true, |(t, _, _)| t.value != ".")
           && next.token_type == "IDENTIFIER"
         {
@@ -493,11 +523,28 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
       }
     }
 
-    if token.token_type == "COMMENT" && token.value[1..].trim().starts_with("@jsx") {
+    if token.value == "using" && next_token
+      .clone()
+      .map_or(false, |(t, _, _)| t.value == "JSX") {
       options.jsx = true;
-      if let Some(pragma) = token.value.split("@jsx").nth(1) {
-        if !pragma.trim().is_empty() {
-          options.jsx_pragma = Some(pragma.trim().to_string());
+    }
+
+    if token.value == "using" && next_token
+      .clone()
+      .map_or(false, |(t, _, _)| t.value == "compiler" || t.value == "pub")
+    {
+
+      if let Some((next, _, idx)) = next_token.clone() {
+        if next.value == "pub" {
+          if let Some((next_token, _, idx)) = get_next_token(idx, 1, &tokens) {
+            if next_token.value == "compiler" {
+              i = handle_compiler_options(&tokens, options, idx, true);
+              continue;
+            }
+          }
+        } else {
+          i = handle_compiler_options(&tokens, options, idx, false);
+          continue;
         }
       }
     }
@@ -584,6 +631,8 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
       options,
       CompilerOptions {
         keep_imports: false,
+        civet_options: vec![],
+        civet_global: vec![],
         jsx: false,
         jsx_pragma: None,
         cls: false,

@@ -30,6 +30,6 @@ pub static BUILTIN_MODULES: Lazy<HashMap<&'static str, &'static str>> = Lazy::ne
   m.insert("#std.net", NET_MODULE);
   m.insert("#std.types", TYPES_MODULE);
   m.insert("#std", ALL_MODULE);
-
+  
   m
 });
