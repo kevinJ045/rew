@@ -5,6 +5,7 @@ use crate::compiler::CompilerResults;
 use crate::data_manager::{DataFormat, DataManager};
 use crate::declarations::{Declaration, DeclarationEngine};
 use crate::ext::{console, ffi, process, url, web, webidl};
+use crate::jsx::compile_jsx;
 use crate::runtime_script::get_runtime_script;
 use crate::utils::find_app_path;
 use crate::workers::{
@@ -286,6 +287,8 @@ pub struct RewRuntime {
   pub runtime: JsRuntime,
   // pub compiler_runtime: JsRuntime,
   declaration_engine: DeclarationEngine,
+  sourcemap: bool,
+  inlinemap: bool,
 }
 
 impl RewRuntime {
@@ -299,6 +302,8 @@ impl RewRuntime {
 
     Ok(Self {
       runtime,
+      inlinemap: false,
+      sourcemap: false,
       // compiler_runtime,
       declaration_engine,
     })
@@ -545,7 +550,7 @@ impl RewRuntime {
     let mut entry_calls = Vec::new();
 
     for (path, source) in files {
-      let compiled = self.compile_and_run(&source, &path).await?;
+      let compiled = self.compile_and_run(&source, &path, false).await?;
       let mod_id = path.to_str().unwrap_or("unknown");
       let mut mod_alias = String::new();
 
@@ -595,11 +600,13 @@ impl RewRuntime {
         }
       } else {
         module_wrappers.push_str(&format!(
-          r#"rew.prototype.mod.prototype.defineNew("{id}", function(globalThis){{
+          r#"rew.prototype.mod.prototype.defineNew("{id}", {{
+"{id}"(globalThis){{
 with (globalThis) {{
   {compiled}
 }}
 return globalThis.module.exports;
+}}          
 }}, {mod_alias});"#,
           id = mod_id,
           mod_alias = mod_alias,
@@ -759,7 +766,7 @@ return globalThis.module.exports;
     Ok(())
   }
 
-  pub async fn compile_and_run(&mut self, source: &str, filepath: &Path) -> Result<String> {
+  pub async fn compile_and_run(&mut self, source: &str, filepath: &Path, keep_imports: bool) -> Result<String> {
     if filepath
       .extension()
       .map_or(false, |ext| ext == "brew" || ext == "js" || ext == "qrew")
@@ -773,32 +780,45 @@ return globalThis.module.exports;
 
     let global_declarations = self.declaration_engine.global_declarations.clone();
 
-    let processed = self.preprocess_rew(source, local_declarations, global_declarations)?;
+    let processed = self.preprocess_rew(source, local_declarations, global_declarations, keep_imports)?;
 
     let code = format!(
       r#"
-    globalThis.result = compile(`{}`, {{
-      parseOptions: {{
-        coffeePrototype: true,
-        autoVar: true,
-        coffeeInterpolation: true,
-        coffeeComment: true
-      }},
-      sync: true,
-      filename: '{}.civet',
-      bare: true,
-      js: true,
-    }});
-    globalThis.result
+    (() => {{
+      let _compiled = compile(`{}`, {{
+        parseOptions: {{
+          coffeePrototype: true,
+          autoLet: true,
+          coffeeInterpolation: true,
+          coffeeComment: true,
+          implicitReturns: false
+        }},
+        sync: true,
+        filename: '{}.civet',
+        bare: true,
+        js: true,
+        inlineMap: {},
+        sourceMap: {},
+      }});
+
+      return _compiled;
+    }})()
     "#,
       processed.code.replace("`", "\\`"),
-      filepath.to_str().unwrap_or("unknown")
+      filepath.to_str().unwrap_or("unknown"),
+      self.sourcemap,
+      self.inlinemap,
     );
 
     let result = self.runtime.execute_script("<rew>", code.clone())?;
     let compiled = self.runtime.resolve_value(result).await?;
     let scope = &mut self.runtime.handle_scope();
-    let result_code = compiled.open(scope).to_rust_string_lossy(scope);
+    let mut result_code = compiled.open(scope).to_rust_string_lossy(scope);
+
+
+    if processed.code.contains("using JSX") {
+      result_code = compile_jsx(result_code, Some("__jsx__prefix".to_string()));
+    }
 
     Ok(result_code)
   }
@@ -808,9 +828,10 @@ return globalThis.module.exports;
     source: &str,
     local_declarations: HashMap<String, Declaration>,
     global_declarations: HashMap<String, Declaration>,
+    keep_imports: bool
   ) -> Result<CompilerResults> {
     let mut options = CompilerOptions {
-      keep_imports: false,
+      keep_imports: keep_imports,
       jsx: false,
       jsx_pragma: None,
       cls: false,

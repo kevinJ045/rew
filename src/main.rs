@@ -1,5 +1,6 @@
 use clap::{Parser, Subcommand};
 use colored::*;
+use deno_core::error::CoreError;
 use std::fs;
 use std::path::PathBuf;
 use tokio;
@@ -16,6 +17,7 @@ mod runtime_script;
 // mod shell;
 mod utils;
 mod workers;
+mod jsx;
 use runtime::RewRuntime;
 
 fn ensure_rew_dirs() -> anyhow::Result<()> {
@@ -68,6 +70,10 @@ enum Commands {
 
     #[arg(trailing_var_arg = true)]
     args: Vec<String>,
+  },
+  Compile {
+    #[arg(name = "FILE")]
+    file: PathBuf,
   },
   Exec {
     #[arg(name = "CODE")]
@@ -158,6 +164,12 @@ fn main() -> anyhow::Result<()> {
             let mut runtime = RewRuntime::new(Some(args.clone()))?;
             runtime.run_file(file).await?;
           }
+        }
+        Commands::Compile { file } => {
+          let mut runtime = RewRuntime::new(None)?;
+          let content = fs::read_to_string(&file)?;
+          let f = runtime.compile_and_run(&content, file,true).await?;
+          println!("{}", f);
         }
         Commands::Exec { code } => {
           println!("Executing code: {}", code.blue());

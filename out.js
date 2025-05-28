@@ -1,45 +1,53 @@
-rew.prototype.mod.prototype.defineNew("/home/makano/workspace/rew-rust/test/os.coffee", function(globalThis){
+rew.prototype.mod.prototype.defineNew("/home/makano/workspace/rew-rust/test/external.coffee", {
+"/home/makano/workspace/rew-rust/test/external.coffee"(globalThis){
 with (globalThis) {
-  rew.prototype.mod.prototype.find(module, "#std.os");
-
-using(namespace(rew.prototype.ns()));
-
-print(typeof ReadableStream)
-
-print(rew.prototype.os.prototype)
-print(rew.prototype.os.prototype.userInfo())
-
-rew.prototype.process.prototype.exit()
+  const j = rew.prototype.mod.prototype.find(module,  "gaga.daga!")
+rew.prototype.io.prototype.out.print(j)
+rew.prototype.io.prototype.out.print('hi')
 }
 return globalThis.module.exports;
-}, ["app://test.app/os"]);(function(module){
-"no-compile"
-if(!rew.extensions.has('os')) rew.extensions.add('os', (Deno) => rew.extensions.createClass({
-  slug: Deno.core.build.os,
-  arch: Deno.core.build.arch,
-  release: Deno.os.osRelease(),
-  get loadavg(){
-    return Deno.os.loadavg()
-  },
-  get uptime(){
-    return Deno.os.osUptime()
-  },
-  get hostname(){
-    return Deno.os.hostname()
-  },
-  mem: () => Deno.os.systemMemoryInfo(),
-  networkInterfaces: () => Deno.os.networkInterfaces(),
-  get homeDir(){
-    return rew.prototype.env.prototype.get("HOME") || rew.prototype.env.prototype.get("USERPROFILE")
-  },
-  get tempDir(){
-    return rew.prototype.env.prototype.get("TMPDIR") || rew.prototype.env.prototype.get("TEMP")
-  },
-  userInfo: () => ({
-    username: rew.prototype.env.prototype.get("USER") || rew.prototype.env.prototype.get("USERNAME"),
-    uid: Deno.os.uid(),
-    gid: Deno.os.gid(),
-  })
-}));
-})({filename: "#std.os"});
-rew.prototype.mod.prototype.get('/home/makano/workspace/rew-rust/test/os.coffee');
+}          
+}, ["app://test.app/external"]);
+// entry "/home/makano/.rew/apps/gaga.daga/main.coffee" 
+
+rew.prototype.mod.prototype.defineNew("/home/makano/.rew/apps/gaga.daga/main.coffee", {
+"/home/makano/.rew/apps/gaga.daga/main.coffee"(globalThis){
+with (globalThis) {
+  
+const submodule = rew.prototype.mod.prototype.find(module,  "./help.coffee")
+const sn = rew.prototype.mod.prototype.find(module,  "./src/main.coffee")
+
+//declare* "sayhello" = rew::io::out.print('hi');
+
+module.exports = {
+	isMain: true,
+	submodule,
+	sn
+}
+
+}
+return globalThis.module.exports;
+}          
+}, ["app://gaga.daga/main"]);rew.prototype.mod.prototype.defineNew("/home/makano/.rew/apps/gaga.daga/help.coffee", {
+"/home/makano/.rew/apps/gaga.daga/help.coffee"(globalThis){
+with (globalThis) {
+  module.exports = {
+	submodule: true
+}
+
+}
+return globalThis.module.exports;
+}          
+}, ["app://gaga.daga/help"]);rew.prototype.mod.prototype.defineNew("/home/makano/.rew/apps/gaga.daga/src/main.coffee", {
+"/home/makano/.rew/apps/gaga.daga/src/main.coffee"(globalThis){
+with (globalThis) {
+  let fgh
+module.exports.fgh =  fgh = "hello"
+
+}
+return globalThis.module.exports;
+}          
+}, ["app://gaga.daga/src/main"]);
+
+rew.prototype.mod.prototype.get('/home/makano/.rew/apps/gaga.daga/main.coffee');
+rew.prototype.mod.prototype.get('/home/makano/workspace/rew-rust/test/external.coffee');

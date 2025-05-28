@@ -1,5 +1,5 @@
 import "#std.ffi!"
-using namespace rew::ns()
+using namespace rew::ns
 
 symbols = ffi::autoload '/home/makano/.rew/apps/rew_bindgen_test/target/release/librew_bindgen_test.so'
 
@@ -12,7 +12,7 @@ print symbols.add(100, 10)
 cb = -> print "hi"
 
 symbols.call_every_second(
-  rew::ptr::cb(cb, [], 'void').pointer
+  rew::ptr::fn([], 'void', cb).pointer
 )
 
 s = -> setTimeout s, 1

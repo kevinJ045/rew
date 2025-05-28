@@ -2,7 +2,7 @@ import "#std.fs"
 
 something = null
 
-using namespace rew::ns()
+using namespace rew::ns
 # print rew::fs::read "./exec.coffee!"
 
 f = ->

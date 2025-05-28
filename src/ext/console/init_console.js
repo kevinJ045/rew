@@ -3,5 +3,5 @@ globalThis.Deno.inspect = _console.inspect
 let _log_out = console.log;
 let Deno = globalThis.Deno || {};
 globalThis.console = new _console.Console(
-  (output, code) => Deno[code ? 'stdout' : 'stderr'].write(Deno.core.encode(output)),
+  (output, code) => Deno[code ? 'stdout' : 'stderr'].writeSync(Deno.core.encode(output)),
 )

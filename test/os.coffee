@@ -1,6 +1,6 @@
 import "#std.os";
 
-using namespace rew::ns();
+using namespace rew::ns;
 
 print rew::os::
 print rew::os::userInfo()

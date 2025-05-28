@@ -4,13 +4,18 @@ Rusty rew is a project made to remake [rew](https://kevinj045.github.io/rew-docs
 ## Original rew
 The original rew has been moved to [rew-node](https://github.com/kevinj045/rew-node/).
 
-## Stages.
-### \[Stone] (Current)
-The stage where it's barely functional with only the most basic features
-### \[Young]
-Stable to the point where it's possible to make real world apps
-### \[Mature]
-Trustable, optimized and with promising feature updates
+## Components
+### Compiler
+Rew has 3 levels of compilers. 3 distinct specific compilers.
+  -   #### Rew-Compiler (pre-compiler) [RUST]
+      This is the first compiler that compiles rew-related and unresolvable parts of your syntax. For example `compiler directives`, `declarations`, `imports`, `exports`...
+  -   #### Civet (main compiler) [BOOTSTRAP]
+      This is the compiler that takes the prepared/resolved rew compiler result and compiles the result into executable js.
+  -   #### JSX (specific compiler) [RUST]
+      A mini jsx transpiler written in rust, compiles by separating js code from jsx portions.  
+### Runtime
+Rew(atleast this one) uses deno(deno_core) along with a few deno extensions. More about architecture [here](https://kevinj045.github.io/rew-docs/expr/rusty.html).
+
 
 ## Available features
 ### Core Runtime

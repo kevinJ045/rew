@@ -1,6 +1,6 @@
 import "#std.ffi!"
 import "#std.encoding"
-using namespace rew::ns()
+using namespace rew::ns
 
 ins = instantiate class
   ffi_type() init_socket = -> 'i32'
@@ -21,5 +21,5 @@ loopm()
 
 
 
-setTimeout(() => send_message(rew::ptr::of rew::encoding::stringToBytes("Hello from JS")), 1000)
+# setTimeout(() => send_message(rew::ptr::of rew::encoding::stringToBytes("Hello from JS")), 1000)
 

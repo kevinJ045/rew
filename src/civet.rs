@@ -1,6 +1,7 @@
 pub fn get_civet_script() -> String {
   return String::from(
     r#"
+  (()=>{
     "use strict";
 var module = {};
 var __create = Object.create;
@@ -17366,11 +17367,16 @@ var isCompileError = function(err) {
   return err instanceof import_lib3.ParseError || err instanceof ParseErrors;
 };
 var main_default = { parse, parseProgram, ParseError: import_lib3.ParseError, ParseErrors, generate: generate_default, sourcemap: sourcemap_exports, SourceMap: SourceMap2, compile, isCompileError };
-// Annotate the CommonJS export names for ESM import in node:
 
-if(this.__to__compile__){
-  compile(this.__to__compile__, { sync: true, ...(this.__compile__options || { parseOptions: { coffeeCompat: true } }) });
+globalThis.compile = (...args) => {
+    let compiled = compile(...args);
+    if(typeof compiled === 'string') {
+        return compiled;
+    }
+    return compiled;
 };
+
+  })();
   "#,
   );
 }

@@ -1,5 +1,5 @@
 import "#std.threads"
-using namespace rew::ns()
+using namespace rew::ns
 
 print "Starting threads demo..."
 

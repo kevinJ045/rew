@@ -6,7 +6,7 @@ import * as tst from "agamada.domago/test"
 
 
 
-using namespace rew::ns()
+using namespace rew::ns
 
 # print 'ffi: ', rew::ffi
 

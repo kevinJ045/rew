@@ -289,28 +289,36 @@ fn apply_declarations(
               }
             }
             if next_token.token_type == "IDENTIFIER" {
-              str
-                .push_str(format!("{} = {} ", next_token.value, decl.replacement.clone()).as_str());
-              if let Some((_, eq_idx)) = find_next_token(
-                index,
-                tokens,
-                "OTHER",
-                Some("="),
-                Some(("WHITESPACE", Some("\n"))),
-              ) {
-                if !args.is_empty() {
-                  str.push_str(args.as_str());
-                  str.push_str(",");
-                }
-                additional_idx = eq_idx - index
-              } else {
-                if !args.is_empty() {
-                  str.push_str(args.as_str());
+              if let Some((eq_token, _, _)) = get_next_token(cidx, 1, tokens) {
+                if eq_token.value == "=" {
+                  str
+                    .push_str(format!("{} = {} ", next_token.value, decl.replacement.clone()).as_str());
+                  if let Some((_, eq_idx)) = find_next_token(
+                    index,
+                    tokens,
+                    "OTHER",
+                    Some("="),
+                    Some(("WHITESPACE", Some("\n"))),
+                  ) {
+                    if !args.is_empty() {
+                      str.push_str(args.as_str());
+                      str.push_str(",");
+                    }
+                    additional_idx = eq_idx - index
+                  } else {
+                    if !args.is_empty() {
+                      str.push_str(args.as_str());
+                    } else {
+                      str = String::from(str.trim());
+                      str.push_str("()");
+                    }
+                    additional_idx = cidx - index;
+                  }
                 } else {
-                  str = String::from(str.trim());
-                  str.push_str("()");
+                  return None;
                 }
-                additional_idx = cidx - index;
+              } else {
+                return None;
               }
             } else {
               return None;
