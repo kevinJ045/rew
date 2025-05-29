@@ -29,9 +29,9 @@ pub mod web;
 pub mod webidl;
 
 pub mod fs;
+pub mod http;
 pub mod io;
+pub mod networking;
 pub mod os;
 pub mod process;
 pub mod telemetry;
-pub mod networking;
-pub mod http;

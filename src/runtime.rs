@@ -197,11 +197,10 @@ extension!(
     op_thread_terminate,
     op_thread_receive,
     op_fetch_env,
-    op_get_args // op_shell_spawn,
-                // op_shell_write,
-                // op_shell_close,
-                // op_shell_read,
-                // op_shell_kill
+    op_get_args,
+    op_os_info_os,
+    op_os_info_arch,
+    op_os_info_family
   ],
   state = |state| {
     let permissions =
@@ -210,14 +209,6 @@ extension!(
     state.put::<PermissionsContainer>(permissions.clone());
   }
 );
-
-fn get_compiler_runtime() -> JsRuntime {
-  let mut compiler_runtime = JsRuntime::new(RuntimeOptions::default());
-  compiler_runtime
-    .execute_script("<civet>", get_civet_script())
-    .unwrap();
-  compiler_runtime
-}
 
 pub fn get_rew_runtime(
   is_compiler: bool,
@@ -829,9 +820,9 @@ return globalThis.module.exports;
     );
 
     let result = self.runtime.execute_script("<rew>", code.clone())?;
-    let compiled = self.runtime.resolve_value(result).await?;
+    // let compiled = self.runtime.resolve(result).await?;
     let scope = &mut self.runtime.handle_scope();
-    let mut result_code = compiled.open(scope).to_rust_string_lossy(scope);
+    let mut result_code = result.open(scope).to_rust_string_lossy(scope);
 
 
     if processed.options.jsx {
@@ -856,7 +847,6 @@ return globalThis.module.exports;
       keep_imports: keep_imports,
       civet_global: vec![],
       jsx: false,
-      jsx_pragma: None,
       civet_options: vec![],
       cls: false,
       included: false,
@@ -1634,4 +1624,29 @@ fn op_data_get_info(
   };
 
   Ok((exists, format_str.to_string()))
+}
+
+
+#[op2]
+#[string]
+fn op_os_info_os(
+  _: Rc<RefCell<OpState>>,
+) -> Result<String, CoreError> {
+  Ok(std::env::consts::OS.to_string())
+}
+
+#[op2]
+#[string]
+fn op_os_info_arch(
+  _: Rc<RefCell<OpState>>,
+) -> Result<String, CoreError> {
+  Ok(std::env::consts::ARCH.to_string())
+}
+
+#[op2]
+#[string]
+fn op_os_info_family(
+  _: Rc<RefCell<OpState>>,
+) -> Result<String, CoreError> {
+  Ok(std::env::consts::FAMILY.to_string())
 }

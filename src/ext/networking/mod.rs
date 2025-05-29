@@ -1,6 +1,5 @@
 use super::ExtensionTrait;
 use deno_core::{Extension, extension};
-use std::sync::Arc;
 
 extension!(
   init_networking,
@@ -21,14 +20,18 @@ impl ExtensionTrait<()> for deno_net::deno_net {
 
 impl ExtensionTrait<()> for deno_websocket::deno_websocket {
   fn init((): ()) -> Extension {
-    deno_websocket::deno_websocket::init::<deno_permissions::PermissionsContainer>("rew".to_string(), None, None)
+    deno_websocket::deno_websocket::init::<deno_permissions::PermissionsContainer>(
+      "rew".to_string(),
+      None,
+      None,
+    )
   }
 }
 
 impl ExtensionTrait<()> for deno_fetch::deno_fetch {
   fn init((): ()) -> Extension {
     deno_fetch::deno_fetch::init::<deno_permissions::PermissionsContainer>(
-      deno_fetch::Options::default()
+      deno_fetch::Options::default(),
     )
   }
 }

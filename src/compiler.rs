@@ -19,7 +19,6 @@ struct Hook {
 pub struct CompilerOptions {
   pub keep_imports: bool,
   pub jsx: bool,
-  pub jsx_pragma: Option<String>,
   pub civet_options: Vec<String>,
   pub civet_global: Vec<String>,
   pub cls: bool,
@@ -35,7 +34,6 @@ impl Default for CompilerOptions {
       keep_imports: false,
       jsx: false,
       civet_options: vec![],
-      jsx_pragma: None,
       civet_global: vec![],
       cls: false,
       included: false,
@@ -295,8 +293,9 @@ fn apply_declarations(
             if next_token.token_type == "IDENTIFIER" {
               if let Some((eq_token, _, _)) = get_next_token(cidx, 1, tokens) {
                 if eq_token.value == "=" {
-                  str
-                    .push_str(format!("{} = {} ", next_token.value, decl.replacement.clone()).as_str());
+                  str.push_str(
+                    format!("{} = {} ", next_token.value, decl.replacement.clone()).as_str(),
+                  );
                   if let Some((_, eq_idx)) = find_next_token(
                     index,
                     tokens,
@@ -338,7 +337,12 @@ fn apply_declarations(
   None
 }
 
-fn get_string_until(tokens: &[Token], start: usize, end_chars: &[&str], end_types: &[&str]) -> (String, usize) {
+fn get_string_until(
+  tokens: &[Token],
+  start: usize,
+  end_chars: &[&str],
+  end_types: &[&str],
+) -> (String, usize) {
   let mut result = String::new();
   let mut i = start;
   while i < tokens.len() {
@@ -464,10 +468,15 @@ fn handle_import(tokens: &[Token], i: usize) -> (String, usize) {
   (result, current_idx)
 }
 
-fn handle_compiler_options(tokens: &[Token], options: &mut CompilerOptions, i: usize, isPub: bool) -> usize {
+fn handle_compiler_options(
+  tokens: &[Token],
+  options: &mut CompilerOptions,
+  i: usize,
+  is_pub: bool,
+) -> usize {
   let mut current_idx = i + 1;
 
-  if let Some((name_token, idx)) = find_next_token(current_idx , &tokens, "IDENTIFIER", None, None) {
+  if let Some((name_token, idx)) = find_next_token(current_idx, &tokens, "IDENTIFIER", None, None) {
     let mut name = name_token.value.clone();
     current_idx = idx + 1;
     if let Some((_dot, _, idx)) = get_next_token(idx, 1, &tokens) {
@@ -482,7 +491,7 @@ fn handle_compiler_options(tokens: &[Token], options: &mut CompilerOptions, i: u
     }
 
     options.civet_options.push(name.clone());
-    if isPub {
+    if is_pub {
       options.civet_global.push(name.clone());
     }
   }
@@ -526,17 +535,19 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
       }
     }
 
-    if token.value == "using" && next_token
-      .clone()
-      .map_or(false, |(t, _, _)| t.value == "JSX") {
+    if token.value == "using"
+      && next_token
+        .clone()
+        .map_or(false, |(t, _, _)| t.value == "JSX")
+    {
       options.jsx = true;
     }
 
-    if token.value == "using" && next_token
-      .clone()
-      .map_or(false, |(t, _, _)| t.value == "compiler" || t.value == "pub")
+    if token.value == "using"
+      && next_token
+        .clone()
+        .map_or(false, |(t, _, _)| t.value == "compiler" || t.value == "pub")
     {
-
       if let Some((next, _, idx)) = next_token.clone() {
         if next.value == "pub" {
           if let Some((next_token, _, idx)) = get_next_token(idx, 1, &tokens) {
@@ -652,7 +663,6 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
         civet_options: vec![],
         civet_global: vec![],
         jsx: false,
-        jsx_pragma: None,
         cls: false,
         included: false,
         local_declarations: HashMap::new(),

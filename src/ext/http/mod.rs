@@ -5,11 +5,11 @@ use deno_core::{Extension, extension};
 
 use std::rc::Rc;
 
-use deno_core::error::ResourceError;
-use deno_core::op2;
+use ::deno_http::http_create_conn_resource;
 use deno_core::OpState;
 use deno_core::ResourceId;
-use ::deno_http::http_create_conn_resource;
+use deno_core::error::ResourceError;
+use deno_core::op2;
 use deno_net::io::TcpStreamResource;
 use deno_net::ops_tls::TlsStreamResource;
 
@@ -58,8 +58,7 @@ fn op_http_start(
     // This TCP connection might be used somewhere else. If it's the case, we cannot proceed with the
     // process of starting a HTTP server on top of this TCP connection, so we just return a Busy error.
     // See also: https://github.com/denoland/deno/pull/16242
-    let resource = Rc::try_unwrap(resource_rc)
-      .map_err(|_| HttpStartError::TcpStreamInUse)?;
+    let resource = Rc::try_unwrap(resource_rc).map_err(|_| HttpStartError::TcpStreamInUse)?;
     let (read_half, write_half) = resource.into_inner();
     let tcp_stream = read_half.reunite(write_half)?;
     let addr = tcp_stream.local_addr()?;
@@ -73,8 +72,7 @@ fn op_http_start(
     // This TLS connection might be used somewhere else. If it's the case, we cannot proceed with the
     // process of starting a HTTP server on top of this TLS connection, so we just return a Busy error.
     // See also: https://github.com/denoland/deno/pull/16242
-    let resource = Rc::try_unwrap(resource_rc)
-      .map_err(|_| HttpStartError::TlsStreamInUse)?;
+    let resource = Rc::try_unwrap(resource_rc).map_err(|_| HttpStartError::TlsStreamInUse)?;
     let (read_half, write_half) = resource.into_inner();
     let tls_stream = read_half.unsplit(write_half);
     let addr = tls_stream.local_addr()?;
@@ -89,8 +87,7 @@ fn op_http_start(
     // This UNIX socket might be used somewhere else. If it's the case, we cannot proceed with the
     // process of starting a HTTP server on top of this UNIX socket, so we just return a Busy error.
     // See also: https://github.com/denoland/deno/pull/16242
-    let resource = Rc::try_unwrap(resource_rc)
-      .map_err(|_| HttpStartError::UnixSocketInUse)?;
+    let resource = Rc::try_unwrap(resource_rc).map_err(|_| HttpStartError::UnixSocketInUse)?;
     let (read_half, write_half) = resource.into_inner();
     let unix_stream = read_half.reunite(write_half)?;
     let addr = unix_stream.local_addr()?;
@@ -128,9 +125,7 @@ impl ExtensionTrait<()> for http {
 
 impl ExtensionTrait<()> for ::deno_http::deno_http {
   fn init((): ()) -> Extension {
-    ::deno_http::deno_http::init(
-      ::deno_http::Options::default()
-    )
+    ::deno_http::deno_http::init(::deno_http::Options::default())
   }
 }
 

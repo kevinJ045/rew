@@ -1,6 +1,5 @@
 use clap::{Parser, Subcommand};
 use colored::*;
-use deno_core::error::CoreError;
 use std::fs;
 use std::path::PathBuf;
 use tokio;
@@ -15,9 +14,9 @@ pub mod ext;
 pub mod runtime;
 mod runtime_script;
 // mod shell;
+mod jsx;
 mod utils;
 mod workers;
-mod jsx;
 use runtime::RewRuntime;
 
 fn ensure_rew_dirs() -> anyhow::Result<()> {
@@ -168,7 +167,7 @@ fn main() -> anyhow::Result<()> {
         Commands::Compile { file } => {
           let mut runtime = RewRuntime::new(None)?;
           let content = fs::read_to_string(&file)?;
-          let f = runtime.compile_and_run(&content, file,true).await?;
+          let f = runtime.compile_and_run(&content, file, true).await?;
           println!("{}", f);
         }
         Commands::Exec { code } => {

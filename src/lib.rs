@@ -7,6 +7,6 @@ pub mod ext;
 pub mod runtime;
 mod runtime_script;
 // mod shell;
+mod jsx;
 mod utils;
 mod workers;
-mod jsx;
