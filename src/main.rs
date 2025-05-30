@@ -103,7 +103,7 @@ fn main() -> anyhow::Result<()> {
     .enable_all()
     .build()?
     .block_on(local.run_until(async {
-      // let cli = Cli::parse_from(["rew", "run", "./test/fs.coffee"]);
+      // let cli = Cli::parse_from(["rew", "run", "./test/imp.coffee"]);
       let cli = Cli::parse();
 
       // Ensure Rew directories exist
@@ -133,7 +133,7 @@ fn main() -> anyhow::Result<()> {
                     if let Some(entry_file) = entries.get(&entry_point.clone()) {
                       let full_path = file.join(entry_file);
 
-                      let mut runtime = RewRuntime::new(Some(args.clone()))?;
+                      let mut runtime = RewRuntime::new(Some(args.clone()), None)?;
                       runtime.run_file(&full_path).await?;
                       return Ok(());
                     }
@@ -153,19 +153,19 @@ fn main() -> anyhow::Result<()> {
             let entry_name = entry.as_deref().unwrap_or("main");
 
             if let Some(app_entry) = utils::resolve_app_entry(&package_name, Some(entry_name)) {
-              let mut runtime = RewRuntime::new(Some(args.clone()))?;
+              let mut runtime = RewRuntime::new(Some(args.clone()), None)?;
               runtime.run_file(&app_entry).await?;
               return Ok(());
             } else {
               println!("App package not found: {}", package_name.red());
             }
           } else {
-            let mut runtime = RewRuntime::new(Some(args.clone()))?;
+            let mut runtime = RewRuntime::new(Some(args.clone()), None)?;
             runtime.run_file(file).await?;
           }
         }
         Commands::Compile { file } => {
-          let mut runtime = RewRuntime::new(None)?;
+          let mut runtime = RewRuntime::new(None, None)?;
           let content = fs::read_to_string(&file)?;
           let f = runtime.compile_and_run(&content, file, true).await?;
           println!("{}", f);
@@ -202,7 +202,7 @@ fn main() -> anyhow::Result<()> {
               );
             }
 
-            let mut runtime = RewRuntime::new(None)?;
+            let mut runtime = RewRuntime::new(None, None)?;
 
             let options = runtime::BuildOptions {
               bundle_all: *bundle_all,

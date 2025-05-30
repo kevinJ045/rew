@@ -14,7 +14,7 @@ use crate::workers::{
 };
 use anyhow::{Context, Result};
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
-use deno_core::OpState;
+use deno_core::{OpState};
 use deno_core::PollEventLoopOptions;
 use deno_core::error::CoreError;
 use deno_core::{JsRuntime, RuntimeOptions, extension, op2};
@@ -200,7 +200,8 @@ extension!(
     op_get_args,
     op_os_info_os,
     op_os_info_arch,
-    op_os_info_family
+    op_os_info_family,
+    op_dyn_imp
   ],
   state = |state| {
     let permissions =
@@ -263,6 +264,7 @@ globalThis._execVM = (namespace, fn) => {
   eval(`(${fn.toString()})()`);
   }
 }
+globalThis._evalVM = (string) => eval(string);
 "#,
   )?;
   runtime.execute_script("<setup>", get_runtime_script())?;
@@ -285,8 +287,8 @@ pub struct RewRuntime {
 }
 
 impl RewRuntime {
-  pub fn new(args: Option<Vec<String>>) -> Result<Self> {
-    let runtime = get_rew_runtime(true, true, args)?;
+  pub fn new(args: Option<Vec<String>>, jruntime: Option<JsRuntime>) -> Result<Self> {
+    let runtime = jruntime.unwrap_or_else(|| get_rew_runtime(true, true, args).unwrap());
     // let mut compiler_runtime = get_compiler_runtime();
 
     let declaration_engine = DeclarationEngine {
@@ -1649,4 +1651,57 @@ fn op_os_info_family(
   _: Rc<RefCell<OpState>>,
 ) -> Result<String, CoreError> {
   Ok(std::env::consts::FAMILY.to_string())
+}
+
+
+#[op2(async, reentrant)]
+#[serde]
+async fn op_dyn_imp(
+  #[string] current_file: String,
+  #[string] file: String,
+  _: Rc<RefCell<OpState>>,
+) -> Result<serde_json::Value, CoreError> {
+  let current_file_path = Path::new(&current_file);
+  let base_dir = current_file_path.parent().unwrap_or(Path::new("."));
+
+  let file_path = base_dir.join(file);
+
+  let mut runtime = RewRuntime::new(None, None).map_err(|_| CoreError::Io(io::Error::new(
+    io::ErrorKind::NotFound,
+    "",
+  )))?;
+
+  let files_with_flags = RewRuntime::resolve_includes_recursive_from(&file_path.clone()).map_err(|_| CoreError::Io(io::Error::new(
+    io::ErrorKind::NotFound,
+    "",
+  )))?;
+  for (_, content, preprocess) in &files_with_flags {
+    if *preprocess {
+      let local_declarations = runtime.declaration_engine.process_script(&content);
+
+      for (name, decl) in local_declarations {
+        runtime
+          .declaration_engine
+          .global_declarations
+          .insert(name, decl);
+      }
+    }
+  }
+
+  let files: Vec<(PathBuf, String)> = files_with_flags
+    .into_iter()
+    .map(|(path, content, _)| (path, content))
+    .collect();
+
+  let prepared = runtime.prepare(files, None).await.map_err(|_| CoreError::Io(io::Error::new(
+    io::ErrorKind::NotFound,
+    "",
+  )))?;
+
+  let fp = fs::canonicalize(&file_path).map_err(|_| CoreError::Io(io::Error::new(
+    io::ErrorKind::NotFound,
+    "",
+  )))?;
+  
+  Ok(serde_json::json!(vec![fp.to_string_lossy().to_string(), prepared]))
 }

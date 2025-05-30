@@ -67,7 +67,7 @@ impl Declaration {
   }
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct DeclarationEngine {
   pub global_declarations: HashMap<String, Declaration>,
 }
