@@ -191,10 +191,24 @@ fn find_next_token(
       }
     }
 
-    if token.token_type != "WHITESPACE" {
+    let pass = if expected_type == "WHITESPACE" {
+      token.token_type == "WHITESPACE"
+    } else {
+      token.token_type != "WHITESPACE"
+    };
+
+    if pass {
       if token.token_type == expected_type {
         if let Some(val) = expected_value {
           if token.value == val {
+            return Some((token.clone(), idx));
+          }
+        } else if expected_type == "WHITESPACE" {
+          if let Some(val) = expected_value {
+            if token.value.contains(val) {
+              return Some((token.clone(), idx));
+            }
+          } else {
             return Some((token.clone(), idx));
           }
         } else {
@@ -548,8 +562,52 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
         }
       }
     }
+     
+    if prev_token.clone().map_or(true, |(t, _, _)| t.value != ".")
+      && prev_token.clone().map_or(true, |(t, _, _)| t.value != ":")
+      && token.value == "function"
+      && next_token
+        .clone()
+        .map_or(false, |(t, _, _)| t.token_type == "IDENTIFIER")
+    {
+      if let Some((_, _, idx)) = next_token.clone() {
+        if let Some((next_token, _, idx)) = get_next_token(idx, 1, &tokens) {
+          if next_token.value == "." || next_token.value == ":" {
+            let (_, start_idx) = find_next_token(idx, &tokens, "OTHER", Some("("), None).unwrap();
+            let (_, end_idx) = find_next_token(idx, &tokens, "OTHER", Some(")"), None).unwrap();
+            hooks.push(Hook {
+              index: start_idx - 1,
+              value: " = ".to_string()
+            });
+            if let Some((after_end, _, idx)) = get_next_token(end_idx, 1, &tokens) {
+              if after_end.value == ":" {
+                let (_, identifier_idx) = find_next_token(idx, &tokens, "IDENTIFIER", None, None).unwrap();
+                 hooks.push(Hook {
+                  index: identifier_idx,
+                  value: " ->".to_string()
+                });
+              } else {
+                hooks.push(Hook {
+                  index: end_idx,
+                  value: " ->".to_string()
+                });
+              }
+            } else {
+              hooks.push(Hook {
+                index: end_idx,
+                value: " ->".to_string()
+              });
+            }
+            i += 2;
+            continue;
+          }
+        }
+      }
+    }
 
-    if token.value == "using"
+    if prev_token.clone().map_or(true, |(t, _, _)| t.value != ".")
+      && prev_token.clone().map_or(true, |(t, _, _)| t.value != ":")
+      && token.value == "using"
       && next_token
         .clone()
         .map_or(false, |(t, _, _)| t.value == "JSX")
@@ -557,7 +615,9 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
       options.jsx = true;
     }
 
-    if token.value == "using"
+    if prev_token.clone().map_or(true, |(t, _, _)| t.value != ".")
+      && prev_token.clone().map_or(true, |(t, _, _)| t.value != ":")
+      && token.value == "using"
       && next_token
         .clone()
         .map_or(false, |(t, _, _)| t.value == "compiler" || t.value == "pub")
@@ -568,8 +628,11 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
             if next_token.value == "compiler" {
               i = handle_compiler_options(&tokens, options, idx, true);
               continue;
+            } else if next_token.value == "JSX" {
+              options.jsx = true;
+              options.civet_global.push("JSX".to_string());
             }
-          }
+          } 
         } else {
           i = handle_compiler_options(&tokens, options, idx, false);
           continue;
@@ -629,6 +692,12 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
               title = next_token.value.clone();
             }
           }
+          if next_token.value == "function" {
+            if let Some((next_token, _, _)) = get_next_token(idx, 1, &tokens) {
+              title = next_token.value.clone();
+            }
+          }
+
           result.push_str(format!("module.exports.{} = ", title).as_str());
         }
       }

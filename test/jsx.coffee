@@ -1,7 +1,7 @@
 import "#std.types!";
 using namespace rew::ns;
 
-using JSX, (element, props, ...children) => {name: element, ...props, children}
+# using JSX, (element, props, ...children) => {name: element, ...props, children}
 
 # Test code 
 ssss = instantiate class

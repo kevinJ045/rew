@@ -802,7 +802,8 @@ return globalThis.module.exports;
         coffeeInterpolation: true,
         coffeeComment: true
       }};
-      ("{civet_options}").split(',').map(i => {{
+      const forbidden = ["JSX"];
+      ("{civet_options}").split(',').filter(i => !forbidden.includes(i)).map(i => {{
         if(i.indexOf('.')){{
           let [k, v] = i.split('.');
           options[k] = v == 'off' || v == 'disable' ? false : true
@@ -837,7 +838,7 @@ return globalThis.module.exports;
     let scope = &mut self.runtime.handle_scope();
     let mut result_code = result.open(scope).to_rust_string_lossy(scope);
 
-    if processed.options.jsx {
+    if processed.options.jsx || civet_options.contains(&"JSX".to_string()) {
       result_code = compile_jsx(result_code, Some("__jsx__prefix".to_string()));
     }
 

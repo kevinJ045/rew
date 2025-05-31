@@ -11,6 +11,7 @@ pimmy.install:
   dependencies:
     - rew.webkitui (1.0.0)
     - rew.appguard (1.0.0)
+    - "@rewpkgs/rew.something"
     - github:someone/third.party (1.0.0)
     - github:someone/third.party#commit
     - github:someone/third.party@branch#commit
