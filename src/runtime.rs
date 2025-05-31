@@ -191,6 +191,7 @@ extension!(
     op_data_read_yaml,
     op_data_write_yaml,
     op_data_get_info,
+    op_data_get_path,
     op_thread_spawn,
     op_thread_message,
     op_thread_post_message,
@@ -1660,6 +1661,17 @@ fn op_data_get_info(
   };
 
   Ok((exists, format_str.to_string()))
+}
+
+#[op2]
+#[string]
+fn op_data_get_path(
+  #[string] app_package: String,
+  _: Rc<RefCell<OpState>>,
+) -> Result<String, CoreError> {
+  let data_manager = get_data_manager_for_package(&app_package)?;
+
+  Ok(data_manager.get_path("").to_string_lossy().to_string())
 }
 
 #[op2]
