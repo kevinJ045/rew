@@ -14,7 +14,7 @@ use crate::workers::{
 };
 use anyhow::{Context, Result};
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
-use deno_core::{OpState};
+use deno_core::OpState;
 use deno_core::PollEventLoopOptions;
 use deno_core::error::CoreError;
 use deno_core::{JsRuntime, RuntimeOptions, extension, op2};
@@ -201,7 +201,8 @@ extension!(
     op_os_info_os,
     op_os_info_arch,
     op_os_info_family,
-    op_dyn_imp
+    op_dyn_imp,
+    op_fs_sha
   ],
   state = |state| {
     let permissions =
@@ -283,7 +284,7 @@ pub struct RewRuntime {
   sourcemap: bool,
   inlinemap: bool,
 
-  compile_options: Vec<String>
+  compile_options: Vec<String>,
 }
 
 impl RewRuntime {
@@ -762,7 +763,12 @@ return globalThis.module.exports;
     Ok(())
   }
 
-  pub async fn compile_and_run(&mut self, source: &str, filepath: &Path, keep_imports: bool) -> Result<String> {
+  pub async fn compile_and_run(
+    &mut self,
+    source: &str,
+    filepath: &Path,
+    keep_imports: bool,
+  ) -> Result<String> {
     if filepath
       .extension()
       .map_or(false, |ext| ext == "brew" || ext == "js" || ext == "qrew")
@@ -776,7 +782,12 @@ return globalThis.module.exports;
 
     let global_declarations = self.declaration_engine.global_declarations.clone();
 
-    let processed = self.preprocess_rew(source, local_declarations, global_declarations, keep_imports)?;
+    let processed = self.preprocess_rew(
+      source,
+      local_declarations,
+      global_declarations,
+      keep_imports,
+    )?;
 
     let mut civet_options: Vec<String> = vec![];
     civet_options.extend(processed.options.civet_options.clone());
@@ -826,13 +837,14 @@ return globalThis.module.exports;
     let scope = &mut self.runtime.handle_scope();
     let mut result_code = result.open(scope).to_rust_string_lossy(scope);
 
-
     if processed.options.jsx {
       result_code = compile_jsx(result_code, Some("__jsx__prefix".to_string()));
     }
 
     // if processed.options.civet_global {
-      self.compile_options.extend(processed.options.civet_global.clone());
+    self
+      .compile_options
+      .extend(processed.options.civet_global.clone());
     // }
 
     Ok(result_code)
@@ -843,7 +855,7 @@ return globalThis.module.exports;
     source: &str,
     local_declarations: HashMap<String, Declaration>,
     global_declarations: HashMap<String, Declaration>,
-    keep_imports: bool
+    keep_imports: bool,
   ) -> Result<CompilerResults> {
     let mut options = CompilerOptions {
       keep_imports: keep_imports,
@@ -1007,6 +1019,27 @@ async fn op_fs_write(
 struct WriteOptions {
   binary: bool,
   create_dirs: bool,
+}
+
+use sha2::{Digest, Sha256};
+#[op2]
+#[string]
+fn op_fs_sha(
+  #[string] current_file: String,
+  #[string] filepath: String,
+  _: Rc<RefCell<OpState>>,
+) -> Result<String, CoreError> {
+  let current_file_path = Path::new(&current_file);
+  let base_dir = current_file_path.parent().unwrap_or(Path::new("."));
+
+  let full_path = base_dir.join(filepath);
+
+  let file_bytes = fs::read(&full_path)?;
+  let mut hasher = Sha256::new();
+  hasher.update(file_bytes);
+  let hash = hasher.finalize();
+
+  Ok(format!("{:x}", hash))
 }
 
 #[op2(fast)]
@@ -1628,31 +1661,23 @@ fn op_data_get_info(
   Ok((exists, format_str.to_string()))
 }
 
-
 #[op2]
 #[string]
-fn op_os_info_os(
-  _: Rc<RefCell<OpState>>,
-) -> Result<String, CoreError> {
+fn op_os_info_os(_: Rc<RefCell<OpState>>) -> Result<String, CoreError> {
   Ok(std::env::consts::OS.to_string())
 }
 
 #[op2]
 #[string]
-fn op_os_info_arch(
-  _: Rc<RefCell<OpState>>,
-) -> Result<String, CoreError> {
+fn op_os_info_arch(_: Rc<RefCell<OpState>>) -> Result<String, CoreError> {
   Ok(std::env::consts::ARCH.to_string())
 }
 
 #[op2]
 #[string]
-fn op_os_info_family(
-  _: Rc<RefCell<OpState>>,
-) -> Result<String, CoreError> {
+fn op_os_info_family(_: Rc<RefCell<OpState>>) -> Result<String, CoreError> {
   Ok(std::env::consts::FAMILY.to_string())
 }
-
 
 #[op2(async, reentrant)]
 #[serde]
@@ -1661,20 +1686,19 @@ async fn op_dyn_imp(
   #[string] file: String,
   _: Rc<RefCell<OpState>>,
 ) -> Result<serde_json::Value, CoreError> {
-  let current_file_path = Path::new(&current_file);
-  let base_dir = current_file_path.parent().unwrap_or(Path::new("."));
+  let file_path = if current_file == "/" {
+    Path::new(&file).to_path_buf()
+  } else {
+    let current_file_path = Path::new(&current_file);
+    let base_dir = current_file_path.parent().unwrap_or(Path::new("."));
+    base_dir.join(file)
+  };
 
-  let file_path = base_dir.join(file);
+  let mut runtime = RewRuntime::new(None, None)
+    .map_err(|_| CoreError::Io(io::Error::new(io::ErrorKind::NotFound, "")))?;
 
-  let mut runtime = RewRuntime::new(None, None).map_err(|_| CoreError::Io(io::Error::new(
-    io::ErrorKind::NotFound,
-    "",
-  )))?;
-
-  let files_with_flags = RewRuntime::resolve_includes_recursive_from(&file_path.clone()).map_err(|_| CoreError::Io(io::Error::new(
-    io::ErrorKind::NotFound,
-    "",
-  )))?;
+  let files_with_flags = RewRuntime::resolve_includes_recursive_from(&file_path.clone())
+    .map_err(|_| CoreError::Io(io::Error::new(io::ErrorKind::NotFound, "")))?;
   for (_, content, preprocess) in &files_with_flags {
     if *preprocess {
       let local_declarations = runtime.declaration_engine.process_script(&content);
@@ -1693,15 +1717,16 @@ async fn op_dyn_imp(
     .map(|(path, content, _)| (path, content))
     .collect();
 
-  let prepared = runtime.prepare(files, None).await.map_err(|_| CoreError::Io(io::Error::new(
-    io::ErrorKind::NotFound,
-    "",
-  )))?;
+  let prepared = runtime
+    .prepare(files, None)
+    .await
+    .map_err(|_| CoreError::Io(io::Error::new(io::ErrorKind::NotFound, "")))?;
 
-  let fp = fs::canonicalize(&file_path).map_err(|_| CoreError::Io(io::Error::new(
-    io::ErrorKind::NotFound,
-    "",
-  )))?;
-  
-  Ok(serde_json::json!(vec![fp.to_string_lossy().to_string(), prepared]))
+  let fp = fs::canonicalize(&file_path)
+    .map_err(|_| CoreError::Io(io::Error::new(io::ErrorKind::NotFound, "")))?;
+
+  Ok(serde_json::json!(vec![
+    fp.to_string_lossy().to_string(),
+    prepared
+  ]))
 }

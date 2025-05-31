@@ -154,6 +154,20 @@ fn get_next_token(i: usize, n: i32, tokens: &[Token]) -> Option<(Token, i32, usi
   Some((tokens[index].clone(), n, index))
 }
 
+
+fn get_prev_token(i: usize, n: i32, tokens: &[Token]) -> Option<(Token, i32, usize)> {
+  let index = ((i as i32) - n) as usize;
+  if index >= tokens.len() {
+    return None;
+  }
+
+  if tokens[index].token_type == "WHITESPACE" {
+    return get_prev_token(i, n + 1, tokens);
+  }
+
+  Some((tokens[index].clone(), n, index))
+}
+
 fn find_next_token(
   start: usize,
   tokens: &[Token],
@@ -512,7 +526,7 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
     let token = &tokens[i];
     let next_token = get_next_token(i, 1, &tokens);
     let prev_token = if i > 1 {
-      get_next_token(i, -2, &tokens)
+      get_prev_token(i, 1, &tokens)
     } else {
       None
     };
@@ -588,6 +602,8 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
           let (item, new_idx) = get_string_until(&tokens, idx, &[";"], &["WHITESPACE"]);
           result.push_str(format!("rew::mod::package \"{}\"", item).as_str());
           i = new_idx;
+        } else {
+          i = i + 1;
         }
         continue;
       }
@@ -599,6 +615,7 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
       && token.value == "export"
       && !options.keep_imports
     {
+      // println!("{:?}", prev_token.clone().map_or("".to_string(), |(t, _, _)| t.value));
       if let Some((next_token, _, idx)) = get_next_token(i, 1, &tokens) {
         if next_token.value == "{" {
           result.push_str("module.exports = ");
