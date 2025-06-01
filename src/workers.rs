@@ -90,16 +90,18 @@ pub fn op_thread_spawn(
         "<worker>",
         format!(
           r#"
-            rew.prototype.mod.prototype.defineNew("<worker::{}>", function(ctx){{
-              ctx.onmessage = (fn) => globalThis.onmessage = fn;
-              ctx.postMessage = (msg) => globalThis.postMessage(msg);
-              with({{...ctx, globalThis: {{}}}}){{  
-                {}
+            rew.prototype.mod.prototype.defineNew("<worker::{id}>", {{
+              "<worker::{id}>"(ctx){{
+                ctx.onmessage = (fn) => globalThis.onmessage = fn;
+                ctx.postMessage = (msg) => globalThis.postMessage(msg);
+                with({{...ctx, globalThis: {{}}}}){{  
+                  {source}
+                }}
               }}
             }}, ["::pvt"]);
           "#,
-          worker_id.clone(),
-          source.clone()
+          id = worker_id.clone(),
+          source = source.clone()
         ),
       ) {
         eprintln!("Failed to execute worker script: {}", e);
