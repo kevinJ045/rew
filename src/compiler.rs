@@ -620,10 +620,10 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
       && token.value == "using"
       && next_token
         .clone()
-        .map_or(false, |(t, _, _)| t.value == "compiler" || t.value == "pub")
+        .map_or(false, |(t, _, _)| t.value == "compiler" || t.value == "pub" || t.value == "public")
     {
       if let Some((next, _, idx)) = next_token.clone() {
-        if next.value == "pub" {
+        if next.value == "pub" || next.value == "public" {
           if let Some((next_token, _, idx)) = get_next_token(idx, 1, &tokens) {
             if next_token.value == "compiler" {
               i = handle_compiler_options(&tokens, options, idx, true);
@@ -638,6 +638,24 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
           continue;
         }
       }
+    }
+
+    if prev_token.clone().map_or(true, |(t, _, _)| t.value != ".")
+      && prev_token.clone().map_or(true, |(t, _, _)| t.value != ":")
+      && token.value == "private"
+    {
+      result.push_str("pvt");
+      i += 1;
+      continue;
+    }
+
+    if prev_token.clone().map_or(true, |(t, _, _)| t.value != ".")
+      && prev_token.clone().map_or(true, |(t, _, _)| t.value != ":")
+      && token.value == "public"
+    {
+      result.push_str("pub");
+      i += 1;
+      continue;
     }
 
     if token.token_type == "COMMENT" && token.value[1..].trim() == "@cls" {

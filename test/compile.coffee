@@ -1,8 +1,9 @@
 
 using compiler::autoLet.disable
-using pub compiler::autoVar
-using pub JSX, () => {}
+using public compiler::autoVar
+using public JSX, () => {}
 
+print private "s"
 
 import "./jsx.coffee";
 using namespace rew::ns;

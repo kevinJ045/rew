@@ -278,6 +278,29 @@ globalThis._evalVM = (string) => eval(string);
   Ok(runtime)
 }
 
+fn get_storage_path(file_path_str: &str) -> PathBuf {
+  if !file_path_str.starts_with("./") {
+    return PathBuf::from(file_path_str);
+  }
+  if let Some(app_info) = crate::utils::find_app_info(&Path::new(file_path_str)) {
+    if let Some(manifest) = &app_info.config.manifest {
+      if let Some(package) = &manifest.package {
+        if let Some(rel_path) = Path::new(file_path_str).strip_prefix(&app_info.path).ok() {
+          PathBuf::from(format!("{}/{}", package, rel_path.to_string_lossy()))
+        } else {
+          PathBuf::from(file_path_str)
+        }
+      } else {
+        PathBuf::from(file_path_str)
+      }
+    } else {
+      PathBuf::from(file_path_str)
+    }
+  } else {
+    PathBuf::from(file_path_str)
+  }
+}
+
 pub struct RewRuntime {
   pub runtime: JsRuntime,
   // pub compiler_runtime: JsRuntime,
@@ -382,8 +405,11 @@ impl RewRuntime {
 
       visited.insert(PathBuf::from(file_path_str));
 
+      // Create a normalized path for storage
+      let storage_path = get_storage_path(file_path_str);
+
       result.push((
-        PathBuf::from(file_path_str),
+        storage_path,
         content.clone(),
         should_preprocess,
       ));
@@ -586,6 +612,9 @@ impl RewRuntime {
           compiled = compiled
         ));
       } else if mod_id.ends_with(".brew") || mod_id.ends_with(".qrew") {
+        // if mod_id.ends_with(".brew") {
+        //   module_wrappers.push_str(format!("globalThis.__filename__ = \"{}\";", mod_id).as_str());
+        // }
         module_wrappers.push_str(compiled.as_str());
 
         let entry_regex = Regex::new(r#"//\s*entry\s*"([^"]+)""#).unwrap();
@@ -719,11 +748,12 @@ return globalThis.module.exports;
       .map(|(path, content, _)| (path, content))
       .collect();
 
-    let entry = if let Some(entry) = options.entry_file {
+    let entry_path = if let Some(entry) = options.entry_file {
       entry.canonicalize().unwrap_or(filepath)
     } else {
       filepath
     };
+    let entry = get_storage_path(entry_path.to_str().unwrap());
 
     let mut string = self.prepare(files, None).await?;
     string.insert_str(
@@ -894,12 +924,20 @@ return globalThis.module.exports;
       }
     }
 
+    if let Some(app_info) = crate::utils::find_app_info(&filepath) {
+      if let Some(manifest) = &app_info.config.manifest {
+        if let Some(package) = &manifest.package {
+          self.runtime.execute_script("<app-recognition>", format!("globalThis[\"__app__{}\"] = \"{}\";", package, app_info.path.to_str().unwrap()))?;
+        }
+      }
+    }
+
     let files: Vec<(PathBuf, String)> = files_with_flags
       .into_iter()
       .map(|(path, content, _)| (path, content))
       .collect();
 
-    self.include_and_run(files, &filepath).await?;
+    self.include_and_run(files, &get_storage_path(filepath.to_str().unwrap())).await?;
 
     Ok(())
   }
