@@ -857,7 +857,7 @@ return globalThis.module.exports;
       return _compiled;
     }})()
     "#,
-      code = processed.code.replace("`", "\\`"),
+      code = processed.code.replace("`", "\\`").replace("\\", "\\\\"),
       file = filepath.to_str().unwrap_or("unknown"),
       smp = self.sourcemap,
       inp = self.inlinemap,

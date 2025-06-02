@@ -1,268 +1,619 @@
-rew.prototype.mod.prototype.defineNew("/home/makano/workspace/rew-rust/test/ffi.autoload.coffee", {
-"/home/makano/workspace/rew-rust/test/ffi.autoload.coffee"(globalThis){
+rew.prototype.mod.prototype.defineNew("/home/makano/workspace/rew-rust/test/compile.coffee", {
+"/home/makano/workspace/rew-rust/test/compile.coffee"(globalThis){
 with (globalThis) {
-  rew.prototype.mod.prototype.find(module, "#std.ffi!")
+  
+
+
+var macro_function, Something_else, smn, sss, l;
+using(pub(JSX, () =>( {})))
+
+rew.prototype.mod.prototype.find(module, "#std.types");
+
 using(namespace(rew.prototype.ns))
 
-let symbols = ffi.prototype.autoload('/home/makano/.rew/apps/rew_bindgen_test/target/release/librew_bindgen_test.so')
+print(pvt("s"))
 
-symbols.say_hello()
+rew.prototype.mod.prototype.find(module, "./jsx.coffee");
+
+let f = {}
+
+rew.prototype.mod.prototype.package("ss");
+print(f.package)
+
+function macro(_, _fn) {
+  return function(...args) {
+    var fn, full_args;
+    fn = args.pop()
+    full_args = args.length == 1 && args[0] == null ? [] : args
+    return _fn(fn, ...full_args)
+  }
+}
+
+macro_function = macro("macro_function",
+function macro_function(fn) {
+  return fn
+})
+
+module.exports =  { macro }
 
 
 
-print(symbols.add(100, 10))
+Something_else = macro_function("Something_else",
+function Something_else() {
+  return this.something = "a"
+})
 
-let cb = function() { return print("hi") }
 
-symbols.call_every_second(
-  rew.prototype.ptr.prototype.fn([], 'void', cb).pointer
-)
+smn = typedef(Something_else)
+Something_else.prototype.addStrings = proto.strict("Something_else::addStrings",  [
+  str.or(null) // param at index 0 can be
+], smn,
+function(str1) {
+  this.something += str1
+  return this
+})
 
-let s = function() { return setTimeout(s, 1) }
-s()
+
+let someinstance = new Something_else()
+
+
+function something() {
+  return print('ss')
+}
+
+something.staticfn = function() {
+  return print('ss')
+}
+
+something.prototype.new = function() {
+  return print('sss')
+}
+
+something.prototype.smn = function() {
+  return print('sss')
+}
+
+sss = __jsx__prefix("div", {}, null)
+
+print(f.export)
+module.exports.default =  f = 'gg'
+module.exports.f =  class f {
+}
+module.exports.f =  f = 'ss'
+
+l = 'ss'
+
+print(someinstance.addStrings("stuff"))
+print(someinstance.addStrings(null))
 }
 return globalThis.module.exports;
 }          
-}, ["app://test.app/ffi.autoload"]);(function(module){
+}, ["app://test.app/compile"]);(function(module){
 "no-compile"
-//declare* "=ffi_type" = rew::ffi::typed;
-if(!rew.extensions.has('ffi')) rew.extensions.add('ffi', (Deno) => rew.extensions.createClass({
-  _namespace(){
-    return "ffi";
-  },
-  cwd(){},
-  pre(...types){
-    return () => types;
-  },
-  typed: (...types) => {
-    if(!types.length) return;
-    const fn = types.pop();
-    if(typeof fn != "function") return;
-    let returnType = fn();
-    let pre;
-    if(Array.isArray(returnType)){
-      pre = returnType.pop();
-      returnType = returnType[0];
-    }
-    return {
-      pre: pre,
-      parameters: types,
-      result: returnType
-    };
-  },
-  void: "void",
-  ptr: "pointer",
-  buffer: "buffer",
-  u8: "u8",
-  u16: "u16",
-  u32: "u32",
-  u64: "u64",
-  i8: "i8",
-  i16: "i16",
-  i32: "i32",
-  i64: "i64",
-  f32: "f32",
-  f64: "f64",
-  struct: (def) => ({ struct: def }),
-  open_raw: (libPath, symbols) => {
-    try {
-      return Deno.dlopen(libPath, symbols);
-    } catch (e) {
-      throw new Error(`Failed to load dynamic library "${libPath}": ${e.message}`);
-    }
-  },
-  open(libPath, instance) {
-    const entries = Object.entries(instance);
-    const symbols = {};
 
-    for (const [funcName, def] of entries) {
-      if (!def || typeof def !== "object") {
-        throw new Error(`Invalid FFI definition for "${funcName}".`);
-      }
+//declare* "=typedef" = rew::types::typedef;
+//declare* "=int" = rew::types::int;
+//declare* "=str" = rew::types::str;
+//declare* "=float" = rew::types::float;
+//declare* "=num" = rew::types::num;
+//declare* "=bool" = rew::types::bool;
+//declare* "=typef" = rew::types::typef;
+//declare* "=struct" = struct;
 
-      const symbolName = funcName;
-      try {
-        symbols[symbolName] = {
-          parameters: def.parameters.map(p => this._mapType(p)),
-          result: this._mapType(def.result)
-        };
-      } catch (err) {
-        throw new Error(`Error mapping FFI types for "${funcName}": ${err.message}`);
-      }
-    }
+const _defaultConstructors = {
+	string: String,
+	array: Array,
+	number: Number,
+	bigint: BigInt,
+	boolean: Boolean,
+	symbol: Symbol,
+	undefined: Object,
+	object: Object,
+	function: Function,
+};
 
-    let nativeSymbols;
-    try {
-      ({ symbols: nativeSymbols } = Deno.dlopen(libPath, symbols));
-    } catch (e) {
-      throw new Error(`Failed to load dynamic library "${libPath}": ${e.message}`);
-    }
+function getType(value) {
+	return typeof value === 'object' ? (Array.isArray(value) ? 'array' : typeof value) : typeof value;
+}
 
-    const wrappers = {};
-    for (const [funcName, def] of entries) {
-      const symbolName = funcName;
-      wrappers[funcName] = (...args) => {
-        try {
-          const result = nativeSymbols[symbolName](...args);
-          return def.pre ? def.pre(result) : result;
-        } catch (e) {
-          throw new Error(`FFI call "${funcName}" failed: ${e.message}`);
-        }
-      };
-    }
+class Type{
+	constructor(o){
+		for(let i in o){
+			this[i] = o[i];
+		}
+	}
 
-    const generated = {};
-    for (const funcName of Object.keys(wrappers)) {
-      Object.defineProperty(generated, funcName, {
-        value: (...args) => wrappers[funcName](...args),
-        enumerable: true
-      });
-    }
+}
 
-    return generated;
-  },
-  autoload(libPath){
-    const { symbols: meta } = Deno.dlopen(libPath, {
-      __rew_symbols: { parameters: [], result: "pointer" },
-    });
-    
-    const view = new Deno.UnsafePointerView(meta.__rew_symbols());
-    const json = view.getCString();
-    const def = JSON.parse(json);
-    
-    const ffiDef = this._translateFFIData(def);
-    // rew.prototype.io.prototype.out.print(ffiDef);
-    
-    const lib = Deno.dlopen(libPath, ffiDef);
+function typedef(value, strict = false) {
+	if(typeof value == "function" && value.type instanceof Type){
+		value = value.type;
+	}
+	return value instanceof Type ? value : new Type({
+		strict,
+		defaultValue: value,
+		class:
+			typeof value == 'function'
+				? value
+				: typeof value === 'object' && value !== null && !Array.isArray(value)
+					? value.constructor
+					: _defaultConstructors[getType(value)],
+		type: getType(value),
+		isConstructed: typeof value === 'object' && value !== null && !Array.isArray(value),
+		isEmpty: typeof value == 'object' ? !Object.keys(value).length : typeof value == 'string' ? value == '' : typeof value !== 'function',
+		or(...others){
+			return [this, ...others];
+		}
+	});
+}
 
-    return this._buildFFI(def, lib);
-  },
-  _translateFFIData(meta) {
-    const result = {};
-  
-    for (const [symbolName, symbol] of Object.entries(meta)) {
-      if (symbol.kind !== "Function") continue;
-  
-      const sig = symbol.signature;
-      const parts = sig.match(/fn\s+\w+\((.*?)\)(?:\s*->\s*(\S+))?/);
-  
-      const paramList = parts?.[1]?.split(",").filter(Boolean) ?? [];
-      const returnType = parts?.[2]?.trim() ?? "void";
-  
-      const parameters = paramList.map(param => {
-        const typeStr = param.split(/\s*:\s*/)[1]?.trim();
-        return this._mapTypeRust(typeStr || "pointer");
-      });
+function typef(fn, returnType, argumentsTypes) {
+	if(typeof returnType == "function"){
+		const ref = fn;
+		fn = returnType;
+		returnType = ref;
+	}
+	if (typeof fn !== 'function') {
+		throw new Error('First argument must be a function');
+	}
+	if (typeof returnType == 'function' && returnType.type instanceof Type) returnType = returnType.type;
+	const requiredArguments = Array.isArray(argumentsTypes) ? argumentsTypes.filter(i => Array.isArray(i) ? !i.includes(null) : true) : [];
+	const wrappedFn = function(...args){
+		if(argumentsTypes && Array.isArray(argumentsTypes)){
+			if(args.length !== requiredArguments.length && args.length !== argumentsTypes.length){
+				throw new TypeError(`Function ${fn.name || '<anonymous>'} takes exactly ${requiredArguments.length} parameters`)
+			}	
+			const argumentsTyped = typeAre(args, argumentsTypes);
+			if(argumentsTyped !== false){
+				throw new TypeError(`Function ${fn.name || '<anonymous>'} call error: Parameter at index ${argumentsTyped} is of the wrong type`);
+			}
+		}
+		const result = fn.call(this, ...args);
+		if(!typeis(result, wrappedFn.returnType)){
+			throw new TypeError(`Function ${fn.name || '<anonymous>'} does not return it's own return type.`);
+		}
+		return result;
+	}
+	wrappedFn.returnType = returnType;
+	wrappedFn.type = returnType;
+	wrappedFn.argumentsTypes = argumentsTypes;
+	return wrappedFn;
+}
+typef.is = function(func, returnType, argumentsTypes){
+	return typeis(func.returnType.defaultValue, returnType);
+}
 
-      result[symbol.name] = {
-        parameters,
-        result: this._mapTypeRust(returnType),
-      };
-    }
-  
-    return result;
-  },  
-  _mapType(type) {
-    if (typeof type === "string") return type;
-    if (type === this.ptr) return "pointer";
-    if (type === this.buffer) return "buffer";
-    if (typeof type === "object" && type.struct) {
-      return {
-        struct: type.struct
-      };
-    }
-    throw new Error(`Unsupported FFI type: ${JSON.stringify(type)}`);
-  },
-  _buildFFI(meta, lib) {
-    const result = {};
-    const structs = {};
+const typeAre = (values, types) => {
+	const verified = values.map((t, i) => Array.isArray(types[i]) ? (types[i].map((t2) => typeis(t, t2)).includes(true)) : typeis(t, types[i]));
+	const hasWrong = verified.indexOf(false);
+	return hasWrong > -1 ? hasWrong : false;
+}
 
-    for (const [symbolName, symbol] of Object.entries(meta)) {
-      if (symbol.kind === "Function") {
-        const { name, signature } = symbol;
+function typeis(obj, typeDef, missingObjects = false) {
 
-        const isMethod = name.includes("::");
-        const parts = signature.match(/fn\s+\w+\((.*?)\)(?:\s*->\s*(\S+))?/);
-        const paramList = parts?.[1]?.split(",").filter(Boolean) ?? [];
-        const returnType = parts?.[2]?.trim() ?? null;
+	
+	if(Array.isArray(typeDef)){
+		return typeDef.some((item) => typeis(obj, item));
+	}
 
-        const params = paramList.map(param => {
-          const [_name, typeStr] = param.trim().split(/\s*:\s*/);
-          return this._mapTypeRust(typeStr);
-        });
+	if(obj == null && typeDef === null) return true;
+	else if(obj == null) return false;
+	if(obj == undefined && typeDef === undefined) return true;
+	else if(obj == undefined) return false;
 
-        const fn = lib.symbols[name];
-        if (!fn) {
-          continue;
-        }
+	if(typeDef == null && obj === null) return true;
+	else if(typeDef == null) return false;
+	if(typeDef == undefined && obj === undefined) return true;
+	else if(typeDef == undefined) return false;
 
-        const jsWrapper = (...args) => fn(...args);
 
-        if (isMethod) {
-          const [structName, methodName] = name.split("::");
-          if (!structs[structName]) structs[structName] = {};
-          structs[structName][methodName] = jsWrapper;
-        } else {
-          result[name] = jsWrapper;
-        }
-      }
+	// Resolve Type
+	if (typeof typeDef == 'function' && typeDef.type instanceof Type) typeDef = typeDef.type;
+	else if(typeof obj == "object" && typeof typeDef == "function" && obj instanceof typeDef) return true;
 
-      if (symbol.kind === "Struct") {
-        const { name, fields } = symbol;
-        if (!structs[name]) structs[name] = {};
-        structs[name]._fields = fields;
-      }
-    }
+	if (typeDef.isConstructed && typeDef.class && !(obj instanceof typeDef.class)) {
+		return missingObjects ? [false] : false;
+	}
 
-    for (const [structName, methods] of Object.entries(structs)) {
-      result[structName] = class {
-        constructor(ptr) {
-          this.ptr = ptr;
-        }
+	if (getType(obj) == 'object' && typeDef.type == 'function') {
+		return missingObjects ? [obj instanceof typeDef.class] : obj instanceof typeDef.class;
+	}
 
-        static _fields = methods._fields ?? [];
+	if (getType(obj) !== typeDef.type) {
+		return missingObjects ? [false] : false;
+	}
 
-        static from(ptr) {
-          return new result[structName](ptr);
-        }
+	if (!typeDef.isEmpty) {
+		if (typeDef.type == 'object') {
+			for (const key in typeDef.defaultValue) {
+				let propTypeDef = typeDef.defaultValue[key];
+				// Resolve type
+				if (typeof propTypeDef == 'function' && propTypeDef.type) propTypeDef = propTypeDef.type;
 
-        static registerMethods() {
-          for (const [key, fn] of Object.entries(methods)) {
-            if (key === "_fields") continue;
-            this.prototype[key] = function (...args) {
-              return fn(this.ptr, ...args);
-            };
-          }
-        }
-      };
+				if (typeof propTypeDef === 'object') {
+					if (!typeis(obj[key], propTypeDef)) {
+						return missingObjects ? [false, {
+							[key]: {
+								type_mismatch: propTypeDef,
+								given: obj[gen_key]
+							}
+						}] : false;
+					}
+				} else if (typeof obj[key] !== typeof propTypeDef) {
+					return missingObjects ? [false, {
+						[key]: obj[key] ? {
+							type_mismatch: typeof propTypeDef,
+							given: typeof obj[key]
+						} : {
+							not_found: true
+						}
+					}] : false;
+				}
+			}
+			if (typeDef.strict) {
+				if (Object.keys(obj).some((key) => !Object.keys(typeDef.defaultValue).includes(key))) return missingObjects ?
+					[false, Object.fromEntries(Object.keys(obj).filter((key) => !Object.keys(typeDef.defaultValue).includes(key)).map((key) => [key, { is_extra: true }]))]
+				: false;
+			}
+		} else if (typeDef.type == 'string') {
+			return typeDef.defaultValue == obj;
+		} else if (typeDef.type == 'function') {
+			return typeDef.defaultValue == obj;
+		}
+	}
 
-      result[structName].registerMethods();
-    }
+	return missingObjects ? [true] : true;
+}
+typeis.multi = (values, types) => typeAre(values, types);
 
-    return result;
-  },
-  _mapTypeRust(type) {
-    if(!type) return "pointer";
-    const base = type.replace(/\.ty$/, "").trim();
-  
-    switch (base) {
-      case "i32": return "i32";
-      case "i64": return "i64";
-      case "f32": return "f32";
-      case "f64": return "f64";
-      case "bool": return "u8";
-      case "void": return "void";
-      case "Callback": return "function";
-      case "* const std :: os :: raw :: c_char":
-      case "* const c_char":
-      case "* mut c_char":
-      case "char_ptr":
-        return "pointer";
-      default:
-        if (base.startsWith("*")) return "pointer";
-        return "pointer";
-    }
-  }
+function typex(child, parent) {
+	return child.prototype instanceof parent || child === parent;
+}
+
+function typei(child, parent) {
+	return child instanceof parent || child.constructor === parent;
+}
+
+const _supportsFor = (item) => {
+	item.or = (...others) => [item, ...others]
+}
+function int(str) {
+	return parseInt(str);
+}
+int.type = typedef(1);
+_supportsFor(int);
+
+function float(str) {
+	return parseFloat(str);
+}
+float.type = typedef(1.0);
+_supportsFor(float);
+
+function num(str) {
+	return Number(str);
+}
+_supportsFor(num);
+num.type = typedef(1);
+
+function str(str) {
+	return str ? str.toString() : '';
+}
+str.type = typedef('');
+_supportsFor(str);
+
+function bool(value) {
+	return typeof value == 'string' ? (value == 'true' ? true : false) : value !== null && value !== undefined;
+}
+bool.type = typedef(true);
+_supportsFor(bool);
+
+const SerializableData = ['string', 'number', 'boolean'];
+const isRegExp = (obj) => Object.prototype.toString.call(obj) === '[object RegExp]';
+const AnySymbol = Symbol('any');
+const ExistsSymbol = Symbol('exists');
+
+function deepMatch(obj, pattern) {
+
+	if (pattern instanceof RegExp && typeof obj === 'string') {
+		return pattern.test(obj);
+	}
+
+	if (typeis(obj, pattern)) {
+		return true;
+	}
+
+	if (pattern === null || obj === null) return pattern === obj;
+	if (typeof pattern !== 'object' || typeof obj !== 'object') return pattern === obj;
+
+
+	for (const key of Object.keys(pattern)) {
+		const expected = pattern[key];
+
+		if (!(key in obj)) {
+			if (expected === ExistsSymbol) continue; // allow ExistsSymbol to pass if key is missing
+			return false;
+		}
+
+		const actual = obj[key];
+
+		if (expected === ExistsSymbol) {
+			// Just existence check
+			continue;
+		} else if (Array.isArray(expected)) {
+			// Match if actual matches any of the values
+			if (!expected.some(val => deepMatch(actual, val))) return false;
+		} else if (!deepMatch(actual, expected)) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+function fixArray(arr) {
+	let result = [];
+	for (let i = 0; i < arr.length; i += 2) {
+		const key = arr[i];
+		const value = arr[i + 1];
+		if (Array.isArray(key)) {
+			for (let k of key) result.push([k, value]);
+		} else {
+			result.push([key, value]);
+		}
+	}
+	return result;
+}
+
+function _raw_match(value, templates, props) {
+	const entries = templates instanceof Map
+		? templates.entries()
+		: Array.isArray(templates)
+			? fixArray(templates)
+			: Object.entries(templates);
+
+	let any = null;
+
+	for (const [pattern, callback] of entries) {
+		let matched = false;
+
+		if (pattern === AnySymbol) {
+			any = callback;
+			continue;
+		}
+
+		if (typeof pattern === 'function') {
+			matched = value instanceof pattern || pattern(value);
+		} else if(pattern instanceof Struct) {
+			matched =  value['@instance'] == pattern;
+		} else if (isRegExp(pattern)) {
+			matched = pattern.test(value);
+		} else if (SerializableData.includes(typeof value)) {
+			matched = pattern === value;
+		} else if (typeof pattern === 'object') {
+			matched = deepMatch(value, pattern);
+		}
+
+		if (matched && props) {
+			if (typeof props === 'object') {
+				matched = deepMatch(value, props);
+			} else if (typeof props === 'function') {
+				matched = props(pattern, value);
+			}
+		}
+
+		if (matched) {
+			return callback(...(isRegExp(pattern) ? pattern.exec(value) : [value]));
+		}
+	}
+
+	if (any) {
+		return any(value);
+	}
+
+	return null;
+}
+
+function match(value, props) {
+	let templates = [];
+	return {
+		on(_case, fn) {
+			templates.push(_case, fn);
+			return this;
+		},
+		default(fn) {
+			templates.push(AnySymbol, fn);
+			return this;
+		},
+		get end() {
+			return _raw_match(value, templates, props);
+		}
+	};
+}
+
+
+match.prototype.any = AnySymbol
+match.prototype.exists = ExistsSymbol
+
+function map(...args) {
+	if (args.length % 2 !== 0) {
+		throw new Error('Arguments must be in key-value pairs');
+	}
+
+	const result = new Map();
+	for (let i = 0; i < args.length; i += 2) {
+		const key = args[i];
+		const value = args[i + 1];
+		// rew.prototype.io.prototype.out.print(key, value);
+		result.set(key, value);
+	}
+
+	return result;
+};
+
+Object.without = function(object, ...keys){
+	let newObject = {...object};
+	for(let i = 0; i < keys.length; i++){
+		delete newObject[keys[i]];
+	}
+	return newObject;
+}
+
+class Struct {
+	#template = {};
+	#types = {};
+	constructor(a, t){
+		this.#template = a;
+		this.#types = t;
+	}
+
+	validate(properties){
+		let instance = {};
+		for (let key in this.#template) {
+			let defaultValue = this.#template[key];
+			if(key.startsWith('@') && typeof this.#template[key] == "function"){
+				const realname = key.slice(1);
+				instance[realname] = defaultValue(properties[realname]);
+			} else if (key in properties) {
+				let value = properties[key];
+				if (defaultValue != '!any' && typeof value !== this.#types[key] && this.#types[key] !== '!any' && !typeis(value, this.#types[key])) {
+					return [false, (this.#types[key]?.type?.type ?? this.#types[key]), key, typeof value];
+				}
+				instance[key] = value;
+			} else {
+				instance[key] = defaultValue == '!any' ? null : defaultValue?.type instanceof Type ? defaultValue.type.defaultValue : defaultValue;
+			}
+		}
+		return instance;
+	}
+
+}
+function struct(template) {
+	var key, types, value;
+
+	types = {};
+	for (key in template) {
+		value = template[key];
+		types[key] = typeof template[key] == 'function' && template[key].type instanceof Type ? template[key] : typeof value;
+	}
+
+	let s = new Struct(template, types);
+	s.prototype = {};
+	s.prototype.extends = (stuff) => struct({ ...template, ...stuff });
+	s.prototype.new = function StructFactory(properties, extra){
+		var instance = s.validate(properties);
+		if(instance?.[0] == false){
+			throw new Error(`Type error: Expected ${instance[1]} for ${instance[2]}, got ${instance[3]}`);
+		}
+		if(typeof extra == "object"){
+			for(let i in extra){
+				instance[i] = extra[i];
+			}
+		}
+		instance.__proto__ = { '@instance': s };
+		return instance;
+	}
+	return s;
+};
+
+
+function macro(_, _fn){
+  return function(name, ...args){
+    let fn = args.pop()
+    let full_args = args.length == 1 && args[0] == null ? [] : args;
+    return _fn(name, fn, ...full_args);
+	};
+}
+
+function proto(name, ...args){
+	let _strict = false;
+	let fn = args.pop()
+	let full_args = args.length == 1 && args[0] == null ? [] : args;
+	full_args = full_args.filter(i => {
+		if(i == "strict"){
+			_strict = true;
+			return false;
+		} else return true;
+	});
+	let parameter_types = !full_args.length ? [[], undefined] :
+		full_args.length == 1 ? [[], full_args[0]] :
+		[
+			Array.isArray(full_args[0]) ? full_args[0] : [full_args[0]],
+			full_args[1]
+		];
+	return function(...args){
+		const checked_args = args.map((arg, index) => {
+			// rew.prototype.io.prototype.out.print("ARGS", arg, parameter_types[0]);
+			if(typeis(arg, parameter_types[0][index])){
+				return arg;
+			} else if(_strict){
+				throw new TypeError(`Argument for function ${name || '<anonymous>'} at index ${index} is of the wrong type.`);
+			} else if(typeof parameter_types[0][index] == "function"){
+				return parameter_types[0][index](arg);
+			}
+			return arg;
+		});
+		const result = fn.call(this, ...checked_args);
+		if(typeis(result, parameter_types[1])){
+			return result;
+		} else if(_strict){
+			throw new TypeError(`Function ${name || '<anonymous>'} returned the wrong type.`);
+		} else if(typeof parameter_types[1] == "function"){
+			return parameter_types[1](result);
+		}
+		return result;
+	}
+}
+proto.strict = (name, ...a) => proto(name, "strict", ...a);
+
+if(!rew.extensions.has('types')) rew.extensions.add('types', () => rew.extensions.createClass({
+	_namespace(){
+		return this;
+	},
+	typex,
+	typei,
+	typeis,
+	typedef,
+	typef,
+	match,
+	map,
+	int,
+	float,
+	num,
+	str,
+	bool,
+	struct,
+	macro,
+	proto
 }));
-})({filename: "#std.ffi"});
-rew.prototype.mod.prototype.get('/home/makano/workspace/rew-rust/test/ffi.autoload.coffee');
+})({filename: "#std.types"});rew.prototype.mod.prototype.defineNew("/home/makano/workspace/rew-rust/test/jsx.coffee", {
+"/home/makano/workspace/rew-rust/test/jsx.coffee"(globalThis){
+with (globalThis) {
+  rew.prototype.mod.prototype.find(module, "#std.types!");
+using(namespace(rew.prototype.ns));
+
+// using JSX, (element, props, ...children) => {name: element, ...props, children}
+
+// Test code 
+let ssss = instantiate(class {
+  sssss = "ssss"
+})
+
+print(ssss)
+
+print(1 < 2)
+print(1 > 2)
+print(1 >= 2)
+print(1 <= 2)
+print(1 < 2)
+
+let Example = () => __jsx__prefix("div", {sksk: "sss"}, null)
+
+let name = __jsx__prefix("div", {jdj: "sss"}, __jsx__prefix("p", {}, "sjsjsjs"), __jsx__prefix(Example, {id: "sss", ...ssss}, null))
+
+print(name)
+
+}
+return globalThis.module.exports;
+}          
+}, ["app://test.app/jsx"]);
+rew.prototype.mod.prototype.get('/home/makano/workspace/rew-rust/test/compile.coffee');

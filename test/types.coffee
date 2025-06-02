@@ -17,6 +17,11 @@ match(sample)
   .default -> print 'nope'
   .end
 
+class MyClass
+
+inst = new MyClass
+
+print typeis inst, MyClass
 
 person = instantiate class
   str name = input('Name: ')

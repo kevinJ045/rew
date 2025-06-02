@@ -532,6 +532,7 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
   let tokens = tokenize_coffee_script(content);
   let mut result = String::new();
   let mut i = 0;
+  let mut next_function_ignore_name = false;
   let mut hooks: Vec<Hook> = Vec::new();
   let local_declarations = options.local_declarations.clone();
   let global_declarations = options.global_declarations.clone();
@@ -565,6 +566,49 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
      
     if prev_token.clone().map_or(true, |(t, _, _)| t.value != ".")
       && prev_token.clone().map_or(true, |(t, _, _)| t.value != ":")
+      && token.value == "@"
+      && next_token
+        .clone()
+        .map_or(false, |(t, _, _)| t.value == "{")
+    {
+      let main_idx = next_token.clone().unwrap().2;
+      if let Some((_, brace_idx)) = find_next_token(main_idx, &tokens, "OTHER", Some("}"), None) {
+        if let Some((should_be_func, _, idx)) = get_next_token(brace_idx, 1, &tokens) {
+          if should_be_func.value == "function" {
+            if let Some((func_name, _, idx)) = get_next_token(idx, 1, &tokens) {
+              if let Some((next_token, _, _)) = get_next_token(idx, 1, &tokens) {
+                let (decorator_string, _) = get_string_until(&tokens, main_idx, &["}"], &[]);
+                let fixed_string = &decorator_string[1..decorator_string.len()];
+                let mut func_parts: Vec<&str> = fixed_string.split(',').collect();
+                let decorator_name = func_parts[0];
+                func_parts.remove(0);
+                let func_args = func_parts.join(",");
+                if next_token.value != "." && next_token.value != ":" {
+                  result.push_str(
+                    format!("{} = {} {},", func_name.value.clone(), decorator_name, if func_args.is_empty() { format!("\"{}\"", func_name.value.clone()) } else {
+                      format!("\"{}\", {}", func_name.value.clone(), func_args)
+                    }).as_str()
+                  );
+                } else {
+                  let (item_name, _) = get_string_until(&tokens, idx, &["("], &[]);
+                  result.push_str(
+                    format!("{} = {} {},", item_name.clone(), decorator_name, if func_args.is_empty() { format!("\"{}\"", item_name) } else {
+                      format!("\"{}\", {}", item_name, func_args)
+                    }).as_str()
+                  );
+                  next_function_ignore_name = true;
+                }
+                i = brace_idx + 1;
+                continue;
+              }
+            }
+          }
+        }
+      }
+    }
+     
+    if prev_token.clone().map_or(true, |(t, _, _)| t.value != ".")
+      && prev_token.clone().map_or(true, |(t, _, _)| t.value != ":")
       && token.value == "function"
       && next_token
         .clone()
@@ -575,10 +619,12 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
           if next_token.value == "." || next_token.value == ":" {
             let (_, start_idx) = find_next_token(idx, &tokens, "OTHER", Some("("), None).unwrap();
             let (_, end_idx) = find_next_token(idx, &tokens, "OTHER", Some(")"), None).unwrap();
-            hooks.push(Hook {
-              index: start_idx - 1,
-              value: " = ".to_string()
-            });
+            if !next_function_ignore_name {
+              hooks.push(Hook {
+                index: start_idx - 1,
+                value: " = ".to_string()
+              });
+            }
             if let Some((after_end, _, idx)) = get_next_token(end_idx, 1, &tokens) {
               if after_end.value == ":" {
                 let (_, identifier_idx) = find_next_token(idx, &tokens, "IDENTIFIER", None, None).unwrap();
@@ -598,9 +644,19 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
                 value: " ->".to_string()
               });
             }
-            i += 2;
+            if next_function_ignore_name {
+              next_function_ignore_name = false;
+              i = start_idx;
+            } else { i += 2; }
             continue;
           }
+          // else if prev_token.clone().map_or(false, |(t, _, _)| t.value == ",") {
+          //   if let Some((prev_prev, _, _)) = get_prev_token(prev_token.clone().unwrap().2, 1, &tokens) {
+          //     if prev_prev.value == "]" {
+          //       result.push_str(format!("{} = ", next_token.value.clone()).as_str())
+          //     }
+          //   }
+          // }
         }
       }
     }
