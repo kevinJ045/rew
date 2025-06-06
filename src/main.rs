@@ -153,9 +153,22 @@ fn main() -> anyhow::Result<()> {
             let entry_name = entry.as_deref().unwrap_or("main");
 
             if let Some(app_entry) = utils::resolve_app_entry(&package_name, Some(entry_name)) {
-              let mut runtime = RewRuntime::new(Some(args.clone()), None)?;
-              runtime.run_file(&app_entry).await?;
-              return Ok(());
+              if utils::is_valid_utf8(app_entry.clone())? {
+                let mut runtime = RewRuntime::new(Some(args.clone()), None)?;
+                runtime.run_file(&app_entry).await?;
+                return Ok(());
+              } else {
+                println!("App running binary");
+                std::process::Command::new(app_entry.to_string_lossy().to_string())
+                  .args(args.clone())
+                  .stdout(std::process::Stdio::inherit())
+                  .stderr(std::process::Stdio::inherit())
+                  .stdin(std::process::Stdio::inherit())
+                  .spawn()
+                  .expect("Failed to start process")
+                  .wait()
+                  .expect("Failed to wait on child");
+              }
             } else {
               println!("App package not found: {}", package_name.red());
             }

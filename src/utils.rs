@@ -120,6 +120,7 @@ pub fn find_app_info(file_path: &Path) -> Option<AppInfo> {
   None
 }
 
+
 // Resolve an app entry point
 pub fn resolve_app_entry(package_name: &str, entry_name: Option<&str>) -> Option<PathBuf> {
   let app_info = find_app_by_package(package_name)?;
@@ -150,4 +151,10 @@ pub fn find_app_path(dir_path: &Path) -> Option<PathBuf> {
   }
 
   None
+}
+
+#[allow(unused)]
+pub fn is_valid_utf8<P: AsRef<Path>>(path: P) -> std::io::Result<bool> {
+  let bytes = std::fs::read(path)?;
+  Ok(std::str::from_utf8(&bytes).is_ok())
 }
