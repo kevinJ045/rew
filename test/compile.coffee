@@ -70,3 +70,4 @@ l = 'ss'
 
 print someinstance.addStrings "stuff"
 print someinstance.addStrings null
+

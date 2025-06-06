@@ -3184,6 +3184,7 @@ dependencies = [
  "libc",
  "nix 0.27.1",
  "once_cell",
+ "rand 0.8.5",
  "regex",
  "rustyline",
  "serde",

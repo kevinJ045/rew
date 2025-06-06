@@ -203,7 +203,9 @@ extension!(
     op_os_info_arch,
     op_os_info_family,
     op_dyn_imp,
-    op_fs_sha
+    op_fs_sha,
+    op_rand_from,
+    op_gen_uid
   ],
   state = |state| {
     let permissions =
@@ -1780,4 +1782,52 @@ async fn op_dyn_imp(
     fp.to_string_lossy().to_string(),
     prepared
   ]))
+}
+
+use rand::{Rng, distributions::Alphanumeric, RngCore, SeedableRng};
+use rand::rngs::{StdRng};
+use std::time::{SystemTime, UNIX_EPOCH};
+use std::hash::Hasher;
+use std::hash::Hash;
+
+#[op2]
+#[serde]
+fn op_rand_from(
+    #[bigint] min: usize,
+    #[bigint] max: usize,
+    #[string] seed: Option<String>,
+) -> usize {
+  let mut rng: Box<dyn RngCore> = match seed {
+    Some(s) => {
+      let mut hasher = std::collections::hash_map::DefaultHasher::new();
+      s.hash(&mut hasher);
+      Box::new(StdRng::seed_from_u64(hasher.finish()))
+    },
+    None => Box::new(rand::thread_rng()),
+  };
+
+  if min == max {
+    return min;
+  }
+
+  let (low, high) = if min < max { (min, max) } else { (max, min) };
+
+  rng.gen_range(low..=high)
+}
+
+#[op2]
+#[string]
+fn op_gen_uid(
+  length: i32
+) -> String {
+  let mut rng = rand::thread_rng();
+
+  let random_part: String = (0..length).map(|_| rng.sample(Alphanumeric) as char).collect();
+
+  let time_part = SystemTime::now()
+    .duration_since(UNIX_EPOCH)
+    .map(|d| d.as_millis())
+    .unwrap_or(0);
+
+  format!("{:x}_{}", time_part, random_part)
 }

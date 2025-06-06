@@ -21,7 +21,7 @@ name = "rew"
 path = "src/lib.rs"
 
 [dependencies]
-
+rand = "0.8"
 deno_core = "0.347.0"
 tokio = { version = "1.43.0", features = ["full"] }
 anyhow = "1.0.96"
