@@ -1786,7 +1786,6 @@ async fn op_dyn_imp(
 
 use rand::{Rng, distributions::Alphanumeric, RngCore, SeedableRng};
 use rand::rngs::{StdRng};
-use std::time::{SystemTime, UNIX_EPOCH};
 use std::hash::Hasher;
 use std::hash::Hash;
 
@@ -1803,7 +1802,7 @@ fn op_rand_from(
       s.hash(&mut hasher);
       Box::new(StdRng::seed_from_u64(hasher.finish()))
     },
-    None => Box::new(rand::thread_rng()),
+    _ => Box::new(rand::thread_rng()),
   };
 
   if min == max {
@@ -1815,19 +1814,30 @@ fn op_rand_from(
   rng.gen_range(low..=high)
 }
 
+
+
 #[op2]
 #[string]
 fn op_gen_uid(
-  length: i32
+  length: i32,
+  #[string] seed: Option<String>,
 ) -> String {
-  let mut rng = rand::thread_rng();
 
-  let random_part: String = (0..length).map(|_| rng.sample(Alphanumeric) as char).collect();
+  if let Some(seed_str) = seed {
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    seed_str.hash(&mut hasher);
+    
+    let seed = hasher.finish();
+    let mut rng = StdRng::seed_from_u64(seed);
 
-  let time_part = SystemTime::now()
-    .duration_since(UNIX_EPOCH)
-    .map(|d| d.as_millis())
-    .unwrap_or(0);
+    return (0..length)
+        .map(|_| rng.sample(Alphanumeric) as char)
+        .collect();
+  } else {
+    let mut rng = rand::thread_rng();
 
-  format!("{:x}_{}", time_part, random_part)
+    return (0..length)
+        .map(|_| rng.sample(Alphanumeric) as char)
+        .collect();
+  }
 }
