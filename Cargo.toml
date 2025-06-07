@@ -1,6 +1,6 @@
 [package]
 name = "rew_runtime"
-version = "0.0.2"
+version = "0.0.3"
 edition = "2024"
 authors = ["makano"]
 description = "A mini runtime for coffeescript"
@@ -56,3 +56,4 @@ deno_websocket = "0.210.0"
 deno_http = "0.203.0"
 deno_telemetry = "0.27.0"
 sha2 = "0.10"
+futures = "0.3.31"

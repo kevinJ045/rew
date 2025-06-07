@@ -8,6 +8,7 @@ use crate::ext::{console, ffi, process, url, web, webidl};
 use crate::jsx::compile_jsx;
 use crate::runtime_script::get_runtime_script;
 use crate::utils::find_app_path;
+use futures::stream::{self, StreamExt};
 use crate::workers::{
   op_thread_message, op_thread_post_message, op_thread_receive, op_thread_spawn,
   op_thread_terminate,
@@ -214,7 +215,8 @@ extension!(
     op_rand_from,
     op_gen_uid,
     op_vfile_set,
-    op_vfile_get
+    op_vfile_get,
+    op_terminal_size
   ],
   state = |state| {
     let permissions =
@@ -584,8 +586,22 @@ impl RewRuntime {
     let mut module_wrappers = String::new();
     let mut entry_calls = Vec::new();
 
-    for (path, source) in files {
-      let compiled = self.compile_and_run(&source, &path, false).await?;
+    let shared = std::sync::Arc::new(tokio::sync::Mutex::new(self));
+
+    let results = stream::iter(files.into_iter().map(|(path, source)| {
+      let shared = shared.clone();
+      async move {
+        let mut guard = shared.lock().await;
+        let compiled = guard.compile_and_run(&source, &path, false).await?;
+        Ok::<(PathBuf, String), anyhow::Error>((path, compiled))
+      }
+    }))
+    .buffer_unordered(8) // concurrency limit
+    .collect::<Vec<_>>()
+    .await;
+
+    for result in results {
+      let (path, compiled) = result?;
       let mod_id = path.to_str().unwrap_or("unknown");
       let mut mod_alias = String::new();
 
@@ -1883,4 +1899,20 @@ fn op_gen_uid(
         .map(|_| rng.sample(Alphanumeric) as char)
         .collect();
   }
+}
+
+#[op2]
+#[serde]
+fn op_terminal_size() -> Result<(u16, u16), io::Error> {
+    use libc::{ioctl, winsize, STDOUT_FILENO, TIOCGWINSZ};
+
+    let mut ws: winsize = unsafe { std::mem::zeroed() };
+
+    let result = unsafe { ioctl(STDOUT_FILENO, TIOCGWINSZ, &mut ws) };
+
+    if result == -1 {
+        return Err(io::Error::last_os_error());
+    }
+
+    Ok((ws.ws_col, ws.ws_row))
 }

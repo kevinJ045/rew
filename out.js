@@ -4,6 +4,7 @@ with (globalThis) {
   rew.prototype.vfile.prototype.add("fff.ccc", "GGG")
 
 rew.prototype.io.prototype.out.print(rew.prototype.vfile.prototype.find("fff.ccc"))
+rew.prototype.io.prototype.out.print(rew.prototype.io.prototype.out.size())
 }
 return globalThis.module.exports;
 }          
