@@ -9,6 +9,9 @@ using namespace rew::ns
 
 print private "s"
 
+# this is a comment
+# this is another comment
+
 import "./jsx.coffee";
 
 let f = {}
@@ -24,6 +27,7 @@ function macro(_, _fn)
 
 @{macro}
 function macro_function(fn)
+  # some comment
   return fn
 
 export { macro }

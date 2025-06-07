@@ -23,23 +23,10 @@ pimmy.install:
   preinstall:
     scripts:
       - _install.coffee
-    shell:
-      - sh ${path}/_install.sh
-  build: 
-    entry:
-      - main.coffee
-    flags:
-      - -f
-      - -o
-      - ${path}/build/main
   postinstall:
     scripts:
       - _postinstall.coffee
-    shell:
-      - sh ${path}/_postinstall.sh
   uninstall:
     scripts:
       - _uninstall.coffee
-    shell:
-      - sh ${path}/_uninstall.sh
   

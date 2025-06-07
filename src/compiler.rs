@@ -832,6 +832,6 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
     code: result,
   };
 
-  // println!("{}", compiler_results.code);
+  // std::fs::write("out.compile_result", compiler_results.code.clone())?;
   Ok(compiler_results)
 }

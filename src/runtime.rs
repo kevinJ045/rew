@@ -64,6 +64,13 @@ pub fn add_virtual_file(path: &str, contents: &str) {
   files.push((path.to_string(), contents.to_string()));
 }
 
+pub fn is_js_executable(mod_id: &str) -> bool {
+  matches!(
+      mod_id.rsplit('.').next(),
+      Some("ts" | "js" | "coffee" | "civet" | "rew")
+  )
+}
+
 #[derive(Default)]
 struct RuntimeState {
   current_dir: PathBuf,
@@ -205,7 +212,9 @@ extension!(
     op_dyn_imp,
     op_fs_sha,
     op_rand_from,
-    op_gen_uid
+    op_gen_uid,
+    op_vfile_set,
+    op_vfile_get
   ],
   state = |state| {
     let permissions =
@@ -627,7 +636,7 @@ impl RewRuntime {
             entry_file
           ));
         }
-      } else {
+      } else if is_js_executable(mod_id) {
         module_wrappers.push_str(&format!(
           r#"rew.prototype.mod.prototype.defineNew("{id}", {{
 "{id}"(globalThis){{
@@ -640,6 +649,15 @@ return globalThis.module.exports;
           id = mod_id,
           mod_alias = mod_alias,
           compiled = compiled
+        ));
+      } else {
+        module_wrappers.push_str(&format!(
+          r#"rew.prototype.mod.prototype.defineNew("{id}", function(globalThis){{
+  return rew.prototype.mod.prototype.preprocess("{id}", `{compiled}`);
+}}, {mod_alias});"#,
+          id = mod_id,
+          mod_alias = mod_alias,
+          compiled = compiled.replace("`", "\\`").replace("\\", "\\\\")
         ));
       }
     }
@@ -804,7 +822,7 @@ return globalThis.module.exports;
   ) -> Result<String> {
     if filepath
       .extension()
-      .map_or(false, |ext| ext == "brew" || ext == "js" || ext == "qrew")
+      .map_or(false, |ext| ext != "coffee" && ext != "civet" && ext != "rew")
       || source.starts_with("\"no-compile\"")
     {
       // self.declaration_engine.process_script(source);
@@ -1815,6 +1833,31 @@ fn op_rand_from(
 }
 
 
+#[op2]
+#[string]
+fn op_vfile_set(
+  #[string] full_path: String,
+  #[string] content: String,
+) -> String {
+  add_virtual_file(full_path.as_str(), content.as_str());
+  return "".to_string();
+}
+
+#[op2]
+#[string]
+fn op_vfile_get(
+  #[string] full_path: String
+) -> String {
+  if let Some(v) = VIRTUAL_FILES
+    .lock()
+    .unwrap()
+    .iter()
+    .find(|(p, _)| *p == full_path)
+  {
+    return v.1.clone();
+  }
+  return "".to_string();
+}
 
 #[op2]
 #[string]
