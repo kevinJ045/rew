@@ -19,10 +19,10 @@ jobs:
       - name: Package .exe
         run: |
           mkdir -p dist
-          cp target/release/rew_runtime.exe dist/
+          cp target/release/rew_runtime.exe dist/rew.exe
       - uses: softprops/action-gh-release@v1
         with:
-          files: dist/rew_runtime.exe
+          files: dist/rew.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
