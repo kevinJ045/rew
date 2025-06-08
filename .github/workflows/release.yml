@@ -27,14 +27,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+
+      - name: Install GNU target
+        run: rustup target add x86_64-unknown-linux-gnu
+
       - name: Build
         run: |
-          sudo apt-get update && sudo apt-get install -y musl-tools
-          rustup target add x86_64-unknown-linux-musl
-          cargo build --release --target x86_64-unknown-linux-musl
+          cargo build --release --target x86_64-unknown-linux-gnu
           mkdir -p dist
-          cp target/x86_64-unknown-linux-musl/release/rew_runtime dist/rew
+          cp target/x86_64-unknown-linux-gnu/release/rew_runtime dist/rew
           tar -czvf dist/rew-linux_x86_64.tar.gz -C dist rew
+
       - uses: softprops/action-gh-release@v1
         with:
           files: dist/rew-linux_x86_64.tar.gz
@@ -45,19 +48,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Install cross
-        run: cargo install cross
-      - name: Build
+
+      - name: Install dependencies for cross-compilation
         run: |
-          cross build --release --target aarch64-unknown-linux-gnu
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+
+      - name: Add ARM64 GNU target
+        run: rustup target add aarch64-unknown-linux-gnu
+
+      - name: Build for aarch64
+        env:
+          CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
+        run: |
+          cargo build --release --target aarch64-unknown-linux-gnu
           mkdir -p dist
           cp target/aarch64-unknown-linux-gnu/release/rew_runtime dist/rew
           tar -czvf dist/rew-linux_arm64.tar.gz -C dist rew
+
       - uses: softprops/action-gh-release@v1
         with:
           files: dist/rew-linux_arm64.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 
   build-macos:
     runs-on: macos-latest

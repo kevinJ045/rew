@@ -154,7 +154,6 @@ fn get_next_token(i: usize, n: i32, tokens: &[Token]) -> Option<(Token, i32, usi
   Some((tokens[index].clone(), n, index))
 }
 
-
 fn get_prev_token(i: usize, n: i32, tokens: &[Token]) -> Option<(Token, i32, usize)> {
   let index = ((i as i32) - n) as usize;
   if index >= tokens.len() {
@@ -563,13 +562,11 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
         }
       }
     }
-     
+
     if prev_token.clone().map_or(true, |(t, _, _)| t.value != ".")
       && prev_token.clone().map_or(true, |(t, _, _)| t.value != ":")
       && token.value == "@"
-      && next_token
-        .clone()
-        .map_or(false, |(t, _, _)| t.value == "{")
+      && next_token.clone().map_or(false, |(t, _, _)| t.value == "{")
     {
       let main_idx = next_token.clone().unwrap().2;
       if let Some((_, brace_idx)) = find_next_token(main_idx, &tokens, "OTHER", Some("}"), None) {
@@ -585,16 +582,32 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
                 let func_args = func_parts.join(",");
                 if next_token.value != "." && next_token.value != ":" {
                   result.push_str(
-                    format!("{} = {} {},", func_name.value.clone(), decorator_name, if func_args.is_empty() { format!("\"{}\"", func_name.value.clone()) } else {
-                      format!("\"{}\", {}", func_name.value.clone(), func_args)
-                    }).as_str()
+                    format!(
+                      "{} = {} {},",
+                      func_name.value.clone(),
+                      decorator_name,
+                      if func_args.is_empty() {
+                        format!("\"{}\"", func_name.value.clone())
+                      } else {
+                        format!("\"{}\", {}", func_name.value.clone(), func_args)
+                      }
+                    )
+                    .as_str(),
                   );
                 } else {
                   let (item_name, _) = get_string_until(&tokens, idx, &["("], &[]);
                   result.push_str(
-                    format!("{} = {} {},", item_name.clone(), decorator_name, if func_args.is_empty() { format!("\"{}\"", item_name) } else {
-                      format!("\"{}\", {}", item_name, func_args)
-                    }).as_str()
+                    format!(
+                      "{} = {} {},",
+                      item_name.clone(),
+                      decorator_name,
+                      if func_args.is_empty() {
+                        format!("\"{}\"", item_name)
+                      } else {
+                        format!("\"{}\", {}", item_name, func_args)
+                      }
+                    )
+                    .as_str(),
                   );
                   next_function_ignore_name = true;
                 }
@@ -606,7 +619,7 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
         }
       }
     }
-     
+
     if prev_token.clone().map_or(true, |(t, _, _)| t.value != ".")
       && prev_token.clone().map_or(true, |(t, _, _)| t.value != ":")
       && token.value == "function"
@@ -622,32 +635,35 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
             if !next_function_ignore_name {
               hooks.push(Hook {
                 index: start_idx - 1,
-                value: " = ".to_string()
+                value: " = ".to_string(),
               });
             }
             if let Some((after_end, _, idx)) = get_next_token(end_idx, 1, &tokens) {
               if after_end.value == ":" {
-                let (_, identifier_idx) = find_next_token(idx, &tokens, "IDENTIFIER", None, None).unwrap();
-                 hooks.push(Hook {
+                let (_, identifier_idx) =
+                  find_next_token(idx, &tokens, "IDENTIFIER", None, None).unwrap();
+                hooks.push(Hook {
                   index: identifier_idx,
-                  value: " ->".to_string()
+                  value: " ->".to_string(),
                 });
               } else {
                 hooks.push(Hook {
                   index: end_idx,
-                  value: " ->".to_string()
+                  value: " ->".to_string(),
                 });
               }
             } else {
               hooks.push(Hook {
                 index: end_idx,
-                value: " ->".to_string()
+                value: " ->".to_string(),
               });
             }
             if next_function_ignore_name {
               next_function_ignore_name = false;
               i = start_idx;
-            } else { i += 2; }
+            } else {
+              i += 2;
+            }
             continue;
           }
           // else if prev_token.clone().map_or(false, |(t, _, _)| t.value == ",") {
@@ -674,9 +690,9 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
     if prev_token.clone().map_or(true, |(t, _, _)| t.value != ".")
       && prev_token.clone().map_or(true, |(t, _, _)| t.value != ":")
       && token.value == "using"
-      && next_token
-        .clone()
-        .map_or(false, |(t, _, _)| t.value == "compiler" || t.value == "pub" || t.value == "public")
+      && next_token.clone().map_or(false, |(t, _, _)| {
+        t.value == "compiler" || t.value == "pub" || t.value == "public"
+      })
     {
       if let Some((next, _, idx)) = next_token.clone() {
         if next.value == "pub" || next.value == "public" {
@@ -688,7 +704,7 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
               options.jsx = true;
               options.civet_global.push("JSX".to_string());
             }
-          } 
+          }
         } else {
           i = handle_compiler_options(&tokens, options, idx, false);
           continue;

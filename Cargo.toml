@@ -57,3 +57,6 @@ deno_http = "0.203.0"
 deno_telemetry = "0.27.0"
 sha2 = "0.10"
 futures = "0.3.31"
+
+[target.'cfg(windows)'.dependencies]
+winapi = { version = "0.3", features = ["consoleapi", "handleapi", "wincon", "winuser", "fileapi"] }

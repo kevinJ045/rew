@@ -8,7 +8,6 @@ use crate::ext::{console, ffi, process, url, web, webidl};
 use crate::jsx::compile_jsx;
 use crate::runtime_script::get_runtime_script;
 use crate::utils::find_app_path;
-use futures::stream::{self, StreamExt};
 use crate::workers::{
   op_thread_message, op_thread_post_message, op_thread_receive, op_thread_spawn,
   op_thread_terminate,
@@ -27,6 +26,7 @@ use deno_permissions::{
   ReadDescriptor, RunDescriptorParseError, RunQueryDescriptor, SysDescriptor,
   SysDescriptorParseError, WriteDescriptor,
 };
+use futures::stream::{self, StreamExt};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -67,8 +67,8 @@ pub fn add_virtual_file(path: &str, contents: &str) {
 
 pub fn is_js_executable(mod_id: &str) -> bool {
   matches!(
-      mod_id.rsplit('.').next(),
-      Some("ts" | "js" | "coffee" | "civet" | "rew")
+    mod_id.rsplit('.').next(),
+    Some("ts" | "js" | "coffee" | "civet" | "rew")
   )
 }
 
@@ -421,11 +421,7 @@ impl RewRuntime {
       // Create a normalized path for storage
       let storage_path = get_storage_path(file_path_str);
 
-      result.push((
-        storage_path,
-        content.clone(),
-        should_preprocess,
-      ));
+      result.push((storage_path, content.clone(), should_preprocess));
 
       let parent = file_path.parent().unwrap_or(Path::new("."));
 
@@ -836,10 +832,9 @@ return globalThis.module.exports;
     filepath: &Path,
     keep_imports: bool,
   ) -> Result<String> {
-    if filepath
-      .extension()
-      .map_or(false, |ext| ext != "coffee" && ext != "civet" && ext != "rew")
-      || source.starts_with("\"no-compile\"")
+    if filepath.extension().map_or(false, |ext| {
+      ext != "coffee" && ext != "civet" && ext != "rew"
+    }) || source.starts_with("\"no-compile\"")
     {
       // self.declaration_engine.process_script(source);
       return Ok(source.to_string());
@@ -963,7 +958,14 @@ return globalThis.module.exports;
     if let Some(app_info) = crate::utils::find_app_info(&filepath) {
       if let Some(manifest) = &app_info.config.manifest {
         if let Some(package) = &manifest.package {
-          self.runtime.execute_script("<app-recognition>", format!("globalThis[\"__app__{}\"] = \"{}\";", package, app_info.path.to_str().unwrap()))?;
+          self.runtime.execute_script(
+            "<app-recognition>",
+            format!(
+              "globalThis[\"__app__{}\"] = \"{}\";",
+              package,
+              app_info.path.to_str().unwrap()
+            ),
+          )?;
         }
       }
     }
@@ -973,7 +975,9 @@ return globalThis.module.exports;
       .map(|(path, content, _)| (path, content))
       .collect();
 
-    self.include_and_run(files, &get_storage_path(filepath.to_str().unwrap())).await?;
+    self
+      .include_and_run(files, &get_storage_path(filepath.to_str().unwrap()))
+      .await?;
 
     Ok(())
   }
@@ -1818,24 +1822,24 @@ async fn op_dyn_imp(
   ]))
 }
 
-use rand::{Rng, distributions::Alphanumeric, RngCore, SeedableRng};
-use rand::rngs::{StdRng};
-use std::hash::Hasher;
+use rand::rngs::StdRng;
+use rand::{Rng, RngCore, SeedableRng, distributions::Alphanumeric};
 use std::hash::Hash;
+use std::hash::Hasher;
 
 #[op2]
 #[serde]
 fn op_rand_from(
-    #[bigint] min: usize,
-    #[bigint] max: usize,
-    #[string] seed: Option<String>,
+  #[bigint] min: usize,
+  #[bigint] max: usize,
+  #[string] seed: Option<String>,
 ) -> usize {
   let mut rng: Box<dyn RngCore> = match seed {
     Some(s) => {
       let mut hasher = std::collections::hash_map::DefaultHasher::new();
       s.hash(&mut hasher);
       Box::new(StdRng::seed_from_u64(hasher.finish()))
-    },
+    }
     _ => Box::new(rand::thread_rng()),
   };
 
@@ -1848,22 +1852,16 @@ fn op_rand_from(
   rng.gen_range(low..=high)
 }
 
-
 #[op2]
 #[string]
-fn op_vfile_set(
-  #[string] full_path: String,
-  #[string] content: String,
-) -> String {
+fn op_vfile_set(#[string] full_path: String, #[string] content: String) -> String {
   add_virtual_file(full_path.as_str(), content.as_str());
   return "".to_string();
 }
 
 #[op2]
 #[string]
-fn op_vfile_get(
-  #[string] full_path: String
-) -> String {
+fn op_vfile_get(#[string] full_path: String) -> String {
   if let Some(v) = VIRTUAL_FILES
     .lock()
     .unwrap()
@@ -1877,42 +1875,68 @@ fn op_vfile_get(
 
 #[op2]
 #[string]
-fn op_gen_uid(
-  length: i32,
-  #[string] seed: Option<String>,
-) -> String {
-
+fn op_gen_uid(length: i32, #[string] seed: Option<String>) -> String {
   if let Some(seed_str) = seed {
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     seed_str.hash(&mut hasher);
-    
+
     let seed = hasher.finish();
     let mut rng = StdRng::seed_from_u64(seed);
 
     return (0..length)
-        .map(|_| rng.sample(Alphanumeric) as char)
-        .collect();
+      .map(|_| rng.sample(Alphanumeric) as char)
+      .collect();
   } else {
     let mut rng = rand::thread_rng();
 
     return (0..length)
-        .map(|_| rng.sample(Alphanumeric) as char)
-        .collect();
+      .map(|_| rng.sample(Alphanumeric) as char)
+      .collect();
   }
 }
 
 #[op2]
 #[serde]
-fn op_terminal_size() -> Result<(u16, u16), io::Error> {
-    use libc::{ioctl, winsize, STDOUT_FILENO, TIOCGWINSZ};
+fn op_terminal_size() -> Result<(u16, u16), std::io::Error> {
+  #[cfg(unix)]
+  {
+    use libc::{STDOUT_FILENO, TIOCGWINSZ, ioctl, winsize};
 
     let mut ws: winsize = unsafe { std::mem::zeroed() };
 
     let result = unsafe { ioctl(STDOUT_FILENO, TIOCGWINSZ, &mut ws) };
 
     if result == -1 {
-        return Err(io::Error::last_os_error());
+      return Err(std::io::Error::last_os_error());
     }
 
     Ok((ws.ws_col, ws.ws_row))
+  }
+
+  #[cfg(windows)]
+  {
+    use std::mem::zeroed;
+    use std::ptr::null_mut;
+    use winapi::um::handleapi::INVALID_HANDLE_VALUE;
+    use winapi::um::processenv::GetStdHandle;
+    use winapi::um::winbase::STD_OUTPUT_HANDLE;
+    use winapi::um::wincon::{CONSOLE_SCREEN_BUFFER_INFO, GetConsoleScreenBufferInfo};
+
+    unsafe {
+      let handle = GetStdHandle(STD_OUTPUT_HANDLE);
+      if handle == INVALID_HANDLE_VALUE {
+        return Err(std::io::Error::last_os_error());
+      }
+
+      let mut csbi: CONSOLE_SCREEN_BUFFER_INFO = zeroed();
+      if GetConsoleScreenBufferInfo(handle, &mut csbi) == 0 {
+        return Err(std::io::Error::last_os_error());
+      }
+
+      let width = (csbi.srWindow.Right - csbi.srWindow.Left + 1) as u16;
+      let height = (csbi.srWindow.Bottom - csbi.srWindow.Top + 1) as u16;
+
+      Ok((width, height))
+    }
+  }
 }

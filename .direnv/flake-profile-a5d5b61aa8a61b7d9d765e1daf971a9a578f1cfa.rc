@@ -35,7 +35,7 @@ NIX_CC='/nix/store/0fsnicvfpf55nkza12cjnad0w84d6ba7-gcc-wrapper-14.2.1.20250322'
 export NIX_CC
 NIX_CC_WRAPPER_TARGET_HOST_x86_64_unknown_linux_gnu='1'
 export NIX_CC_WRAPPER_TARGET_HOST_x86_64_unknown_linux_gnu
-NIX_CFLAGS_COMPILE=' -frandom-seed=8ag5j7yif1'
+NIX_CFLAGS_COMPILE=' -frandom-seed=im1d6dds20'
 export NIX_CFLAGS_COMPILE
 NIX_ENFORCE_NO_NATIVE='1'
 export NIX_ENFORCE_NO_NATIVE
@@ -63,12 +63,6 @@ export PATH
 PKG_CONFIG='pkg-config'
 export PKG_CONFIG
 PS4='+ '
-QT_QPA_PLATFORM='xcb'
-export QT_QPA_PLATFORM
-QT_QPA_PLATFORMTHEME=''
-export QT_QPA_PLATFORMTHEME
-QT_STYLE_OVERRIDE='kvantum'
-export QT_STYLE_OVERRIDE
 RANLIB='ranlib'
 export RANLIB
 READELF='readelf'
