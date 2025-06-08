@@ -21,10 +21,6 @@
           pkgs.rust-analyzer
         ];
         buildInputs = [];
-        QT_QPA_PLATFORM = "xcb";
-        QT_STYLE_OVERRIDE = "kvantum";
-        QT_QPA_PLATFORMTHEME = "";
-        # QT_LOGGING_RULES = "qt6.debug=false";
       };
 
       packages.${system}.default = rustToolchain.buildRustPackage {

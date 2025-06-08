@@ -1,21 +1,25 @@
-# Rusty Rew (RuRe)
-Rusty rew is a project made to remake [rew](https://kevinj045.github.io/rew-docs/) with rust to give it extra functionality and better usage.
+<h3 align="center">
+<img src="https://raw.githubusercontent.com/kevinJ045/rew-docs/main/assets/logo.png" width="100" />
+<br/>
+Rew(Rust)
+<br/>
+</h3>
+<p  align="center">
+<a href="https://github.com/kevinj045/rew/stargazers">  <img src="https://img.shields.io/github/stars/kevinj045/rew?style=for-the-badge&logo=starship&color=cba6f7&logoColor=9399b2&labelColor=181825" alt="GitHub stars"/></a>
+<a href="https://github.com/kevinj045/rew/issues">
+  <img src="https://img.shields.io/github/issues/kevinj045/guilib?style=for-the-badge&logo=gitbook&color=f5c2e7&logoColor=9399b2&labelColor=181825" alt="GitHub issues"/></a>
+<a href="https://github.com/kevinj045/rew">  <img src="https://img.shields.io/github/forks/kevinj045/rew?style=for-the-badge&logo=git&color=94e2d5&logoColor=9399b2&labelColor=181825" alt="GitHub forks"/></a>
+<a href="https://www.npmjs.com/package/rayous">  <img src="https://img.shields.io/npm/v/@makano/rew?style=for-the-badge&logo=npm&color=b4befe&logoColor=9399b2&labelColor=181825" alt="npm version" /></a>
+</p>
 
-## Original rew
-The original rew has been moved to [rew-node](https://github.com/kevinj045/rew-node/).
+Rew is a coffeescript first runtime with the focus of making an environment suitable for FFI. 
 
-## Components
-### Compiler
-Rew has 3 levels of compilers. 3 distinct specific compilers.
-  -   #### Rew-Compiler (pre-compiler) [RUST]
-      This is the first compiler that compiles rew-related and unresolvable parts of your syntax. For example `compiler directives`, `declarations`, `imports`, `exports`...
-  -   #### Civet (main compiler) [BOOTSTRAP]
-      This is the compiler that takes the prepared/resolved rew compiler result and compiles the result into executable js.
-  -   #### JSX (specific compiler) [RUST]
-      A mini jsx transpiler written in rust, compiles by separating js code from jsx portions.  
-### Runtime
-Rew(atleast this one) uses deno(deno_core) along with a few deno extensions. More about architecture [here](https://kevinj045.github.io/rew-docs/expr/rusty.html).
+```coffee
+using namespace std::ns;
 
+export function main()
+  print "hello world"
+```
 
 ## Available features
 ### Core Runtime
@@ -98,3 +102,7 @@ Rew(atleast this one) uses deno(deno_core) along with a few deno extensions. Mor
 | Documentation Generator     | Generate API documentation from `.rew` files               | 🕓 Planned     |
 | Building Language           | A language for defining build processes                   | 🕓 Planned     |
 | Bundling Rew Files          | Build and bundle `.brew` files into deployable artifacts    | ✅ Implemented |
+
+
+## Original rew
+The original rew has been moved to [rew-node](https://github.com/kevinj045/rew-node/).

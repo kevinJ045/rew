@@ -1,0 +1,113 @@
+name: Cross-Platform Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build
+        run: cargo build --release
+      - name: Package .exe
+        run: |
+          mkdir -p dist
+          cp target/release/rew_runtime.exe dist/
+      - uses: softprops/action-gh-release@v1
+        with:
+          files: dist/rew_runtime.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-linux-x86_64:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build
+        run: |
+          sudo apt-get update && sudo apt-get install -y musl-tools
+          rustup target add x86_64-unknown-linux-musl
+          cargo build --release --target x86_64-unknown-linux-musl
+          mkdir -p dist
+          cp target/x86_64-unknown-linux-musl/release/rew_runtime dist/rew
+          tar -czvf dist/rew-linux_x86_64.tar.gz -C dist rew
+      - uses: softprops/action-gh-release@v1
+        with:
+          files: dist/rew-linux_x86_64.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-linux-arm64:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install cross
+        run: cargo install cross
+      - name: Build
+        run: |
+          cross build --release --target aarch64-unknown-linux-gnu
+          mkdir -p dist
+          cp target/aarch64-unknown-linux-gnu/release/rew_runtime dist/rew
+          tar -czvf dist/rew-linux_arm64.tar.gz -C dist rew
+      - uses: softprops/action-gh-release@v1
+        with:
+          files: dist/rew-linux_arm64.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build
+        run: cargo build --release
+      - name: Package
+        run: |
+          mkdir -p dist
+          cp target/release/rew_runtime dist/rew
+          hdiutil create dist/rew-darwin.dmg -srcfolder dist -volname "rew"
+      - uses: softprops/action-gh-release@v1
+        with:
+          files: dist/rew-darwin.dmg
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # nix:
+  #   strategy:
+  #     matrix:
+  #      os: 
+  #       - ubuntu-latest
+  #       - macos-13
+  #       - macos-14
+  #   name: "Build"
+  #   runs-on: ${{ matrix.os }} 
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v4
+  #       with:
+  #         submodules: recursive
+
+  #     - uses: DeterminateSystems/nix-installer-action@main
+  #       with:
+  #         logger: pretty
+  #     - uses: DeterminateSystems/magic-nix-cache-action@main
+  #     - uses: cachix/cachix-action@v14
+  #       with:
+  #         name: rew
+  #         authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+
+  #     - name: Build rew (x86_64-linux)
+  #       if: matrix.os == 'ubuntu-latest'
+  #       run: nix build --print-build-logs --show-trace .#packages.x86_64-linux.rew
+
+  #     - name: Build rew (x86_64-darwin)
+  #       if: matrix.os == 'macos-13'
+  #       run: nix build --print-build-logs --show-trace .#packages.x86_64-darwin.rew
+
+  #     - name: Build rew (aarch64-darwin)
+  #       if: matrix.os == 'macos-14'
+  #       run: nix build --print-build-logs --show-trace .#packages.aarch64-darwin.rew
