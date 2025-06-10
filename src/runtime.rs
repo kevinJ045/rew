@@ -844,6 +844,11 @@ return globalThis.module.exports;
 
     let global_declarations = self.declaration_engine.global_declarations.clone();
 
+    let file_id = filepath
+    .to_str()
+    .unwrap_or("unknown")
+    .replace(|c: char| !c.is_ascii_alphanumeric(), "_");
+
     let processed = self.preprocess_rew(
       source,
       local_declarations,
@@ -875,7 +880,7 @@ return globalThis.module.exports;
           else options[i] = true; 
         }}
       }});
-      let _compiled = compile(`{code}`, {{
+      let _compiled = compile({file_id}, {{
         parseOptions: options,
         sync: true,
         filename: '{file}.civet',
@@ -885,15 +890,29 @@ return globalThis.module.exports;
         sourceMap: {smp},
       }});
 
+      delete globalThis.{file_id};
+
       return _compiled;
     }})()
     "#,
-      code = processed.code.replace("`", "\\`").replace("\\", "\\\\"),
+      file_id = file_id,
       file = filepath.to_str().unwrap_or("unknown"),
       smp = self.sourcemap,
       inp = self.inlinemap,
       civet_options = civet_options.join(",")
     );
+
+    {
+      let scope = &mut self.runtime.handle_scope();
+
+      let context = scope.get_current_context();
+      let global = context.global(scope);
+
+      let key_str = deno_core::v8::String::new(scope, file_id.as_str()).unwrap();
+      let val_str = deno_core::v8::String::new(scope, processed.code.as_str()).unwrap();
+
+      global.set(scope, key_str.into(), val_str.into());
+    }
 
     let result = self.runtime.execute_script("<rew>", code.clone())?;
     // let compiled = self.runtime.resolve(result).await?;
