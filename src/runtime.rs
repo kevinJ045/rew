@@ -592,7 +592,7 @@ impl RewRuntime {
         Ok::<(PathBuf, String), anyhow::Error>((path, compiled))
       }
     }))
-    .buffer_unordered(8) // concurrency limit
+    .buffer_unordered(16) // concurrency limit
     .collect::<Vec<_>>()
     .await;
 
@@ -711,7 +711,7 @@ return globalThis.module.exports;
       module_wrappers.push_str(&format!("\n{}", entry_call));
     }
 
-    fs::write("out.js", module_wrappers.clone())?;
+    // fs::write("out.js", module_wrappers.clone())?;
 
     Ok(module_wrappers.to_string())
   }

@@ -32,6 +32,11 @@ fn ensure_rew_dirs() -> anyhow::Result<()> {
   if !apps_dir.exists() {
     fs::create_dir_all(&apps_dir)?;
   }
+  
+  let bin_dir = rew_root.join("bin");
+  if !bin_dir.exists() {
+    fs::create_dir_all(&bin_dir)?;
+  }
 
   // Create other directories as needed
   let data_dir = rew_root.join("data");
@@ -49,6 +54,7 @@ fn ensure_rew_dirs() -> anyhow::Result<()> {
 
 #[derive(Parser)]
 #[command(name = "rew")]
+#[command(version = env!("CARGO_PKG_VERSION"),)]
 #[command(about = "A Rust-based Rew runtime using deno_core")]
 struct Cli {
   #[command(subcommand)]
