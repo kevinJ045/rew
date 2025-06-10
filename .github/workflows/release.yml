@@ -25,7 +25,64 @@ jobs:
           files: dist/rew.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
+        
+  build-windows-installer:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+  
+      - name: Install Inno Setup
+        run: |
+          choco install innosetup -y
+  
+      - name: Build
+        run: cargo build --release
+  
+      - name: Prepare Installer Files
+        run: |
+          mkdir dist
+          cp target/release/rew_runtime.exe dist/rew.exe
+  
+      - name: Create Inno Setup Script
+        run: |
+          echo '''
+          [Setup]
+          AppName=rew
+          AppVersion=1.0
+          DefaultDirName={pf}\rew
+          DefaultGroupName=rew
+          OutputDir=dist
+          OutputBaseFilename=rew_installer
+          Compression=lzma
+          SolidCompression=yes
+  
+          [Files]
+          Source: "dist\\rew.exe"; DestDir: "{app}"; Flags: ignoreversion
+  
+          [Run]
+          Filename: "{app}\\rew.exe"; Description: "Run rew"; Flags: nowait postinstall skipifsilent
+  
+          [Registry]
+          Root: HKLM; Subkey: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment"; \
+          ValueType: string; ValueName: "Path"; ValueData: "{olddata};{app}"; Flags: preservestringtype uninsdeletevalue
+  
+          [Code]
+          function InitializeSetup(): Boolean;
+          begin
+            Result := True;
+          end;
+          ''' > dist/rew_installer.iss
+  
+      - name: Build Installer
+        run: |
+          "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" dist/rew_installer.iss
+  
+      - uses: softprops/action-gh-release@v1
+        with:
+          files: dist/rew_installer.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  
   build-linux-x86_64:
     runs-on: ubuntu-latest
     steps:
