@@ -699,7 +699,7 @@ return globalThis.module.exports;
       }
 
       let final_entry_id = entry_app_id.unwrap_or_else(|| entry_mod_id.to_string());
-      if !final_entry_id.ends_with(".brew") && !final_entry_id.ends_with(".qrew") {
+      if entry_calls.len() < 1 && !final_entry_id.ends_with(".brew") && !final_entry_id.ends_with(".qrew") {
         entry_calls.push(format!(
           "rew.prototype.mod.prototype.get('{}');",
           final_entry_id

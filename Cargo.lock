@@ -3157,7 +3157,7 @@ checksum = "95325155c684b1c89f7765e30bc1c42e4a6da51ca513615660cb8a62ef9a88e3"
 
 [[package]]
 name = "rew_runtime"
-version = "0.0.42"
+version = "0.0.43"
 dependencies = [
  "anyhow",
  "base64 0.21.7",
