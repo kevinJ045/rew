@@ -598,7 +598,10 @@ impl RewRuntime {
 
     for result in results {
       let (path, compiled) = result?;
-      let mod_id = path.to_str().unwrap_or("unknown");
+      let mod_id = path.to_str().unwrap_or("unknown")
+        .replace('\\', "\\\\")
+        .replace('\'', "\\'")
+        .replace('"', "\\\"");
       let mut mod_alias = String::new();
 
       if let Some(app_info) = crate::utils::find_app_info(&path) {
@@ -648,7 +651,7 @@ impl RewRuntime {
             entry_file
           ));
         }
-      } else if is_js_executable(mod_id) {
+      } else if is_js_executable(&mod_id) {
         module_wrappers.push_str(&format!(
           r#"rew.prototype.mod.prototype.defineNew("{id}", {{
 "{id}"(globalThis){{
