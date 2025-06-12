@@ -701,7 +701,7 @@ return globalThis.module.exports;
         }
       }
 
-      let final_entry_id = entry_app_id.unwrap_or_else(|| entry_mod_id.to_string());
+      let final_entry_id = entry_app_id.unwrap_or_else(|| entry_mod_id.to_string()).replace('\\', "\\\\");
       if entry_calls.len() < 1 && !final_entry_id.ends_with(".brew") && !final_entry_id.ends_with(".qrew") {
         entry_calls.push(format!(
           "rew.prototype.mod.prototype.get('{}');",
@@ -711,7 +711,7 @@ return globalThis.module.exports;
     }
 
     for entry_call in entry_calls {
-      module_wrappers.push_str(&format!("\n{}", entry_call));
+      module_wrappers.push_str(&format!("\n{}", entry_call.replace('\\', "\\\\")));
     }
 
     // fs::write("out.js", module_wrappers.clone())?;
