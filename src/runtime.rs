@@ -624,7 +624,7 @@ impl RewRuntime {
                 .to_string_lossy()
                 .into_owned();
               if mod_alias.is_empty() {
-                mod_alias.push_str(&format!("[\"app://{}/{}\"]", package, base_name))
+                mod_alias.push_str(&format!("[\"app://{}/{}\"]", package, base_name.replace('\\', "\\\\")))
               }
             }
           }
@@ -713,7 +713,7 @@ return globalThis.module.exports;
       module_wrappers.push_str(&format!("\n{}", entry_call));
     }
 
-    fs::write("out.js", module_wrappers.clone())?;
+    // fs::write("out.js", module_wrappers.clone())?;
 
     Ok(module_wrappers.to_string())
   }
