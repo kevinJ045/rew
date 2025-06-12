@@ -677,7 +677,6 @@ return globalThis.module.exports;
       }
     }
 
-    // Add the entry point from the function parameter if provided
     if let Some(entry) = entry {
       let entry_mod_id = entry.to_str().unwrap_or("entry");
       let mut entry_app_id = None;
