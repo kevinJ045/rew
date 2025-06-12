@@ -648,7 +648,7 @@ impl RewRuntime {
           let entry_file = cap[1].to_string();
           entry_calls.push(format!(
             "rew.prototype.mod.prototype.get('{}');",
-            entry_file
+            entry_file.replace('\\', "\\\\")
           ));
         }
       } else if is_js_executable(&mod_id) {
@@ -710,10 +710,10 @@ return globalThis.module.exports;
     }
 
     for entry_call in entry_calls {
-      module_wrappers.push_str(&format!("\n{}", entry_call.replace('\\', "\\\\")));
+      module_wrappers.push_str(&format!("\n{}", entry_call));
     }
 
-    // fs::write("out.js", module_wrappers.clone())?;
+    fs::write("out.js", module_wrappers.clone())?;
 
     Ok(module_wrappers.to_string())
   }
