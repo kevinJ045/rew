@@ -896,7 +896,9 @@ return globalThis.module.exports;
     }})()
     "#,
       file_id = file_id,
-      file = filepath.to_str().unwrap_or("unknown"),
+      file = filepath.to_str().unwrap_or("unknown").replace('\\', "\\\\")
+        .replace('\'', "\\'")
+        .replace('"', "\\\""),
       smp = self.sourcemap,
       inp = self.inlinemap,
       civet_options = civet_options.join(",")
