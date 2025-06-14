@@ -10,22 +10,26 @@ pub struct Declaration {
   pub is_definition: bool,
   #[allow(unused)]
   pub is_constructor: bool,
+  #[allow(unused)]
+  pub is_macro: bool,
   pub condition_prev: Option<String>, // New field for ONLYIF prev condition
   pub condition_next: Option<String>, // New field for ONLYIF next condition
 }
 
 impl Declaration {
   pub fn new(trigger: &str, replacement: &str) -> Self {
-    let is_definition = trigger.ends_with('*');
-    let is_constructor = trigger.ends_with('!');
+    let is_definition = trigger.starts_with('=');
+    let is_constructor = trigger.ends_with('*');
+    let is_macro = trigger.ends_with('!');
 
     let (replacement_text, condition_prev, condition_next) = Self::parse_onlyif(replacement);
 
     Self {
-      trigger: trigger.trim_end_matches(['*', '!'].as_ref()).to_string(),
+      trigger: trigger.trim_end_matches(['*', '!'].as_ref()).trim_start_matches(['='].as_ref()).to_string(),
       replacement: replacement_text,
       is_definition,
       is_constructor,
+      is_macro,
       condition_prev,
       condition_next,
     }

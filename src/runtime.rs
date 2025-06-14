@@ -1696,6 +1696,7 @@ fn op_fetch_env(_: Rc<RefCell<OpState>>) -> Result<String, CoreError> {
     "env": env_vars,
     "cwd": cwd,
     "execPath": exec_path,
+    "tempDir": std::env::temp_dir(),
     "rewPath": crate::utils::get_rew_root()
   });
 

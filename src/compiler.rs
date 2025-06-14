@@ -233,13 +233,10 @@ fn apply_declarations(
       .values()
       .chain(local_declarations.values());
     for decl in values {
-      let mut is_declaration = false;
-      let trigger = if decl.trigger.starts_with("=") {
-        is_declaration = true;
-        decl.trigger.replace("=", "")
-      } else {
-        decl.trigger.clone()
-      };
+      let is_declaration = decl.is_definition;
+      let is_macro = decl.is_macro;
+      // println!("{:?} {:?}", decl, decl.trigger.ends_with("!"));
+      let trigger = decl.trigger.clone();
 
       // println!("==> Token value: {}, needed: {}", token.value, decl.trigger.clone());
 
@@ -321,7 +318,11 @@ fn apply_declarations(
               if let Some((eq_token, _, _)) = get_next_token(cidx, 1, tokens) {
                 if eq_token.value == "=" {
                   str.push_str(
-                    format!("{} = {} ", next_token.value, decl.replacement.clone()).as_str(),
+                    format!("{} = {} ", next_token.value, if decl.is_constructor {
+                      format!("new {}", decl.replacement.clone())
+                    } else {
+                      decl.replacement.clone()
+                    }).as_str(),
                   );
                   if let Some((_, eq_idx)) = find_next_token(
                     index,
@@ -354,6 +355,23 @@ fn apply_declarations(
               return None;
             }
             return Some((index + 1 + additional_idx, str));
+          } else if is_macro {
+            let next_token = if let Some((token, _, idx)) = get_next_token(index, 1, tokens) {
+              additional_idx = idx;
+              token
+            } else {
+              Token {
+                token_type: "OTHER".to_string(),
+                value: "".to_string(),
+              }
+            };
+            println!("{}", next_token.value);
+            println!("{}", additional_idx);
+            if next_token.token_type == "OTHER" && next_token.value == "!" {
+              return Some((additional_idx, decl.replacement.clone()));
+            } else {
+              return None
+            }
           } else {
             return Some((index + 1 + additional_idx, decl.replacement.clone()));
           }
@@ -712,6 +730,19 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
       }
     }
 
+
+    if prev_token.clone().map_or(true, |(t, _, _)| t.value != ".")
+      && prev_token.clone().map_or(true, |(t, _, _)| t.value != ":")
+      && token.value == "private"
+      && next_token.clone().map_or(false, |(t, _, _)| {
+        t.value == "!"
+      })
+    {
+      result.push_str("private");
+      i += 2;
+      continue;
+    }
+
     if prev_token.clone().map_or(true, |(t, _, _)| t.value != ".")
       && prev_token.clone().map_or(true, |(t, _, _)| t.value != ":")
       && token.value == "private"
@@ -847,6 +878,8 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
     ),
     code: result,
   };
+
+  // println!("{}", compiler_results.code);
 
   // std::fs::write("out.compile_result", compiler_results.code.clone())?;
   Ok(compiler_results)
