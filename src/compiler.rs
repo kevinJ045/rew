@@ -735,10 +735,10 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
       && prev_token.clone().map_or(true, |(t, _, _)| t.value != ":")
       && token.value == "private"
       && next_token.clone().map_or(false, |(t, _, _)| {
-        t.value == "!"
+        t.value == "!" || t.value.starts_with("_")
       })
     {
-      result.push_str("private");
+      result.push_str("private ");
       i += 2;
       continue;
     }
