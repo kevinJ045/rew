@@ -16,6 +16,7 @@ struct Hook {
   value: String,
 }
 
+#[derive(Default)]
 pub struct CompilerOptions {
   pub keep_imports: bool,
   pub jsx: bool,
@@ -26,21 +27,6 @@ pub struct CompilerOptions {
 
   pub local_declarations: HashMap<String, Declaration>,
   pub global_declarations: HashMap<String, Declaration>,
-}
-
-impl Default for CompilerOptions {
-  fn default() -> Self {
-    CompilerOptions {
-      keep_imports: false,
-      jsx: false,
-      civet_options: vec![],
-      civet_global: vec![],
-      cls: false,
-      included: false,
-      local_declarations: HashMap::new(),
-      global_declarations: HashMap::new(),
-    }
-  }
 }
 
 pub struct CompilerResults {
@@ -89,11 +75,7 @@ pub fn tokenize_coffee_script(code: &str) -> Vec<Token> {
       i += 1;
       while i < chars.len() && (chars[i] != char || escaped) {
         string.push(chars[i]);
-        if chars[i] == '\\' && !escaped {
-          escaped = true;
-        } else {
-          escaped = false;
-        }
+        escaped = chars[i] == '\\' && !escaped;
         i += 1;
       }
       string.push(char);
@@ -196,23 +178,21 @@ fn find_next_token(
       token.token_type != "WHITESPACE"
     };
 
-    if pass {
-      if token.token_type == expected_type {
+    if pass && token.token_type == expected_type {
+      if let Some(val) = expected_value {
+        if token.value == val {
+          return Some((token.clone(), idx));
+        }
+      } else if expected_type == "WHITESPACE" {
         if let Some(val) = expected_value {
-          if token.value == val {
-            return Some((token.clone(), idx));
-          }
-        } else if expected_type == "WHITESPACE" {
-          if let Some(val) = expected_value {
-            if token.value.contains(val) {
-              return Some((token.clone(), idx));
-            }
-          } else {
+          if token.value.contains(val) {
             return Some((token.clone(), idx));
           }
         } else {
           return Some((token.clone(), idx));
         }
+      } else {
+        return Some((token.clone(), idx));
       }
     }
     idx += 1;
@@ -318,11 +298,16 @@ fn apply_declarations(
               if let Some((eq_token, _, _)) = get_next_token(cidx, 1, tokens) {
                 if eq_token.value == "=" {
                   str.push_str(
-                    format!("{} = {} ", next_token.value, if decl.is_constructor {
-                      format!("new {}", decl.replacement.clone())
-                    } else {
-                      decl.replacement.clone()
-                    }).as_str(),
+                    format!(
+                      "{} = {} ",
+                      next_token.value,
+                      if decl.is_constructor {
+                        format!("new {}", decl.replacement.clone())
+                      } else {
+                        decl.replacement.clone()
+                      }
+                    )
+                    .as_str(),
                   );
                   if let Some((_, eq_idx)) = find_next_token(
                     index,
@@ -333,7 +318,7 @@ fn apply_declarations(
                   ) {
                     if !args.is_empty() {
                       str.push_str(args.as_str());
-                      str.push_str(",");
+                      str.push(',');
                     }
                     additional_idx = eq_idx - index
                   } else {
@@ -370,7 +355,7 @@ fn apply_declarations(
             if next_token.token_type == "OTHER" && next_token.value == "!" {
               return Some((additional_idx, decl.replacement.clone()));
             } else {
-              return None
+              return None;
             }
           } else {
             return Some((index + 1 + additional_idx, decl.replacement.clone()));
@@ -404,12 +389,12 @@ fn get_string_until(
 }
 
 fn finalize_handle_import(tokens: &[Token], current_idx: usize) -> Result<(bool, Option<Token>)> {
-  match get_next_token(current_idx, 1, &tokens) {
+  match get_next_token(current_idx, 1, tokens) {
     Some((current_token, _, _)) => {
       if current_token.token_type == "STRING" {
-        return Ok((true, Some(current_token)));
+        Ok((true, Some(current_token)))
       } else {
-        return Ok((false, None));
+        Ok((false, None))
       }
     }
     _ => Ok((false, None)),
@@ -460,16 +445,16 @@ fn handle_import(tokens: &[Token], i: usize) -> (String, usize) {
         let mut default_name = token.value.clone();
         let mut used_multiple = false;
 
+        let re = Regex::new(r"(\w+)\s+as\s+(\w+)").unwrap();
         while current_idx < tokens.len() && tokens[current_idx].value != "from" {
           if tokens[current_idx].value == "as" {
-            if let Some((token, _, _)) = get_next_token(current_idx + 1, 1, &tokens) {
+            if let Some((token, _, _)) = get_next_token(current_idx + 1, 1, tokens) {
               if token.token_type == "IDENTIFIER" {
                 default_name = token.value;
               }
             }
           } else if tokens[current_idx].value == "{" {
             let (imports, new_idx) = get_string_until(tokens, current_idx + 1, &["}"], &[]);
-            let re = Regex::new(r"(\w+)\s+as\s+(\w+)").unwrap();
             let replaced_imports = re.replace_all(&imports, "$1: $2").to_string();
             default_name.insert_str(0, &format!("{{ {} }} = ", replaced_imports));
             used_multiple = true;
@@ -521,12 +506,12 @@ fn handle_compiler_options(
 ) -> usize {
   let mut current_idx = i + 1;
 
-  if let Some((name_token, idx)) = find_next_token(current_idx, &tokens, "IDENTIFIER", None, None) {
+  if let Some((name_token, idx)) = find_next_token(current_idx, tokens, "IDENTIFIER", None, None) {
     let mut name = name_token.value.clone();
     current_idx = idx + 1;
-    if let Some((_dot, _, idx)) = get_next_token(idx, 1, &tokens) {
+    if let Some((_dot, _, idx)) = get_next_token(idx, 1, tokens) {
       if _dot.value == "." {
-        if let Some((_state, _, idx)) = get_next_token(idx, 1, &tokens) {
+        if let Some((_state, _, idx)) = get_next_token(idx, 1, tokens) {
           current_idx = idx + 1;
           if _state.token_type == "IDENTIFIER" {
             name.push_str(format!(".{}", _state.value).as_str())
@@ -571,7 +556,7 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
 
     if token.token_type == "IDENTIFIER" && token.value == "fn" && i < 2 {
       if let Some((next, _, _)) = next_token.clone() {
-        if prev_token.clone().map_or(true, |(t, _, _)| t.value != ".")
+        if prev_token.clone().is_none_or(|(t, _, _)| t.value != ".")
           && next.token_type == "IDENTIFIER"
         {
           result.push_str("function");
@@ -581,10 +566,10 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
       }
     }
 
-    if prev_token.clone().map_or(true, |(t, _, _)| t.value != ".")
-      && prev_token.clone().map_or(true, |(t, _, _)| t.value != ":")
+    if prev_token.clone().is_none_or(|(t, _, _)| t.value != ".")
+      && prev_token.clone().is_none_or(|(t, _, _)| t.value != ":")
       && token.value == "@"
-      && next_token.clone().map_or(false, |(t, _, _)| t.value == "{")
+      && next_token.clone().is_some_and(|(t, _, _)| t.value == "{")
     {
       let main_idx = next_token.clone().unwrap().2;
       if let Some((_, brace_idx)) = find_next_token(main_idx, &tokens, "OTHER", Some("}"), None) {
@@ -638,12 +623,12 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
       }
     }
 
-    if prev_token.clone().map_or(true, |(t, _, _)| t.value != ".")
-      && prev_token.clone().map_or(true, |(t, _, _)| t.value != ":")
+    if prev_token.clone().is_none_or(|(t, _, _)| t.value != ".")
+      && prev_token.clone().is_none_or(|(t, _, _)| t.value != ":")
       && token.value == "function"
       && next_token
         .clone()
-        .map_or(false, |(t, _, _)| t.token_type == "IDENTIFIER")
+        .is_some_and(|(t, _, _)| t.token_type == "IDENTIFIER")
     {
       if let Some((_, _, idx)) = next_token.clone() {
         if let Some((next_token, _, idx)) = get_next_token(idx, 1, &tokens) {
@@ -695,22 +680,20 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
       }
     }
 
-    if prev_token.clone().map_or(true, |(t, _, _)| t.value != ".")
-      && prev_token.clone().map_or(true, |(t, _, _)| t.value != ":")
+    if prev_token.clone().is_none_or(|(t, _, _)| t.value != ".")
+      && prev_token.clone().is_none_or(|(t, _, _)| t.value != ":")
       && token.value == "using"
-      && next_token
-        .clone()
-        .map_or(false, |(t, _, _)| t.value == "JSX")
+      && next_token.clone().is_some_and(|(t, _, _)| t.value == "JSX")
     {
       options.jsx = true;
     }
 
-    if prev_token.clone().map_or(true, |(t, _, _)| t.value != ".")
-      && prev_token.clone().map_or(true, |(t, _, _)| t.value != ":")
+    if prev_token.clone().is_none_or(|(t, _, _)| t.value != ".")
+      && prev_token.clone().is_none_or(|(t, _, _)| t.value != ":")
       && token.value == "using"
-      && next_token.clone().map_or(false, |(t, _, _)| {
-        t.value == "compiler" || t.value == "pub" || t.value == "public"
-      })
+      && next_token
+        .clone()
+        .is_some_and(|(t, _, _)| t.value == "compiler" || t.value == "pub" || t.value == "public")
     {
       if let Some((next, _, idx)) = next_token.clone() {
         if next.value == "pub" || next.value == "public" {
@@ -730,21 +713,20 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
       }
     }
 
-
-    if prev_token.clone().map_or(true, |(t, _, _)| t.value != ".")
-      && prev_token.clone().map_or(true, |(t, _, _)| t.value != ":")
+    if prev_token.clone().is_none_or(|(t, _, _)| t.value != ".")
+      && prev_token.clone().is_none_or(|(t, _, _)| t.value != ":")
       && token.value == "private"
-      && next_token.clone().map_or(false, |(t, _, _)| {
-        t.value == "!" || t.value.starts_with("_")
-      })
+      && next_token
+        .clone()
+        .is_some_and(|(t, _, _)| t.value == "!" || t.value.starts_with("_"))
     {
       result.push_str("private ");
       i += 2;
       continue;
     }
 
-    if prev_token.clone().map_or(true, |(t, _, _)| t.value != ".")
-      && prev_token.clone().map_or(true, |(t, _, _)| t.value != ":")
+    if prev_token.clone().is_none_or(|(t, _, _)| t.value != ".")
+      && prev_token.clone().is_none_or(|(t, _, _)| t.value != ":")
       && token.value == "private"
     {
       result.push_str("pvt");
@@ -752,8 +734,8 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
       continue;
     }
 
-    if prev_token.clone().map_or(true, |(t, _, _)| t.value != ".")
-      && prev_token.clone().map_or(true, |(t, _, _)| t.value != ":")
+    if prev_token.clone().is_none_or(|(t, _, _)| t.value != ".")
+      && prev_token.clone().is_none_or(|(t, _, _)| t.value != ":")
       && token.value == "public"
     {
       result.push_str("pub");
@@ -767,7 +749,7 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
 
     if prev_token
       .clone()
-      .map_or(true, |(t, _, _)| t.value == "export")
+      .is_none_or(|(t, _, _)| t.value == "export")
       && token.token_type == "IDENTIFIER"
       && token.value == "default"
       && !options.keep_imports
@@ -776,8 +758,8 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
       continue;
     }
 
-    if prev_token.clone().map_or(true, |(t, _, _)| t.value != ".")
-      && prev_token.clone().map_or(true, |(t, _, _)| t.value != ":")
+    if prev_token.clone().is_none_or(|(t, _, _)| t.value != ".")
+      && prev_token.clone().is_none_or(|(t, _, _)| t.value != ":")
       && token.token_type == "IDENTIFIER"
       && token.value == "package"
     {
@@ -787,14 +769,14 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
           result.push_str(format!("rew::mod::package \"{}\"", item).as_str());
           i = new_idx;
         } else {
-          i = i + 1;
+          i += 1;
         }
         continue;
       }
     }
 
-    if prev_token.clone().map_or(true, |(t, _, _)| t.value != ".")
-      && prev_token.clone().map_or(true, |(t, _, _)| t.value != ":")
+    if prev_token.clone().is_none_or(|(t, _, _)| t.value != ".")
+      && prev_token.clone().is_none_or(|(t, _, _)| t.value != ":")
       && token.token_type == "IDENTIFIER"
       && token.value == "export"
       && !options.keep_imports
@@ -826,7 +808,7 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
       continue;
     }
 
-    if prev_token.map_or(true, |(t, _, _)| t.value != ".")
+    if prev_token.is_none_or(|(t, _, _)| t.value != ".")
       && token.token_type == "IDENTIFIER"
       && token.value == "import"
       && !options.keep_imports

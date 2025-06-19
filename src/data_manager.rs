@@ -85,7 +85,7 @@ impl DataManager {
     Ok(result)
   }
 
-  fn list_recursive(&self, dir: &Path, result: &mut Vec<String>, prefix: &str) -> Result<()> {
+  fn list_recursive(&self, dir: &Path, result: &mut Vec<String>, _prefix: &str) -> Result<()> {
     if !dir.exists() {
       return Ok(());
     }
@@ -104,7 +104,7 @@ impl DataManager {
           .to_string();
         result.push(rel_path);
       } else if path.is_dir() {
-        self.list_recursive(&path, result, prefix)?;
+        self.list_recursive(&path, result, _prefix)?;
       }
     }
 
@@ -193,17 +193,18 @@ impl DataManager {
 
     // Try to parse as JSON
     let content = String::from_utf8_lossy(sample);
-    if content.trim_start().starts_with('{') || content.trim_start().starts_with('[') {
-      if serde_json::from_str::<Value>(&content).is_ok() {
-        return Ok(DataFormat::Json);
-      }
+    if (content.trim_start().starts_with('{') || content.trim_start().starts_with('['))
+      && serde_json::from_str::<Value>(&content).is_ok()
+    {
+      return Ok(DataFormat::Json);
     }
 
     // Try to parse as YAML
-    if content.contains(':') && !content.contains('{') {
-      if serde_yaml::from_str::<Value>(&content).is_ok() {
-        return Ok(DataFormat::Yaml);
-      }
+    if content.contains(':')
+      && !content.contains('{')
+      && serde_yaml::from_str::<Value>(&content).is_ok()
+    {
+      return Ok(DataFormat::Yaml);
     }
 
     // Default to text
