@@ -40,16 +40,15 @@ pub fn get_rew_root() -> PathBuf {
     });
     PathBuf::from(format!("{}\\rew", local_app_data))
   }
-  
+
   #[cfg(not(target_os = "windows"))]
   {
-    let path = if std::path::Path::new("/opt/rew").exists() {
+    if std::path::Path::new("/opt/rew").exists() {
       PathBuf::from("/opt/rew")
     } else {
       let home = env::var("HOME").unwrap_or_else(|_| ".".to_string());
       PathBuf::from(format!("{}/.rew", home))
-    };
-    path
+    }
   }
 }
 

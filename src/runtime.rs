@@ -78,19 +78,10 @@ struct RuntimeState {
   args: Vec<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct BuildOptions {
   pub bundle_all: bool,
   pub entry_file: Option<PathBuf>,
-}
-
-impl Default for BuildOptions {
-  fn default() -> Self {
-    BuildOptions {
-      bundle_all: false,
-      entry_file: None,
-    }
-  }
 }
 
 #[derive(Debug, Clone)]
@@ -257,9 +248,9 @@ pub fn get_rew_runtime(
   extensions.extend(process::extensions(false));
 
   let mut runtime = JsRuntime::new(RuntimeOptions {
-    extensions: extensions,
+    extensions,
     // module_loader: Some(Rc::new(deno_core::FsModuleLoader)),
-    is_main: is_main,
+    is_main,
     ..Default::default()
   });
 
@@ -295,10 +286,10 @@ fn get_storage_path(file_path_str: &str) -> PathBuf {
   if !file_path_str.starts_with("./") {
     return PathBuf::from(file_path_str);
   }
-  if let Some(app_info) = crate::utils::find_app_info(&Path::new(file_path_str)) {
+  if let Some(app_info) = crate::utils::find_app_info(Path::new(file_path_str)) {
     if let Some(manifest) = &app_info.config.manifest {
       if let Some(package) = &manifest.package {
-        if let Some(rel_path) = Path::new(file_path_str).strip_prefix(&app_info.path).ok() {
+        if let Ok(rel_path) = Path::new(file_path_str).strip_prefix(&app_info.path) {
           PathBuf::from(format!("{}/{}", package, rel_path.to_string_lossy()))
         } else {
           PathBuf::from(file_path_str)
@@ -349,7 +340,7 @@ impl RewRuntime {
     let filepath = filepath
       .as_ref()
       .canonicalize()
-      .with_context(|| format!("Failed to resolve import"))?;
+      .with_context(|| "Failed to resolve import".to_string())?;
 
     let import_re = Regex::new(r#"(?m)^\s*import\s+(?:[^;]*?\s+from\s+)?["']([^"']+)["']"#)
       .context("Invalid regex pattern")?;
@@ -371,7 +362,7 @@ impl RewRuntime {
         return Ok(());
       }
 
-      let mut should_preprocess = preprocess_import.clone();
+      let mut should_preprocess = preprocess_import;
       let file_path_unf = file_path.to_str().unwrap_or("");
       let file_path_str = if file_path_unf.ends_with('!') {
         should_preprocess = true;
@@ -382,7 +373,7 @@ impl RewRuntime {
 
       let is_brew_file = file_path
         .extension()
-        .map_or(false, |ext| ext == "brew" || ext == "qrew");
+        .is_some_and(|ext| ext == "brew" || ext == "qrew");
 
       let real_content = if let Some(v) = VIRTUAL_FILES
         .lock()
@@ -491,7 +482,7 @@ impl RewRuntime {
             && !relative_path.contains("\\")
             && !relative_path.starts_with(".")
           {
-            if let Some(app_entry) = crate::utils::resolve_app_entry(&relative_path, None) {
+            if let Some(app_entry) = crate::utils::resolve_app_entry(relative_path, None) {
               visit_file(
                 &app_entry,
                 visited,
@@ -531,7 +522,7 @@ impl RewRuntime {
               let included_path = parent
                 .join(relative_path)
                 .canonicalize()
-                .with_context(|| format!("Failed to resolve import"))?;
+                .with_context(|| "Failed to resolve import".to_string())?;
 
               visit_file(
                 &included_path,
@@ -546,7 +537,7 @@ impl RewRuntime {
             let included_path = parent
               .join(relative_path)
               .canonicalize()
-              .with_context(|| format!("Failed to resolve import"))?;
+              .with_context(|| "Failed to resolve import".to_string())?;
 
             visit_file(
               &included_path,
@@ -596,9 +587,12 @@ impl RewRuntime {
     .collect::<Vec<_>>()
     .await;
 
+    let entry_regex = Regex::new(r#"//\s*entry\s*"([^"]+)""#).unwrap();
     for result in results {
       let (path, compiled) = result?;
-      let mod_id = path.to_str().unwrap_or("unknown")
+      let mod_id = path
+        .to_str()
+        .unwrap_or("unknown")
         .replace('\\', "\\\\")
         .replace('\'', "\\'")
         .replace('"', "\\\"");
@@ -607,7 +601,7 @@ impl RewRuntime {
       if let Some(app_info) = crate::utils::find_app_info(&path) {
         if let Some(manifest) = &app_info.config.manifest {
           if let Some(package) = &manifest.package {
-            if let Some(rel_path) = path.strip_prefix(&app_info.path).ok() {
+            if let Ok(rel_path) = path.strip_prefix(&app_info.path) {
               let rel_path_str = rel_path.to_str().unwrap_or("");
 
               if let Some(entries) = &app_info.config.entries {
@@ -624,7 +618,11 @@ impl RewRuntime {
                 .to_string_lossy()
                 .into_owned();
               if mod_alias.is_empty() {
-                mod_alias.push_str(&format!("[\"app://{}/{}\"]", package, base_name.replace('\\', "\\\\")))
+                mod_alias.push_str(&format!(
+                  "[\"app://{}/{}\"]",
+                  package,
+                  base_name.replace('\\', "\\\\")
+                ))
               }
             }
           }
@@ -643,7 +641,6 @@ impl RewRuntime {
         // }
         module_wrappers.push_str(compiled.as_str());
 
-        let entry_regex = Regex::new(r#"//\s*entry\s*"([^"]+)""#).unwrap();
         for cap in entry_regex.captures_iter(&compiled) {
           let entry_file = cap[1].to_string();
           entry_calls.push(format!(
@@ -684,7 +681,7 @@ return globalThis.module.exports;
       if let Some(app_info) = crate::utils::find_app_info(entry) {
         if let Some(manifest) = &app_info.config.manifest {
           if let Some(package) = &manifest.package {
-            if let Some(rel_path) = entry.strip_prefix(&app_info.path).ok() {
+            if let Ok(rel_path) = entry.strip_prefix(&app_info.path) {
               let rel_path_str = rel_path.to_str().unwrap_or("");
 
               if let Some(entries) = &app_info.config.entries {
@@ -700,8 +697,13 @@ return globalThis.module.exports;
         }
       }
 
-      let final_entry_id = entry_app_id.unwrap_or_else(|| entry_mod_id.to_string()).replace('\\', "\\\\");
-      if entry_calls.len() < 1 && !final_entry_id.ends_with(".brew") && !final_entry_id.ends_with(".qrew") {
+      let final_entry_id = entry_app_id
+        .unwrap_or_else(|| entry_mod_id.to_string())
+        .replace('\\', "\\\\");
+      if entry_calls.is_empty()
+        && !final_entry_id.ends_with(".brew")
+        && !final_entry_id.ends_with(".qrew")
+      {
         entry_calls.push(format!(
           "rew.prototype.mod.prototype.get('{}');",
           final_entry_id
@@ -741,23 +743,21 @@ return globalThis.module.exports;
             if !path.starts_with(app_path) || path.to_str().unwrap_or("").starts_with("#") {
               if path.to_str().unwrap_or("").starts_with("#") {
                 excluded.push(path.to_str().unwrap_or("").to_string());
-              } else {
-                if let Some(app_info) = crate::utils::find_app_info(&path) {
-                  if let Some(manifest) = &app_info.config.manifest {
-                    if let Some(package) = &manifest.package {
-                      if let Some(rel_path) = path.strip_prefix(&app_info.path).ok() {
-                        let rel_path_str = rel_path.to_str().unwrap_or("");
+              } else if let Some(app_info) = crate::utils::find_app_info(path) {
+                if let Some(manifest) = &app_info.config.manifest {
+                  if let Some(package) = &manifest.package {
+                    if let Ok(rel_path) = path.strip_prefix(&app_info.path) {
+                      let rel_path_str = rel_path.to_str().unwrap_or("");
 
-                        if let Some(entries) = &app_info.config.entries {
-                          for (key, value) in entries {
-                            if value == rel_path_str {
-                              let entry_id = format!("{}/{}", package, key);
+                      if let Some(entries) = &app_info.config.entries {
+                        for (key, value) in entries {
+                          if value == rel_path_str {
+                            let entry_id = format!("{}/{}", package, key);
 
-                              if !excluded.contains(&entry_id) {
-                                excluded.push(entry_id.clone());
-                              }
-                              break;
+                            if !excluded.contains(&entry_id) {
+                              excluded.push(entry_id.clone());
                             }
+                            break;
                           }
                         }
                       }
@@ -806,7 +806,7 @@ return globalThis.module.exports;
       0,
       format!("\n// entry \"{}\" \n", entry.to_str().unwrap_or("unknown")).as_str(),
     );
-    string.push_str("\n");
+    string.push('\n');
 
     string = encode_brew_file(&string);
 
@@ -834,9 +834,10 @@ return globalThis.module.exports;
     filepath: &Path,
     keep_imports: bool,
   ) -> Result<String> {
-    if filepath.extension().map_or(false, |ext| {
-      ext != "coffee" && ext != "civet" && ext != "rew"
-    }) || source.starts_with("\"no-compile\"")
+    if filepath
+      .extension()
+      .is_some_and(|ext| ext != "coffee" && ext != "civet" && ext != "rew")
+      || source.starts_with("\"no-compile\"")
     {
       // self.declaration_engine.process_script(source);
       return Ok(source.to_string());
@@ -847,9 +848,9 @@ return globalThis.module.exports;
     let global_declarations = self.declaration_engine.global_declarations.clone();
 
     let file_id = filepath
-    .to_str()
-    .unwrap_or("unknown")
-    .replace(|c: char| !c.is_ascii_alphanumeric(), "_");
+      .to_str()
+      .unwrap_or("unknown")
+      .replace(|c: char| !c.is_ascii_alphanumeric(), "_");
 
     let processed = self.preprocess_rew(
       source,
@@ -898,7 +899,10 @@ return globalThis.module.exports;
     }})()
     "#,
       file_id = file_id,
-      file = filepath.to_str().unwrap_or("unknown").replace('\\', "\\\\")
+      file = filepath
+        .to_str()
+        .unwrap_or("unknown")
+        .replace('\\', "\\\\")
         .replace('\'', "\\'")
         .replace('"', "\\\""),
       smp = self.sourcemap,
@@ -944,7 +948,7 @@ return globalThis.module.exports;
     keep_imports: bool,
   ) -> Result<CompilerResults> {
     let mut options = CompilerOptions {
-      keep_imports: keep_imports,
+      keep_imports,
       civet_global: vec![],
       jsx: false,
       civet_options: vec![],
@@ -967,7 +971,7 @@ return globalThis.module.exports;
 
     for (_, content, preprocess) in &files_with_flags {
       if *preprocess {
-        let local_declarations = self.declaration_engine.process_script(&content);
+        let local_declarations = self.declaration_engine.process_script(content);
 
         for (name, decl) in local_declarations {
           self
@@ -1103,16 +1107,14 @@ async fn op_fs_write(
         "Expected array of bytes for binary write",
       )));
     }
+  } else if let serde_json::Value::String(text) = content {
+    let mut file = File::create(&full_path).map_err(CoreError::Io)?;
+    file.write_all(text.as_bytes()).map_err(CoreError::Io)?;
   } else {
-    if let serde_json::Value::String(text) = content {
-      let mut file = File::create(&full_path).map_err(CoreError::Io)?;
-      file.write_all(text.as_bytes()).map_err(CoreError::Io)?;
-    } else {
-      return Err(CoreError::Io(io::Error::new(
-        io::ErrorKind::InvalidData,
-        "Expected string for text write",
-      )));
-    }
+    return Err(CoreError::Io(io::Error::new(
+      io::ErrorKind::InvalidData,
+      "Expected string for text write",
+    )));
   }
 
   Ok(())
@@ -1812,11 +1814,11 @@ async fn op_dyn_imp(
   let mut runtime = RewRuntime::new(None, None)
     .map_err(|_| CoreError::Io(io::Error::new(io::ErrorKind::NotFound, "")))?;
 
-  let files_with_flags = RewRuntime::resolve_includes_recursive_from(&file_path.clone())
+  let files_with_flags = RewRuntime::resolve_includes_recursive_from(file_path.clone())
     .map_err(|_| CoreError::Io(io::Error::new(io::ErrorKind::NotFound, "")))?;
   for (_, content, preprocess) in &files_with_flags {
     if *preprocess {
-      let local_declarations = runtime.declaration_engine.process_script(&content);
+      let local_declarations = runtime.declaration_engine.process_script(content);
 
       for (name, decl) in local_declarations {
         runtime
@@ -1880,7 +1882,7 @@ fn op_rand_from(
 #[string]
 fn op_vfile_set(#[string] full_path: String, #[string] content: String) -> String {
   add_virtual_file(full_path.as_str(), content.as_str());
-  return "".to_string();
+  "".to_string()
 }
 
 #[op2]
@@ -1894,7 +1896,7 @@ fn op_vfile_get(#[string] full_path: String) -> String {
   {
     return v.1.clone();
   }
-  return "".to_string();
+  "".to_string()
 }
 
 #[op2]
@@ -1907,15 +1909,15 @@ fn op_gen_uid(length: i32, #[string] seed: Option<String>) -> String {
     let seed = hasher.finish();
     let mut rng = StdRng::seed_from_u64(seed);
 
-    return (0..length)
+    (0..length)
       .map(|_| rng.sample(Alphanumeric) as char)
-      .collect();
+      .collect()
   } else {
     let mut rng = rand::thread_rng();
 
-    return (0..length)
+    (0..length)
       .map(|_| rng.sample(Alphanumeric) as char)
-      .collect();
+      .collect()
   }
 }
 

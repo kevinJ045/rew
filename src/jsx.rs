@@ -49,11 +49,11 @@ impl<'a> Parser<'a> {
 
     if self.starts_with("/>") {
       self.consume("/>");
-      return Node::Element {
+      Node::Element {
         tag,
         attrs,
         children: Vec::new(),
-      };
+      }
     } else {
       self.consume(">");
       let children = self.parse();
@@ -278,7 +278,7 @@ fn tokenize(source: &str) -> Vec<Token> {
       let mut s = String::new();
       s.push(c);
       chars.next();
-      while let Some(ch) = chars.next() {
+      for ch in chars.by_ref() {
         s.push(ch);
         if ch == quote {
           break;
@@ -287,7 +287,7 @@ fn tokenize(source: &str) -> Vec<Token> {
       tokens.push(Token::String(s));
     } else if c == '/' && chars.clone().nth(1) == Some('/') {
       let mut comment = String::new();
-      while let Some(ch) = chars.next() {
+      for ch in chars.by_ref() {
         comment.push(ch);
         if ch == '\n' {
           break;
@@ -404,5 +404,5 @@ fn compile_jsx_fragments(tokens: &[Token], pragma: Option<String>) -> String {
 }
 
 pub fn compile_jsx(input: String, pragma: Option<String>) -> String {
-  return compile_jsx_fragments(&tokenize(&input), pragma);
+  compile_jsx_fragments(&tokenize(&input), pragma)
 }

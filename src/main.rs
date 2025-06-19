@@ -2,7 +2,6 @@ use clap::{Parser, Subcommand};
 use colored::*;
 use std::fs;
 use std::path::PathBuf;
-use tokio;
 use tokio::task::LocalSet;
 
 pub mod builtins;
@@ -32,7 +31,7 @@ fn ensure_rew_dirs() -> anyhow::Result<()> {
   if !apps_dir.exists() {
     fs::create_dir_all(&apps_dir)?;
   }
-  
+
   let bin_dir = rew_root.join("bin");
   if !bin_dir.exists() {
     fs::create_dir_all(&bin_dir)?;
@@ -118,11 +117,10 @@ fn main() -> anyhow::Result<()> {
       match &cli.command {
         Commands::Run {
           file,
-          watch,
+          watch: _,
           entry,
           args,
         } => {
-          if *watch {}
           if file.is_dir() {
             let app_yaml = file.join("app.yaml");
             if app_yaml.exists() {
@@ -185,7 +183,7 @@ fn main() -> anyhow::Result<()> {
         }
         Commands::Compile { file } => {
           let mut runtime = RewRuntime::new(None, None)?;
-          let content = fs::read_to_string(&file)?;
+          let content = fs::read_to_string(file)?;
           let f = runtime.compile_and_run(&content, file, true).await?;
           println!("{}", f);
         }

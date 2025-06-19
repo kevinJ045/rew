@@ -1,6 +1,5 @@
 use regex::Regex;
 use std::collections::HashMap;
-use uuid;
 
 #[derive(Debug, Clone)]
 pub struct Declaration {
@@ -25,7 +24,10 @@ impl Declaration {
     let (replacement_text, condition_prev, condition_next) = Self::parse_onlyif(replacement);
 
     Self {
-      trigger: trigger.trim_end_matches(['*', '!'].as_ref()).trim_start_matches(['='].as_ref()).to_string(),
+      trigger: trigger
+        .trim_end_matches(['*', '!'].as_ref())
+        .trim_start_matches(['='].as_ref())
+        .to_string(),
       replacement: replacement_text,
       is_definition,
       is_constructor,
@@ -146,7 +148,7 @@ impl DeclarationEngine {
     // println!("Parsed declaration: trigger={}, replacement={}", trigger, replacement);
 
     // Create the declaration
-    let decl = Declaration::new(trigger, &replacement.trim());
+    let decl = Declaration::new(trigger, replacement.trim());
 
     // Print the parsed declaration for debugging
     // println!("Created declaration: trigger={}, replacement={}, prev={:?}, next={:?}",
@@ -205,6 +207,6 @@ impl DeclarationEngine {
       self.parse_declaration(&multiline_buffer, &mut local_declarations);
     }
 
-    return local_declarations;
+    local_declarations
   }
 }

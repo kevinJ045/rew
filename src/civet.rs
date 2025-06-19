@@ -1,5 +1,5 @@
 pub fn get_civet_script() -> String {
-  return String::from(
+  String::from(
     r#"
   (()=>{
     "use strict";
@@ -17378,5 +17378,5 @@ globalThis.compile = (...args) => {
 
   })();
   "#,
-  );
+  )
 }
