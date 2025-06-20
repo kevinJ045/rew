@@ -68,31 +68,29 @@ pub fn find_app_by_package(package_name: &str) -> Option<AppInfo> {
 
   let app_dirs = fs::read_dir(&apps_dir).ok()?;
 
-  for dir_entry in app_dirs {
-    if let Ok(entry) = dir_entry {
-      let app_dir = entry.path();
-      if !app_dir.is_dir() {
-        continue;
-      }
+  for dir_entry in app_dirs.flatten() {
+    let app_dir = dir_entry.path();
+    if !app_dir.is_dir() {
+      continue;
+    }
 
-      let config_path = app_dir.join("app.yaml");
-      if !config_path.exists() {
-        continue;
-      }
+    let config_path = app_dir.join("app.yaml");
+    if !config_path.exists() {
+      continue;
+    }
 
-      // Read and parse the app.yaml file
-      let config_str = fs::read_to_string(&config_path).ok()?;
-      let config: AppConfig = serde_yaml::from_str(&config_str).ok()?;
+    // Read and parse the app.yaml file
+    let config_str = fs::read_to_string(&config_path).ok()?;
+    let config: AppConfig = serde_yaml::from_str(&config_str).ok()?;
 
-      // Check if this app has the requested package name
-      if let Some(manifest) = &config.manifest {
-        if let Some(pkg) = &manifest.package {
-          if pkg == package_name {
-            return Some(AppInfo {
-              path: app_dir,
-              config,
-            });
-          }
+    // Check if this app has the requested package name
+    if let Some(manifest) = &config.manifest {
+      if let Some(pkg) = &manifest.package {
+        if pkg == package_name {
+          return Some(AppInfo {
+            path: app_dir,
+            config,
+          });
         }
       }
     }

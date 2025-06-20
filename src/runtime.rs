@@ -573,7 +573,7 @@ impl RewRuntime {
     let mut module_wrappers = String::new();
     let mut entry_calls = Vec::new();
 
-    let shared = std::sync::Arc::new(tokio::sync::Mutex::new(self));
+    let shared = std::rc::Rc::new(tokio::sync::Mutex::new(self));
 
     let results = stream::iter(files.into_iter().map(|(path, source)| {
       let shared = shared.clone();
