@@ -36,6 +36,13 @@ pub struct CompilerResults {
 }
 
 // i hate this function
+/// Tokenizes CoffeeScript code into a vector of `Token` structs.
+/// 
+/// # Arguments
+/// * `code` - A string slice containing the CoffeeScript code to tokenize.
+/// 
+/// # Returns
+/// * A vector of `Token` structs representing the parsed tokens.
 pub fn tokenize_coffee_script(code: &str) -> Vec<Token> {
   let mut tokens = Vec::new();
   let mut i = 0;
@@ -200,6 +207,17 @@ fn find_next_token(
   None
 }
 
+/// Applies declarations to transform tokens based on predefined rules.
+/// 
+/// # Arguments
+/// * `token` - The current token being analyzed.
+/// * `index` - The index of the current token in the tokens array.
+/// * `tokens` - A slice of all tokens in the code.
+/// * `local_declarations` - A reference to local declarations for this compilation.
+/// * `global_declarations` - A reference to global declarations shared across compilations.
+/// 
+/// # Returns
+/// * An optional tuple containing the new index and transformed string, if applicable.
 fn apply_declarations(
   token: &Token,
   index: usize,
@@ -530,6 +548,14 @@ fn handle_compiler_options(
 }
 
 // i hate this function too!
+/// Compiles Rew content by tokenizing, analyzing, and transforming the code.
+/// 
+/// # Arguments
+/// * `content` - A string slice containing the Rew code to compile.
+/// * `options` - A mutable reference to `CompilerOptions` containing compilation options.
+/// 
+/// # Returns
+/// * A `Result` containing `CompilerResults` or an error message.
 pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result<CompilerResults> {
   let tokens = tokenize_coffee_script(content);
   let mut result = String::new();

@@ -18,35 +18,31 @@ mod utils;
 mod workers;
 use runtime::RewRuntime;
 
+/// Ensures that necessary directories for the Rew runtime exist.
+/// 
+/// This function creates the following directories if they are missing:
+/// - Root directory for Rew
+/// - Subdirectories: `apps`, `bin`, `data`, and `config`
+/// 
+/// Returns:
+/// - `Ok(())` if all directories are created successfully.
+/// - An `anyhow::Result` error if directory creation fails.
 fn ensure_rew_dirs() -> anyhow::Result<()> {
   let rew_root = utils::get_rew_root();
 
-  // Create the root directory if it doesn't exist
-  if !rew_root.exists() {
-    fs::create_dir_all(&rew_root)?;
+  // Helper function to create directories if they don't exist
+  fn create_dir_if_missing(path: &PathBuf) -> anyhow::Result<()> {
+    if !path.exists() {
+      fs::create_dir_all(path)?;
+    }
+    Ok(())
   }
 
-  // Create the apps directory if it doesn't exist
-  let apps_dir = rew_root.join("apps");
-  if !apps_dir.exists() {
-    fs::create_dir_all(&apps_dir)?;
-  }
-
-  let bin_dir = rew_root.join("bin");
-  if !bin_dir.exists() {
-    fs::create_dir_all(&bin_dir)?;
-  }
-
-  // Create other directories as needed
-  let data_dir = rew_root.join("data");
-  if !data_dir.exists() {
-    fs::create_dir_all(&data_dir)?;
-  }
-
-  let config_dir = rew_root.join("config");
-  if !config_dir.exists() {
-    fs::create_dir_all(&config_dir)?;
-  }
+  create_dir_if_missing(&rew_root)?;
+  create_dir_if_missing(&rew_root.join("apps"))?;
+  create_dir_if_missing(&rew_root.join("bin"))?;
+  create_dir_if_missing(&rew_root.join("data"))?;
+  create_dir_if_missing(&rew_root.join("config"))?;
 
   Ok(())
 }

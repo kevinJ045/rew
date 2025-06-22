@@ -45,10 +45,24 @@ use std::sync::Mutex;
 #[derive(Default)]
 pub struct RuntimeArgs(pub Vec<String>);
 
+/// Encodes the provided string content into Base64 format.
+/// 
+/// # Arguments
+/// * `content` - The string to encode.
+/// 
+/// # Returns
+/// * A Base64 encoded string.
 fn encode_brew_file(content: &str) -> String {
   BASE64.encode(content.as_bytes())
 }
 
+/// Decodes a Base64 encoded string back into its original form.
+/// 
+/// # Arguments
+/// * `encoded` - The Base64 encoded string to decode.
+/// 
+/// # Returns
+/// * A `Result` containing the decoded string or an error message.
 fn decode_brew_file(encoded: &str) -> Result<String> {
   let decoded = BASE64
     .decode(encoded.trim())
@@ -60,6 +74,11 @@ fn decode_brew_file(encoded: &str) -> Result<String> {
 
 pub static VIRTUAL_FILES: Lazy<Mutex<Vec<(String, String)>>> = Lazy::new(|| Mutex::new(vec![]));
 
+/// Adds a virtual file to the runtime's virtual file storage.
+/// 
+/// # Arguments
+/// * `path` - The path of the virtual file.
+/// * `contents` - The contents of the virtual file.
 pub fn add_virtual_file(path: &str, contents: &str) {
   let mut files = VIRTUAL_FILES.lock().unwrap();
   files.push((path.to_string(), contents.to_string()));

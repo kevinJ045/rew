@@ -2,8 +2,13 @@ use regex::Regex;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
+/// Represents a code declaration with a trigger and replacement logic.
+/// 
+/// A declaration can be a constructor, macro, or definition, and it may also include conditions for matching.
 pub struct Declaration {
+  /// The string that triggers this declaration.
   pub trigger: String,
+  /// The replacement string or code for this declaration.
   pub replacement: String,
   #[allow(unused)]
   pub is_definition: bool,
@@ -16,6 +21,11 @@ pub struct Declaration {
 }
 
 impl Declaration {
+  /// Creates a new `Declaration` instance by parsing the trigger and replacement strings.
+  /// 
+  /// # Arguments
+  /// * `trigger` - The identifier or pattern that triggers this declaration.
+  /// * `replacement` - The code or text that replaces the trigger.
   pub fn new(trigger: &str, replacement: &str) -> Self {
     let is_definition = trigger.starts_with('=');
     let is_constructor = trigger.ends_with('*');
@@ -74,11 +84,21 @@ impl Declaration {
 }
 
 #[derive(Default, Clone)]
+/// Engine for managing and processing code declarations.
 pub struct DeclarationEngine {
+  /// Stores global-level declarations accessible across the entire project.
   pub global_declarations: HashMap<String, Declaration>,
 }
 
 impl DeclarationEngine {
+  /// Parses a single line of code to extract declarations.
+  /// 
+  /// # Arguments
+  /// * `line` - A line of code potentially containing a declaration.
+  /// * `local_declarations` - A mutable reference to the local declarations map.
+  /// 
+  /// # Returns
+  /// * `true` if a declaration was successfully parsed, `false` otherwise.
   pub fn parse_declaration(
     &mut self,
     line: &str,
