@@ -592,14 +592,20 @@ impl RewRuntime {
     let mut module_wrappers = String::new();
     let mut entry_calls = Vec::new();
 
-    let shared = std::rc::Rc::new(tokio::sync::Mutex::new(self));
+    // let shared = std::rc::Rc::new(tokio::sync::Mutex::new(self));
 
-    let results = stream::iter(files.into_iter().map(|(path, source)| {
-      let shared = shared.clone();
+    
+    let results = stream::iter(files.into_iter().map(|(path_original, source)| {
+      let path = path_original.clone();
+      let source = source.clone();
       async move {
-        let mut guard = shared.lock().await;
-        let compiled = guard.compile_and_run(&source, &path, false).await?;
-        Ok::<(PathBuf, String), anyhow::Error>((path, compiled))
+        let res = tokio::task::spawn_blocking(move || {
+          let mut runtime = RewRuntime::new(None, None)
+            .map_err(|e| anyhow::anyhow!("Failed to create runtime: {}", e))?;
+          tokio::runtime::Handle::current().block_on(runtime.compile_and_run(&source, &path, false))
+        }).await
+        .map_err(|e| anyhow::anyhow!("Thread join error: {}", e))??;
+        Ok::<(PathBuf, String), anyhow::Error>((path_original.clone(), res))
       }
     }))
     .buffer_unordered(16) // concurrency limit

@@ -2,7 +2,7 @@ pub fn get_civet_script() -> String {
   String::from(
     r#"
   (()=>{
-    "use strict";
+"use strict";
 var module = {};
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -17376,7 +17376,7 @@ globalThis.compile = (...args) => {
     return compiled;
 };
 
-  })();
+})();
   "#,
   )
 }
