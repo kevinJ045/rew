@@ -7,6 +7,11 @@ import "#std.types";
 
 using namespace rew::ns
 
+print rew::types::macro.child "sss::DDD"
+print rew::types::macro.parent "sss.DDD"
+print rew::types::macro.child "sss.DDD.ddd"
+print rew::types::macro.parts "sss.DDD.ddd"
+
 print private "s"
 
 # this is a comment
