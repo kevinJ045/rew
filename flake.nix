@@ -58,7 +58,7 @@
         }:
         {
           default = rustPlatform.buildRustPackage {
-            pname = "rew";
+            pname = "rew-runtime";
             version = "0.1.0";
             src = ./.;
             cargoLock = {
