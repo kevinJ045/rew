@@ -44,87 +44,105 @@ pub struct CompilerResults {
 /// # Returns
 /// * A vector of `Token` structs representing the parsed tokens.
 pub fn tokenize_coffee_script(code: &str) -> Vec<Token> {
-  let mut tokens = Vec::new();
-  let mut i = 0;
   let chars: Vec<char> = code.chars().collect();
+  let mut tokens = Vec::new();
+  let mut chars_iter = chars.iter().enumerate();
 
-  while i < chars.len() {
-    let char = chars[i];
+  while let Some((i, char)) = chars_iter.next() {
     let next_char = chars.get(i + 1).copied();
     let next_next_char = chars.get(i + 2).copied();
 
-    if char == '#' {
-      let comment_end = code[i..].find('\n').unwrap_or(code.len() - i);
-      let comment = &code[i..i + comment_end + 1];
-      tokens.push(Token {
-        token_type: "COMMENT".to_string(),
-        value: comment.to_string(),
-      });
-      i += comment.len() - 1;
-    } else if char == '"' && next_char == Some('"') && next_next_char == Some('"') {
-      let mut string = "\"\"\"".to_string();
-      i += 3;
-      while i < chars.len()
-        && !(chars[i] == '"' && chars.get(i + 1) == Some(&'"') && chars.get(i + 2) == Some(&'"'))
-      {
-        string.push(chars[i]);
-        i += 1;
-      }
-      string.push_str("\"\"\"");
-      tokens.push(Token {
-        token_type: "TRIPLE_STRING".to_string(),
-        value: string,
-      });
-      i += 2;
-    } else if char == '"' || char == '\'' {
-      let mut string = char.to_string();
-      let mut escaped = false;
-      i += 1;
-      while i < chars.len() && (chars[i] != char || escaped) {
-        string.push(chars[i]);
-        escaped = chars[i] == '\\' && !escaped;
-        i += 1;
-      }
-      string.push(char);
-      tokens.push(Token {
-        token_type: "STRING".to_string(),
-        value: string,
-      });
-    } else if char.is_whitespace() {
-      if let Some(last_token) = tokens.last_mut() {
-        if last_token.token_type == "WHITESPACE" {
-          last_token.value.push(char);
-        } else {
-          tokens.push(Token {
-            token_type: "WHITESPACE".to_string(),
-            value: char.to_string(),
-          });
-        }
-      } else {
+    match *char {
+      '#' => {
+        let comment_end = code[i..].find('\n').unwrap_or(code.len() - i);
+        let comment = &code[i..i + comment_end];
         tokens.push(Token {
-          token_type: "WHITESPACE".to_string(),
-          value: char.to_string(),
+          token_type: "COMMENT".to_string(),
+          value: comment.to_string(),
+        });
+        for _ in 0..comment.len().saturating_sub(1) {
+          chars_iter.next();
+        }
+      }
+      '"' if next_char == Some('"') && next_next_char == Some('"') => {
+        let string_start = i;
+        chars_iter.next();
+        chars_iter.next();
+        
+        let triple_quote_end = chars
+          .windows(3)
+          .skip(i + 3)
+          .position(|w| w == ['"', '"', '"'])
+          .map(|pos| pos + i + 3)
+          .unwrap_or(chars.len());
+        
+        let string = &code[string_start..triple_quote_end + 3.min(chars.len() - triple_quote_end)];
+        tokens.push(Token {
+          token_type: "TRIPLE_STRING".to_string(),
+          value: string.to_string(),
+        });
+        
+        for _ in 0..triple_quote_end.saturating_sub(i + 3) {
+          chars_iter.next();
+        }
+        chars_iter.next();
+        chars_iter.next();
+      }
+      '"' | '\'' => {
+        let quote_char = *char;
+        let string_start = i;
+        let mut escaped = false;
+        
+        let string_end = chars_iter
+          .by_ref()
+          .find_map(|(idx, c)| {
+            let should_break = *c == quote_char && !escaped;
+            escaped = *c == '\\' && !escaped;
+            should_break.then_some(idx)
+          })
+          .unwrap_or(chars.len() - 1);
+        
+        let string = &code[string_start..=string_end];
+        tokens.push(Token {
+          token_type: "STRING".to_string(),
+          value: string.to_string(),
         });
       }
-    } else if char.is_alphabetic() || char == '_' || char == '$' || char == '@' {
-      let mut identifier = char.to_string();
-      i += 1;
-      while i < chars.len() && (chars[i].is_alphanumeric() || chars[i] == '_' || chars[i] == '$') {
-        identifier.push(chars[i]);
-        i += 1;
+      c if c.is_whitespace() => {
+        match tokens.last_mut() {
+          Some(last_token) if last_token.token_type == "WHITESPACE" => {
+            last_token.value.push(c);
+          }
+          _ => {
+            tokens.push(Token {
+              token_type: "WHITESPACE".to_string(),
+              value: c.to_string(),
+            });
+          }
+        }
       }
-      tokens.push(Token {
-        token_type: "IDENTIFIER".to_string(),
-        value: identifier,
-      });
-      i -= 1;
-    } else {
-      tokens.push(Token {
-        token_type: "OTHER".to_string(),
-        value: char.to_string(),
-      });
+      c if c.is_alphabetic() || c == '_' || c == '$' || c == '@' => {
+        let identifier_start = i;
+        let identifier_end = chars_iter
+          .by_ref()
+          .take_while(|(_, c)| c.is_alphanumeric() || **c == '_' || **c == '$')
+          .last()
+          .map(|(idx, _)| idx)
+          .unwrap_or(i);
+        
+        let identifier = &code[identifier_start..=identifier_end];
+        tokens.push(Token {
+          token_type: "IDENTIFIER".to_string(),
+          value: identifier.to_string(),
+        });
+      }
+      c => {
+        tokens.push(Token {
+          token_type: "OTHER".to_string(),
+          value: c.to_string(),
+        });
+      }
     }
-    i += 1;
   }
 
   tokens
