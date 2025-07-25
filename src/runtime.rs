@@ -956,7 +956,7 @@ return globalThis.module.exports;
     let mut result_code = result.open(scope).to_rust_string_lossy(scope);
 
     if processed.options.jsx || civet_options.contains(&"JSX".to_string()) {
-      result_code = compile_jsx(result_code, Some("__jsx__prefix".to_string()));
+      result_code = compile_jsx(result_code, Some("JSX.prototype.new".to_string()));
     }
 
     // if processed.options.civet_global {

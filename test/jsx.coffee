@@ -17,8 +17,13 @@ print 1 < 2
 
 Example = () => <><div sksk="sss"></div></>
 
+s = ['s', 's', 'd']
+
 name = <><div jdj="sss">
   <p>sjsjsjs</p>
+  <div>
+    {s.map (i) => <p>{i}</p>}
+  </div>
   <Example id="sss" {...ssss} />
 </div></>
 

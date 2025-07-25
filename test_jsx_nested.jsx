@@ -1,0 +1,14 @@
+const items = ["a", "b", "c"];
+
+// This should work - simple JSX
+const simple = <div>Hello</div>;
+
+// This should work - JSX with simple expression
+const withExpression = <div>{items.length}</div>;
+
+// This currently doesn't work - JSX with nested JSX in expression
+const withNestedJSX = <div>{items.map(i => <p>{i}</p>)}</div>;
+
+console.log("Simple:", simple);
+console.log("With expression:", withExpression);
+console.log("With nested JSX:", withNestedJSX);

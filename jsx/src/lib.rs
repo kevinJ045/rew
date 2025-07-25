@@ -191,24 +191,24 @@ impl<'a> Parser<'a> {
     ident
   }
 
-  // fn consume_braced_expression(&mut self) -> String {
-  //   self.consume("{");
-  //   let mut expr = String::new();
-  //   let mut depth = 1;
-  //   while self.pos < self.input.len() && depth > 0 {
-  //     let c = self.advance();
-  //     if c == '{' {
-  //       depth += 1;
-  //     } else if c == '}' {
-  //       depth -= 1;
-  //       if depth == 0 {
-  //         break;
-  //       }
-  //     }
-  //     expr.push(c);
-  //   }
-  //   format!("{{{}}}", expr.trim())
-  // }
+  fn consume_braced_expression(&mut self) -> String {
+    self.consume("{");
+    let mut expr = String::new();
+    let mut depth = 1;
+    while self.pos < self.input.len() && depth > 0 {
+      let c = self.advance();
+      if c == '{' {
+        depth += 1;
+      } else if c == '}' {
+        depth -= 1;
+        if depth == 0 {
+          break;
+        }
+      }
+      expr.push(c);
+    }
+    format!("{{{}}}", expr.trim())
+  }
 
   fn consume_quoted_string(&mut self) -> String {
     self.consume("\"");
@@ -278,7 +278,7 @@ fn compile_node(node: &Node, pragma: Option<String>) -> String {
         tag.to_string()
       };
 
-      let prefix = pragma.unwrap_or("JSX.prototype.new".to_string());
+      let prefix = pragma.unwrap_or("JSX::new".to_string());
 
       format!(r#"{prefix}({element}, {props}, {children_js})"#)
     }

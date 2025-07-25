@@ -1,0 +1,11 @@
+[package]
+name = "jsx"
+version = "0.1.0"
+edition = "2024"
+
+
+[lib]
+name = "rew_jsx"
+path = "src/lib.rs"
+
+[dependencies]
