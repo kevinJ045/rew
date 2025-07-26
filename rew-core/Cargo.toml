@@ -1,0 +1,17 @@
+[package]
+name = "rew-core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+repository.workspace = true
+license.workspace = true
+description = "Core utilities and types for the Rew runtime system"
+
+[lib]
+name = "rew_core"
+path = "src/lib.rs"
+
+[dependencies]
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_yaml = { workspace = true }

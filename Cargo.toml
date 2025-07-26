@@ -1,26 +1,23 @@
-[package]
-name = "rew_runtime"
+[workspace]
+members = [
+  "rew-cli",
+  "rew-core",
+  "rew-compiler",
+  "rew-extensions",
+  "rew-runtime",
+  "rew-jsx"
+]
+resolver = "2"
+
+[workspace.package]
 version = "0.0.43"
 edition = "2024"
 authors = ["makano"]
-description = "A mini runtime for coffeescript"
 repository = "https://github.com/kevinj045/rew"
-readme = "README.md"
-license = "MIT" 
-keywords = ["cli", "rew", "coffeescript"]
-categories = ["command-line-utilities"]
-include = [
-  "src/**",
-  "lib/**",
-  "Cargo.toml",
-  "README.md",
-]
+license = "MIT"
 
-[lib]
-name = "rew"
-path = "src/lib.rs"
-
-[dependencies]
+[workspace.dependencies]
+# Common dependencies
 rand = "0.8"
 deno_core = "0.347.0"
 tokio = { version = "1.43.0", features = ["full"] }
@@ -35,28 +32,29 @@ regex = "1.10"
 uuid = { version = "1.4", features = ["v4"] }
 once_cell = "1.18"
 base64 = "0.21.0"
+thiserror = "^2.0.3"
+futures = "0.3.31"
+
+# Deno extensions
 deno_ffi = "0.192.0"
 deno_web = "0.236.0"
 deno_permissions = "0.64.0"
 deno_webidl = "0.205.0"
 deno_console = "0.205.0"
 deno_url = "0.205.0"
-nix = { version = "0.27.1", features = ["signal", "term"] }
-libc = { version = "^0.2.168" }
 deno_io = "0.115.0"
 deno_fs = "0.115.0"
 deno_process = "0.20.0"
 deno_error = "0.5.6"
-rustyline = "=13.0.0"
-thiserror = "^2.0.3"
 deno_os = "0.22.0"
 deno_fetch = "0.229.0"
 deno_net = "0.197.0"
 deno_websocket = "0.210.0"
 deno_http = "0.203.0"
 deno_telemetry = "0.27.0"
-sha2 = "0.10"
-futures = "0.3.31"
 
-[target.'cfg(windows)'.dependencies]
-winapi = { version = "0.3", features = ["consoleapi", "handleapi", "wincon", "winuser", "fileapi"] }
+# Platform-specific
+nix = { version = "0.27.1", features = ["signal", "term"] }
+libc = { version = "^0.2.168" }
+rustyline = "=13.0.0"
+sha2 = "0.10"

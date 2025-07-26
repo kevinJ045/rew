@@ -1,0 +1,19 @@
+[package]
+name = "rew-compiler"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+repository.workspace = true
+license.workspace = true
+description = "CoffeeScript/TypeScript compiler for the Rew runtime"
+
+[lib]
+name = "rew_compiler"
+path = "src/lib.rs"
+
+[dependencies]
+rew-jsx = { path = "../rew-jsx" }
+anyhow = { workspace = true }
+regex = { workspace = true }
+serde = { workspace = true }
+uuid = { workspace = true }

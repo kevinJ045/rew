@@ -3140,13 +3140,44 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "95325155c684b1c89f7765e30bc1c42e4a6da51ca513615660cb8a62ef9a88e3"
 
 [[package]]
-name = "rew_runtime"
+name = "rew-cli"
 version = "0.0.43"
 dependencies = [
  "anyhow",
- "base64 0.21.7",
  "clap",
  "colored",
+ "rew-core",
+ "rew-runtime",
+ "serde_yaml",
+ "tokio",
+ "winapi",
+]
+
+[[package]]
+name = "rew-compiler"
+version = "0.0.43"
+dependencies = [
+ "anyhow",
+ "regex",
+ "rew-jsx",
+ "serde",
+ "uuid",
+]
+
+[[package]]
+name = "rew-core"
+version = "0.0.43"
+dependencies = [
+ "anyhow",
+ "serde",
+ "serde_yaml",
+]
+
+[[package]]
+name = "rew-extensions"
+version = "0.0.43"
+dependencies = [
+ "anyhow",
  "deno_console",
  "deno_core",
  "deno_error",
@@ -3164,22 +3195,45 @@ dependencies = [
  "deno_web",
  "deno_webidl",
  "deno_websocket",
- "futures",
- "lazy_static",
  "libc",
  "nix 0.27.1",
  "once_cell",
+ "rustyline",
+ "serde",
+ "thiserror 2.0.12",
+ "tokio",
+]
+
+[[package]]
+name = "rew-jsx"
+version = "0.0.43"
+
+[[package]]
+name = "rew-runtime"
+version = "0.0.43"
+dependencies = [
+ "anyhow",
+ "base64 0.21.7",
+ "deno_core",
+ "deno_fs",
+ "deno_io",
+ "deno_permissions",
+ "futures",
+ "lazy_static",
+ "libc",
+ "once_cell",
  "rand 0.8.5",
  "regex",
+ "rew-compiler",
+ "rew-core",
+ "rew-extensions",
  "rustyline",
  "serde",
  "serde_json",
  "serde_yaml",
  "sha2",
- "thiserror 2.0.12",
  "tokio",
  "uuid",
- "winapi",
 ]
 
 [[package]]

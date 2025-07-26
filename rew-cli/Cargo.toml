@@ -1,0 +1,26 @@
+[package]
+name = "rew-cli"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+repository.workspace = true
+license.workspace = true
+description = "Command-line interface for the Rew runtime"
+keywords = ["cli", "rew", "coffeescript"]
+categories = ["command-line-utilities"]
+
+[[bin]]
+name = "rew"
+path = "src/main.rs"
+
+[dependencies]
+rew-core = { path = "../rew-core" }
+rew-runtime = { path = "../rew-runtime" }
+clap = { workspace = true }
+colored = { workspace = true }
+tokio = { workspace = true }
+anyhow = { workspace = true }
+serde_yaml = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+winapi = { version = "0.3", features = ["consoleapi", "handleapi", "wincon", "winuser", "fileapi"] }

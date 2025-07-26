@@ -1,0 +1,36 @@
+[package]
+name = "rew-runtime"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+repository.workspace = true
+license.workspace = true
+description = "JavaScript/CoffeeScript runtime based on deno_core"
+
+[lib]
+name = "rew_runtime"
+path = "src/lib.rs"
+
+[dependencies]
+rew-core = { path = "../rew-core" }
+rew-compiler = { path = "../rew-compiler" }
+rew-extensions = { path = "../rew-extensions" }
+deno_core = { workspace = true }
+deno_permissions = { workspace = true }
+deno_fs = { workspace = true }
+tokio = { workspace = true }
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+base64 = { workspace = true }
+regex = { workspace = true }
+once_cell = { workspace = true }
+futures = { workspace = true }
+rustyline = { workspace = true }
+sha2 = { workspace = true }
+rand = { workspace = true }
+libc = { workspace = true }
+uuid = { workspace = true }
+lazy_static = { workspace = true }
+deno_io = { workspace = true }
