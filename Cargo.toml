@@ -1,60 +1,66 @@
 [workspace]
 members = [
   "rew-cli",
-  "rew-core",
   "rew-compiler",
+  "rew-core",
+  "rew-data-manager",
   "rew-extensions",
+  "rew-jsx",
+  "rew-permissions",
   "rew-runtime",
-  "rew-jsx"
+  "rew-utils",
+  "rew-vfile",
+  "rew-brew",
+  "rew-ops",
 ]
 resolver = "2"
 
 [workspace.package]
-version = "0.0.43"
-edition = "2024"
 authors = ["makano"]
-repository = "https://github.com/kevinj045/rew"
+edition = "2024"
 license = "MIT"
+repository = "https://github.com/kevinj045/rew"
+version = "0.0.43"
 
 [workspace.dependencies]
 # Common dependencies
-rand = "0.8"
-deno_core = "0.347.0"
-tokio = { version = "1.43.0", features = ["full"] }
 anyhow = "1.0.96"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-lazy_static = "1.4"
-serde_yaml = "0.9"
-clap = { version = "4.5", features = ["derive"] }
-colored = "2.1"
-regex = "1.10"
-uuid = { version = "1.4", features = ["v4"] }
-once_cell = "1.18"
 base64 = "0.21.0"
-thiserror = "^2.0.3"
+clap = {version = "4.5", features = ["derive"]}
+colored = "2.1"
+deno_core = "0.347.0"
 futures = "0.3.31"
+lazy_static = "1.4"
+once_cell = "1.18"
+rand = "0.8"
+regex = "1.10"
+serde = {version = "1.0", features = ["derive"]}
+serde_json = "1.0"
+serde_yaml = "0.9"
+thiserror = "^2.0.3"
+tokio = {version = "1.43.0", features = ["full"]}
+uuid = {version = "1.4", features = ["v4"]}
 
 # Deno extensions
-deno_ffi = "0.192.0"
-deno_web = "0.236.0"
-deno_permissions = "0.64.0"
-deno_webidl = "0.205.0"
 deno_console = "0.205.0"
-deno_url = "0.205.0"
-deno_io = "0.115.0"
-deno_fs = "0.115.0"
-deno_process = "0.20.0"
 deno_error = "0.5.6"
-deno_os = "0.22.0"
 deno_fetch = "0.229.0"
-deno_net = "0.197.0"
-deno_websocket = "0.210.0"
+deno_ffi = "0.192.0"
+deno_fs = "0.115.0"
 deno_http = "0.203.0"
+deno_io = "0.115.0"
+deno_net = "0.197.0"
+deno_os = "0.22.0"
+deno_permissions = "0.64.0"
+deno_process = "0.20.0"
 deno_telemetry = "0.27.0"
+deno_url = "0.205.0"
+deno_web = "0.236.0"
+deno_webidl = "0.205.0"
+deno_websocket = "0.210.0"
 
 # Platform-specific
-nix = { version = "0.27.1", features = ["signal", "term"] }
-libc = { version = "^0.2.168" }
+libc = {version = "^0.2.168"}
+nix = {version = "0.27.1", features = ["signal", "term"]}
 rustyline = "=13.0.0"
 sha2 = "0.10"

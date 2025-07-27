@@ -1,4 +1,3 @@
-use crate::runtime::get_rew_runtime;
 use anyhow::Result;
 use deno_core::error::CoreError;
 use deno_core::{OpState, op2};
@@ -12,6 +11,7 @@ use std::sync::{
 };
 use tokio::runtime::Builder;
 use uuid::Uuid;
+use crate::get_rew_runtime;
 
 /// Represents a handle to a worker thread
 struct WorkerHandle {

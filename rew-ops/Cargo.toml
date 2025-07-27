@@ -1,25 +1,18 @@
 [package]
-name = "rew-runtime"
+name = "rew-ops"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 repository.workspace = true
 license.workspace = true
-description = "JavaScript/CoffeeScript runtime based on deno_core"
-
-[lib]
-name = "rew_runtime"
-path = "src/lib.rs"
 
 [dependencies]
 rew-core = { path = "../rew-core" }
 rew-compiler = { path = "../rew-compiler" }
 rew-extensions = { path = "../rew-extensions" }
 rew-data-manager = { path = "../rew-data-manager" }
-rew-ops = { path = "../rew-ops" }
 rew-permissions = { path = "../rew-permissions" }
-rew-brew = { path = "../rew-brew" }
-rew-utils = { path = "../rew-utils" }
+rew-vfile = { path = "../rew-vfile" }
 deno_core = { workspace = true }
 deno_permissions = { workspace = true }
 deno_fs = { workspace = true }

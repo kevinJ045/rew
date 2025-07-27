@@ -32,3 +32,10 @@ pub struct AppInfo {
   pub path: PathBuf,
   pub config: AppConfig,
 }
+
+
+#[derive(Default)]
+pub struct RuntimeState {
+  pub current_dir: PathBuf,
+  pub args: Vec<String>,
+}
