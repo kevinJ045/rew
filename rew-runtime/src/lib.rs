@@ -12,6 +12,7 @@ use crate::workers::{
   op_thread_terminate,
 };
 use rew_ops::*;
+use rew_utils::is_js_executable;
 use rew_core::{BuildOptions, RuntimeState};
 use rew_brew::{decode_brew_file, encode_brew_file};
 use anyhow::{Context, Result};
@@ -21,7 +22,6 @@ use deno_fs::{FileSystem, RealFs};
 use rew_permissions::{TestPermissionDescriptorParser};
 use deno_permissions::PermissionsContainer;
 use futures::stream::{self, StreamExt};
-use once_cell::sync::Lazy;
 use regex::Regex;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
@@ -29,33 +29,12 @@ use std::rc::Rc;
 use deno_core::OpState;
 use deno_core::error::CoreError;
 use std::cell::RefCell;
-use std::sync::Mutex;
 use std::fs;
-
-// use crate::shell::{op_shell_close, op_shell_kill, op_shell_read, op_shell_spawn, op_shell_write};
+use rew_vfile::{VIRTUAL_FILES};
 
 #[derive(Default)]
 pub struct RuntimeArgs(pub Vec<String>);
 
-
-pub static VIRTUAL_FILES: Lazy<Mutex<Vec<(String, String)>>> = Lazy::new(|| Mutex::new(vec![]));
-
-/// Adds a virtual file to the runtime's virtual file storage.
-///
-/// # Arguments
-/// * `path` - The path of the virtual file.
-/// * `contents` - The contents of the virtual file.
-pub fn add_virtual_file(path: &str, contents: &str) {
-  let mut files = VIRTUAL_FILES.lock().unwrap();
-  files.push((path.to_string(), contents.to_string()));
-}
-
-pub fn is_js_executable(mod_id: &str) -> bool {
-  matches!(
-    mod_id.rsplit('.').next(),
-    Some("ts" | "js" | "coffee" | "civet" | "rew")
-  )
-}
 
 extension!(
   rewextension,

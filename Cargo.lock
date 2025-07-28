@@ -3290,6 +3290,7 @@ dependencies = [
  "rew-ops",
  "rew-permissions",
  "rew-utils",
+ "rew-vfile",
  "rustyline",
  "serde",
  "serde_json",

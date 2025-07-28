@@ -446,3 +446,16 @@ fn compile_jsx_fragments(tokens: &[Token], pragma: Option<String>) -> String {
 pub fn compile_jsx(input: String, pragma: Option<String>) -> String {
   compile_jsx_fragments(&tokenize(&input), pragma)
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn test_jsx(){
+    assert_eq!(
+      compile_jsx("<><div>{something.map((i) => <p>{i}</p>)}<Element name={<i>{u}</i>} /></div></>".into(), None),
+      "JSX.prototype.new(\"div\", {}, something.map((i) => JSX.prototype.new(\"p\", {}, i)), JSX.prototype.new(Element, {name: JSX.prototype.new(\"i\", {}, u)}, null))"
+    )
+  }
+}

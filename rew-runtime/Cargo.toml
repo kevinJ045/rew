@@ -20,6 +20,7 @@ rew-ops = { path = "../rew-ops" }
 rew-permissions = { path = "../rew-permissions" }
 rew-brew = { path = "../rew-brew" }
 rew-utils = { path = "../rew-utils" }
+rew-vfile = { path = "../rew-vfile" }
 deno_core = { workspace = true }
 deno_permissions = { workspace = true }
 deno_fs = { workspace = true }

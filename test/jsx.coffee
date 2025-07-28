@@ -1,7 +1,7 @@
 import "#std.types!";
 using namespace rew::ns;
 
-using JSX, (element, props, ...children) => {name: element, ...props, children}
+using JSX, (element, props, ...children) => typeof element == "function" ? element(props, ...children) : {name: element, ...props, children}
 
 # Test code 
 ssss = instantiate class
@@ -15,8 +15,7 @@ print 1 >= 2
 print 1 <= 2
 print 1 < 2
 
-Example = () => <><div sksk="sss"></div></>
-
+Example = (props) => <><div sksk="sss" {...props}></div></>
 s = ['s', 's', 'd']
 
 name = <><div jdj="sss">
