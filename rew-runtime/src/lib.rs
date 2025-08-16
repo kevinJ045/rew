@@ -2,39 +2,41 @@ pub mod builtins;
 pub mod runtime_script;
 pub mod workers;
 
-
-use rew_compiler::{get_civet_script, CompilerOptions, compile_rew_stuff, CompilerResults, Declaration, DeclarationEngine, compile_jsx};
 use crate::builtins::BUILTIN_MODULES;
-use rew_extensions::ext::{console, ffi, process, url, web, webidl};
 use crate::runtime_script::get_runtime_script;
 use crate::workers::{
   op_thread_message, op_thread_post_message, op_thread_receive, op_thread_spawn,
   op_thread_terminate,
 };
-use rew_ops::*;
-use rew_utils::is_js_executable;
-use rew_core::{BuildOptions, RuntimeState};
-use rew_brew::{decode_brew_file, encode_brew_file};
 use anyhow::{Context, Result};
+use deno_core::OpState;
 use deno_core::PollEventLoopOptions;
+use deno_core::error::CoreError;
 use deno_core::{JsRuntime, RuntimeOptions, extension, op2};
 use deno_fs::{FileSystem, RealFs};
-use rew_permissions::{TestPermissionDescriptorParser};
 use deno_permissions::PermissionsContainer;
 use futures::stream::{self, StreamExt};
 use regex::Regex;
+use rew_brew::{decode_brew_file, encode_brew_file};
+use rew_compiler::{
+  CompilerOptions, CompilerResults, Declaration, DeclarationEngine, compile_jsx, compile_rew_stuff,
+  get_civet_script,
+};
+use rew_core::{BuildOptions, RuntimeState};
+use rew_extensions::ext::{console, ffi, process, url, web, webidl};
+use rew_ops::*;
+use rew_permissions::TestPermissionDescriptorParser;
+use rew_utils::is_js_executable;
+use rew_vfile::VIRTUAL_FILES;
+pub use rew_vfile::add_virtual_file;
+use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
-use deno_core::OpState;
-use deno_core::error::CoreError;
-use std::cell::RefCell;
-use std::fs;
-use rew_vfile::{VIRTUAL_FILES};
 
 #[derive(Default)]
 pub struct RuntimeArgs(pub Vec<String>);
-
 
 extension!(
   rewextension,
@@ -894,11 +896,9 @@ return globalThis.module.exports;
   }
 }
 
-
 impl Drop for RewRuntime {
   fn drop(&mut self) {}
 }
-
 
 #[op2(async, reentrant)]
 #[serde]
@@ -916,10 +916,10 @@ async fn op_dyn_imp(
   };
 
   let mut runtime = RewRuntime::new(None, None)
-    .map_err(|_| CoreError::Io(std::io::Error::new(std::io::ErrorKind::NotFound, ""))) ?;
+    .map_err(|_| CoreError::Io(std::io::Error::new(std::io::ErrorKind::NotFound, "")))?;
 
   let files_with_flags = RewRuntime::resolve_includes_recursive_from(file_path.clone())
-    .map_err(|_| CoreError::Io(std::io::Error::new(std::io::ErrorKind::NotFound, ""))) ?;
+    .map_err(|_| CoreError::Io(std::io::Error::new(std::io::ErrorKind::NotFound, "")))?;
   for (_, content, preprocess) in &files_with_flags {
     if *preprocess {
       let local_declarations = runtime.declaration_engine.process_script(content);
@@ -941,10 +941,10 @@ async fn op_dyn_imp(
   let prepared = runtime
     .prepare(files, None)
     .await
-    .map_err(|_| CoreError::Io(std::io::Error::new(std::io::ErrorKind::NotFound, ""))) ?;
+    .map_err(|_| CoreError::Io(std::io::Error::new(std::io::ErrorKind::NotFound, "")))?;
 
   let fp = fs::canonicalize(&file_path)
-    .map_err(|_| CoreError::Io(std::io::Error::new(std::io::ErrorKind::NotFound, ""))) ?;
+    .map_err(|_| CoreError::Io(std::io::Error::new(std::io::ErrorKind::NotFound, "")))?;
 
   Ok(serde_json::json!([
     fp.to_string_lossy().to_string(),

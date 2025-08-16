@@ -20,7 +20,7 @@ authors = ["makano"]
 edition = "2024"
 license = "MIT"
 repository = "https://github.com/kevinj045/rew"
-version = "0.0.51"
+version = "0.0.52"
 
 [workspace.dependencies]
 # Common dependencies

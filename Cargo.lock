@@ -3149,7 +3149,7 @@ dependencies = [
 
 [[package]]
 name = "rew-cli"
-version = "0.0.43"
+version = "0.0.52"
 dependencies = [
  "anyhow",
  "clap",
@@ -3163,7 +3163,7 @@ dependencies = [
 
 [[package]]
 name = "rew-compiler"
-version = "0.0.43"
+version = "0.0.52"
 dependencies = [
  "anyhow",
  "regex",
@@ -3174,7 +3174,7 @@ dependencies = [
 
 [[package]]
 name = "rew-core"
-version = "0.0.43"
+version = "0.0.52"
 dependencies = [
  "anyhow",
  "serde",
@@ -3194,7 +3194,7 @@ dependencies = [
 
 [[package]]
 name = "rew-extensions"
-version = "0.0.43"
+version = "0.0.52"
 dependencies = [
  "anyhow",
  "deno_console",
@@ -3225,11 +3225,11 @@ dependencies = [
 
 [[package]]
 name = "rew-jsx"
-version = "0.0.43"
+version = "0.0.52"
 
 [[package]]
 name = "rew-ops"
-version = "0.0.43"
+version = "0.0.52"
 dependencies = [
  "anyhow",
  "base64 0.21.7",
@@ -3268,7 +3268,7 @@ dependencies = [
 
 [[package]]
 name = "rew-runtime"
-version = "0.0.43"
+version = "0.0.52"
 dependencies = [
  "anyhow",
  "base64 0.21.7",
