@@ -102,7 +102,7 @@ jobs:
         run: |
           cargo build --release --target x86_64-unknown-linux-gnu
           mkdir -p dist
-          cp target/x86_64-unknown-linux-gnu/release/rew_runtime dist/rew
+          cp target/x86_64-unknown-linux-gnu/release/rew dist/rew
           tar -czvf dist/rew-linux_x86_64.tar.gz -C dist rew
 
       - uses: softprops/action-gh-release@v1
@@ -130,7 +130,7 @@ jobs:
         run: |
           cargo build --release --target aarch64-unknown-linux-gnu
           mkdir -p dist
-          cp target/aarch64-unknown-linux-gnu/release/rew_runtime dist/rew
+          cp target/aarch64-unknown-linux-gnu/release/rew dist/rew
           tar -czvf dist/rew-linux_arm64.tar.gz -C dist rew
 
       - uses: softprops/action-gh-release@v1
@@ -149,7 +149,7 @@ jobs:
       - name: Package
         run: |
           mkdir -p dist
-          cp target/release/rew_runtime dist/rew
+          cp target/release/rew dist/rew
           sudo rm -rf /usr/local/lib/android
           cargo clean
           hdiutil create dist/rew-darwin.dmg -srcfolder dist -volname "rew"
