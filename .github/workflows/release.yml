@@ -26,7 +26,7 @@ jobs:
       - name: Package .exe
         run: |
           mkdir -p dist
-          cp target/release/rew_runtime.exe dist/rew.exe
+          cp target/release/rew.exe dist/rew.exe
       - uses: softprops/action-gh-release@v1
         with:
           files: dist/rew.exe
@@ -48,7 +48,7 @@ jobs:
       - name: Prepare Installer Files
         run: |
           mkdir dist
-          cp target/release/rew_runtime.exe dist/rew.exe
+          cp target/release/rew.exe dist/rew.exe
   
       - name: Create Inno Setup Script
         run: |
