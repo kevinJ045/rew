@@ -12,7 +12,8 @@ name = "rew_compiler"
 path = "src/lib.rs"
 
 [dependencies]
-rew-jsx = { path = "../rew-jsx" }
+rew-jsx.workspace = true
+
 anyhow = { workspace = true }
 regex = { workspace = true }
 serde = { workspace = true }

@@ -5,6 +5,7 @@ edition.workspace = true
 authors.workspace = true
 repository.workspace = true
 license.workspace = true
+description = "BREW compiler and decompiler"
 
 [dependencies]
 anyhow = "1.0"

@@ -12,15 +12,16 @@ name = "rew_runtime"
 path = "src/lib.rs"
 
 [dependencies]
-rew-core = { path = "../rew-core" }
-rew-compiler = { path = "../rew-compiler" }
-rew-extensions = { path = "../rew-extensions" }
-rew-data-manager = { path = "../rew-data-manager" }
-rew-ops = { path = "../rew-ops" }
-rew-permissions = { path = "../rew-permissions" }
-rew-brew = { path = "../rew-brew" }
-rew-utils = { path = "../rew-utils" }
-rew-vfile = { path = "../rew-vfile" }
+rew-core.workspace = true
+rew-compiler.workspace = true
+rew-extensions.workspace = true
+rew-data-manager.workspace = true
+rew-ops.workspace = true
+rew-permissions.workspace = true
+rew-brew.workspace = true
+rew-utils.workspace = true
+rew-vfile.workspace = true
+
 deno_core = { workspace = true }
 deno_permissions = { workspace = true }
 deno_fs = { workspace = true }

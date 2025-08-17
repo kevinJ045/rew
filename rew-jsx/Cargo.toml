@@ -5,7 +5,7 @@ edition.workspace = true
 authors.workspace = true
 repository.workspace = true
 license.workspace = true
-
+description = "REW JSX compiler"
 
 [lib]
 name = "rew_jsx"

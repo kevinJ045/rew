@@ -2,19 +2,19 @@ use once_cell::sync::Lazy;
 use std::collections::HashMap;
 
 // Include built-in modules directly in the binary
-const FFI_MODULE: &str = include_str!("../../lib/rew/builtins/ffi.js");
-const CONF_MODULE: &str = include_str!("../../lib/rew/builtins/conf.js");
-const FS_MODULE: &str = include_str!("../../lib/rew/builtins/fs.js");
-const ENCODING_MODULE: &str = include_str!("../../lib/rew/builtins/encoding.js");
-const ALL_MODULE: &str = include_str!("../../lib/rew/builtins/all.coffee");
-const THREADS_MODULE: &str = include_str!("../../lib/rew/builtins/threads.js");
-const OS_MODULE: &str = include_str!("../../lib/rew/builtins/os.js");
-const PATH_MODULE: &str = include_str!("../../lib/rew/builtins/path.js");
-const SHELL_MODULE: &str = include_str!("../../lib/rew/builtins/shell.js");
-const HTTP_MODULE: &str = include_str!("../../lib/rew/builtins/http.js");
-const NET_MODULE: &str = include_str!("../../lib/rew/builtins/net.js");
-const TYPES_MODULE: &str = include_str!("../../lib/rew/builtins/types.js");
-const YAML_MODULE: &str = include_str!("../../lib/rew/builtins/yaml.js");
+const FFI_MODULE: &str = include_str!("../js/builtins/ffi.js");
+const CONF_MODULE: &str = include_str!("../js/builtins/conf.js");
+const FS_MODULE: &str = include_str!("../js/builtins/fs.js");
+const ENCODING_MODULE: &str = include_str!("../js/builtins/encoding.js");
+const ALL_MODULE: &str = include_str!("../js/builtins/all.coffee");
+const THREADS_MODULE: &str = include_str!("../js/builtins/threads.js");
+const OS_MODULE: &str = include_str!("../js/builtins/os.js");
+const PATH_MODULE: &str = include_str!("../js/builtins/path.js");
+const SHELL_MODULE: &str = include_str!("../js/builtins/shell.js");
+const HTTP_MODULE: &str = include_str!("../js/builtins/http.js");
+const NET_MODULE: &str = include_str!("../js/builtins/net.js");
+const TYPES_MODULE: &str = include_str!("../js/builtins/types.js");
+const YAML_MODULE: &str = include_str!("../js/builtins/yaml.js");
 
 pub static BUILTIN_MODULES: Lazy<HashMap<&'static str, &'static str>> = Lazy::new(|| {
   let mut m = HashMap::new();

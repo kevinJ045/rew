@@ -20,4 +20,16 @@ jobs:
         override: true
 
     - name: Publish
-      run: cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }} -p rew-runtime
+      run: |
+        cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }} -p rew-core &&
+        cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }} -p rew-brew &&
+        cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }} -p rew-jsx &&     
+        cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }} -p rew-compiler &&
+        cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }} -p rew-data-manager &&
+        cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }} -p rew-extensions &&
+        cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }} -p rew-permissions &&
+        cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }} -p rew-utils &&
+        cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }} -p rew-vfile &&  
+        cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }} -p rew-ops &&
+        cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }} -p rew-runtime 
+        
