@@ -1,5 +1,8 @@
-
 [package]
-name = "rew-runtime-extensions"
-version = "0.1.0"
-edition = "2021"
+name = "rew-data-manager"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+repository.workspace = true
+license.workspace = true
+

@@ -3141,7 +3141,7 @@ checksum = "95325155c684b1c89f7765e30bc1c42e4a6da51ca513615660cb8a62ef9a88e3"
 
 [[package]]
 name = "rew-brew"
-version = "0.1.0"
+version = "0.0.52"
 dependencies = [
  "anyhow",
  "base64 0.21.7",
@@ -3183,7 +3183,7 @@ dependencies = [
 
 [[package]]
 name = "rew-data-manager"
-version = "0.1.0"
+version = "0.0.52"
 dependencies = [
  "anyhow",
  "rew-core",
@@ -3260,7 +3260,7 @@ dependencies = [
 
 [[package]]
 name = "rew-permissions"
-version = "0.1.0"
+version = "0.0.52"
 dependencies = [
  "anyhow",
  "deno_permissions",
@@ -3302,11 +3302,11 @@ dependencies = [
 
 [[package]]
 name = "rew-utils"
-version = "0.1.0"
+version = "0.0.52"
 
 [[package]]
 name = "rew-vfile"
-version = "0.1.0"
+version = "0.0.52"
 dependencies = [
  "once_cell",
 ]

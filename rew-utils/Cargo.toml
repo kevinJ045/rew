@@ -1,6 +1,11 @@
 [package]
 name = "rew-utils"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+repository.workspace = true
+license.workspace = true
+description = "Core utilities and types for the Rew runtime system"
+
 
 [dependencies]
