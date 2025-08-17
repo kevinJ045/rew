@@ -31,7 +31,7 @@ rew-data-manager = { version = "0.0.55", path = "rew-data-manager" }
 rew-extensions   = { version = "0.0.55", path = "rew-extensions" }
 rew-jsx          = { version = "0.0.55", path = "rew-jsx" }
 rew-permissions  = { version = "0.0.55", path = "rew-permissions" }
-rew-runtime      = { version = "0.0.55", path = "rew-runtime" }
+rew_runtime      = { version = "0.0.55", path = "rew-runtime" }
 rew-utils        = { version = "0.0.55", path = "rew-utils" }
 rew-vfile        = { version = "0.0.55", path = "rew-vfile" }
 rew-brew         = { version = "0.0.55", path = "rew-brew" }

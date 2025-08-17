@@ -15,7 +15,7 @@ path = "src/main.rs"
 
 [dependencies]
 rew-core = { path = "../rew-core" }
-rew-runtime = { path = "../rew-runtime" }
+rew_runtime = { path = "../rew-runtime" }
 clap = { workspace = true }
 colored = { workspace = true }
 tokio = { workspace = true }

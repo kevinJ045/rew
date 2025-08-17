@@ -1,11 +1,20 @@
 [package]
-name = "rew-runtime"
+name = "rew_runtime"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 repository.workspace = true
 license.workspace = true
+# readme = "../README.md"
+keywords = ["rew", "coffeescript", "runtime", "compiler"]
+categories = ["command-line-utilities"]
 description = "JavaScript/CoffeeScript runtime based on deno_core"
+# include = [
+#   "src/**",
+#   "js/**",
+#   "Cargo.toml",
+#   "../README.md",
+# ]
 
 [lib]
 name = "rew_runtime"

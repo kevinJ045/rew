@@ -3155,7 +3155,7 @@ dependencies = [
  "clap",
  "colored",
  "rew-core",
- "rew-runtime",
+ "rew_runtime",
  "serde_yaml",
  "tokio",
  "winapi",
@@ -3267,7 +3267,18 @@ dependencies = [
 ]
 
 [[package]]
-name = "rew-runtime"
+name = "rew-utils"
+version = "0.0.55"
+
+[[package]]
+name = "rew-vfile"
+version = "0.0.55"
+dependencies = [
+ "once_cell",
+]
+
+[[package]]
+name = "rew_runtime"
 version = "0.0.55"
 dependencies = [
  "anyhow",
@@ -3298,17 +3309,6 @@ dependencies = [
  "sha2",
  "tokio",
  "uuid",
-]
-
-[[package]]
-name = "rew-utils"
-version = "0.0.55"
-
-[[package]]
-name = "rew-vfile"
-version = "0.0.55"
-dependencies = [
- "once_cell",
 ]
 
 [[package]]

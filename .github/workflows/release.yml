@@ -49,34 +49,41 @@ jobs:
           [Setup]
           AppName=rew
           AppVersion=1.0
-          DefaultDirName={pf}\rew
+          DefaultDirName={localappdata}\rew
           DefaultGroupName=rew
           OutputDir=dist
           OutputBaseFilename=rew_installer
           Compression=lzma
           SolidCompression=yes
-  
+
+          [Dirs]
+          Name: "{localappdata}\rew\apps"
+          Name: "{localappdata}\rew\data"
+          Name: "{localappdata}\rew\bin"
+          Name: "{localappdata}\rew\config"
+
           [Files]
-          Source: "dist\\rew.exe"; DestDir: "{app}"; Flags: ignoreversion
-  
+          Source: "dist\\rew.exe"; DestDir: "{localappdata}\rew\bin"; Flags: ignoreversion
+
           [Run]
-          Filename: "{app}\\rew.exe"; Description: "Run rew"; Flags: nowait postinstall skipifsilent
-  
+          Filename: "{localappdata}\rew\bin\\rew.exe"; Description: "Run rew"; Flags: nowait postinstall skipifsilent
+
           [Registry]
-          Root: HKLM; Subkey: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment"; \
-          ValueType: string; ValueName: "Path"; ValueData: "{olddata};{app}"; Flags: preservestringtype uninsdeletevalue
-  
+          Root: HKCU; Subkey: "Environment"; \
+          ValueType: string; ValueName: "Path"; ValueData: "{olddata};{localappdata}\rew\bin"; Flags: preservestringtype uninsdeletevalue
+
           [Code]
           function InitializeSetup(): Boolean;
           begin
             Result := True;
           end;
           ''' > dist/rew_installer.iss
-  
+
       - name: Build Installer
         run: |
-          "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" dist/rew_installer.iss
-  
+          $iss = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          & $iss dist/rew_installer.iss
+
       - uses: softprops/action-gh-release@v1
         with:
           files: dist/rew_installer.exe
