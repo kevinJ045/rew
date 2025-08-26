@@ -293,8 +293,11 @@
           item = name;
           name = item.name;
         }
+        
         if(item instanceof SubPackage){
-          this.module.exports = new PackageList();
+          if(!(this.module.exports instanceof PackageList)){
+            this.module.exports = new PackageList();
+          }
           if(this.module.exports._default){
             this.module.exports._default = null;
           } else this.module.exports._default = name;
@@ -346,6 +349,8 @@
         if (child instanceof Namespace) {
           child.namespace = new Public(child.namespace, args);
           return child;
+        } else if (child instanceof SubPackage) {
+          this.declare(child)
         } else return new Public(child, args);
       };
       this.pub.is = (item) => item instanceof Public;
@@ -664,7 +669,7 @@
             }
 
             if(exported._default){
-              return exported._default;
+              return exported[exported._default];
             }
           }
           
