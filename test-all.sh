@@ -12,4 +12,6 @@ cargo run -- run ./test/main.coffee &&
 # cargo run -- run ./test/net.http.coffee &&
 cargo run -- run ./test/os.coffee &&
 cargo run -- run ./test/threads.coffee &&
+cargo run -- run ./test/p2.coffee
+cargo run -- run ./test/speed.coffee
 cargo run -- run ./test/types.coffee
