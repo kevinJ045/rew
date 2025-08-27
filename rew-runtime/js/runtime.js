@@ -5,7 +5,7 @@
   const compile = globalThis.compile;
   delete globalThis.compile;
 
-  globalThis.dispatchEvent = () => {};
+  globalThis.dispatchEvent = () => { };
 
   const MODULES = {};
   const PREPROCESSORS = [
@@ -23,24 +23,24 @@
   const Deno = globalThis.Deno;
 
   const _envdata = JSON.parse(ops.op_fetch_env());
-  
+
   // Cross-platform path handling
   const isWindows = ops.op_os_info_os() === 'windows';
   const pathSep = isWindows ? '\\' : '/';
   const pathSepRegex = isWindows ? /[/\\]/g : /\//g;
-  
+
   function normalizePath(path) {
     return path.replace(pathSepRegex, pathSep);
   }
-  
+
   function splitPath(path) {
     return path.split(pathSepRegex);
   }
-  
+
   function joinPath(...parts) {
     return parts.join(pathSep);
   }
-  
+
   function isAbsolutePath(path) {
     return isWindows ? /^[A-Za-z]:[/\\]/.test(path) : path.startsWith('/');
   }
@@ -106,8 +106,8 @@
         let parts = splitPath(filename);
         let app_name = parts.shift();
         let file_path = joinPath(...parts);
-        if(globalThis['__app__'+app_name]){
-          return normalizePath(joinPath(globalThis['__app__'+app_name], file_path));
+        if (globalThis['__app__' + app_name]) {
+          return normalizePath(joinPath(globalThis['__app__' + app_name], file_path));
         } else return filename;
       })();
       this.id = filename;
@@ -143,7 +143,7 @@
   }
 
   class Usage {
-    system = (...args) => {};
+    system = (...args) => { };
     name = "";
 
     constructor(name, system) {
@@ -175,10 +175,10 @@
       this.args = args || [];
     }
   }
-  class Private extends INode {}
-  class Public extends INode {}
+  class Private extends INode { }
+  class Public extends INode { }
 
-  class JSXFragment {}
+  class JSXFragment { }
 
   class SubPackage {
     // init(module){
@@ -289,20 +289,20 @@
       });
 
       this.declare = (name, item) => {
-        if(name && !item){
+        if (name && !item) {
           item = name;
           name = item.name;
         }
-        
-        if(item instanceof SubPackage){
-          if(!(this.module.exports instanceof PackageList)){
+
+        if (item instanceof SubPackage) {
+          if (!(this.module.exports instanceof PackageList)) {
             this.module.exports = new PackageList();
           }
-          if(this.module.exports._default){
+          if (this.module.exports._default) {
             this.module.exports._default = null;
           } else this.module.exports._default = name;
           this.module.exports[name] = item;
-        } else if(name) {
+        } else if (name) {
           this.module.exports[name] = item;
         }
         return item;
@@ -323,17 +323,17 @@
         );
       });
 
-      this.genUid = function(length = 12, seed){
+      this.genUid = function (length = 12, seed) {
         return ops.op_gen_uid(length, seed);
       }
-      this.randFrom = function(min, max, seed){
+      this.randFrom = function (min, max, seed) {
         return ops.op_rand_from(min, max, seed);
       }
       this.pickRandom = (...picks) => {
         return this.pickRandomWithSeed(undefined, ...picks);
       }
-      this.pickRandomWithSeed = function(seed, ...picks){
-        if(picks.length < 2) return picks[0] || picks;
+      this.pickRandomWithSeed = function (seed, ...picks) {
+        if (picks.length < 2) return picks[0] || picks;
         return picks[ops.op_rand_from(0, picks.length - 1, seed)];
       }
 
@@ -396,18 +396,18 @@
         jsx.prototype.__prefix = fn;
       });
       this.JSX.prototype = {
-        __prefix(name, props = {}, ...children){
+        __prefix(name, props = {}, ...children) {
           return {
-            name, 
+            name,
             props,
             children
           }
         },
         Fragment: new JSXFragment,
-        isFragment(item){
+        isFragment(item) {
           return item instanceof JSXFragment;
         },
-        new(...items){
+        new(...items) {
           return jsx.prototype.__prefix(...items);
         }
       };
@@ -496,7 +496,7 @@
         },
 
         write(ptr, value, type = "u8") {
-          const view = this.view(ptr);
+          const view = ptr instanceof Deno.UnsafePointerView ? ptr : this.view(ptr);
           switch (type) {
             case "u8":
               return view.setUint8(value);
@@ -516,6 +516,51 @@
               return view.setFloat64(value);
             default:
               throw new Error("Unsupported type: " + type);
+          }
+        },
+
+        readArray(ptr, length, type = "u8") {
+          const view = this.view(ptr);
+          const arr = [];
+          for (let i = 0; i < length; i++) {
+            arr.push(this.read(Deno.UnsafePointer.create(ptr.valueOf() + i), type));
+          }
+          return arr;
+        },
+
+        writeArray(ptr, array, type = "u8") {
+          const view = this.view(ptr);
+          const typeSize = this.sizeOf(type);
+          for (let i = 0; i < array.length; i++) {
+            this.write(Deno.UnsafePointer.create(i * typeSize), array[i], type);
+          }
+        },
+
+        readBool(ptr) {
+          return !!this.read(ptr, "u8");
+        },
+
+        writeBool(ptr, val) {
+          this.write(ptr, val ? 1 : 0, "u8");
+        },
+
+        readStruct(ptr, structDef) {
+          const result = {};
+          let offset = 0;
+          for (const [field, type] of Object.entries(structDef)) {
+            result[field] = this.read(Deno.UnsafePointer.create(ptr.valueOf() + offset), type);
+            offset += this.sizeOf(type);
+          }
+          return result;
+        },
+
+        sizeOf(type) {
+          switch (type) {
+            case "u8": case "i8": return 1;
+            case "u16": case "i16": return 2;
+            case "u32": case "i32": case "f32": return 4;
+            case "f64": return 8;
+            default: throw new Error("Unknown type " + type);
           }
         },
 
@@ -596,9 +641,9 @@
               ? JSON.stringify(options)
               : "_defaults";
           if (!_extract[_extract_name]) {
-            try{
+            try {
               _extract[_extract_name] = MODULES[name]._call(options);
-            } catch(e){
+            } catch (e) {
               e.stack = e.stack.split('at Object.globalThis.rew.mod.define.aliases.aliases [as _call]')?.[0]?.trim() || e.stack;
               throw e;
             }
@@ -653,40 +698,40 @@
               : name.startsWith("app://")
                 ? name
                 : globalThis.rew.prototype._path.prototype.resolveFrom(
-                    normalizePath(fromPath),
-                    name,
-                  );
-          
+                  normalizePath(fromPath),
+                  name,
+                );
+
           let exported = globalThis.rew.prototype.mod.prototype.get(path, options);
 
-          if(exported instanceof PackageList){
+          if (exported instanceof PackageList) {
 
-            for(let i in exported){
-              if(i == "_default") continue;
-              if(args[1]){
+            for (let i in exported) {
+              if (i == "_default") continue;
+              if (args[1]) {
                 args[1][i] = exported[i];
               }
             }
 
-            if(exported._default){
+            if (exported._default) {
               return exported[exported._default];
             }
           }
-          
+
           return exported;
         },
         new(name) {
           return new Mod(name);
         },
-        preprocess(name, code){
-          for(let prerocessor of PREPROCESSORS){
-            if(prerocessor.checker.test(name)){
+        preprocess(name, code) {
+          for (let prerocessor of PREPROCESSORS) {
+            if (prerocessor.checker.test(name)) {
               return prerocessor.fn(name, code);
             }
           }
           return code;
         },
-        registerPreprocessor(checker, fn){
+        registerPreprocessor(checker, fn) {
           PREPROCESSORS.push({
             checker,
             fn
@@ -725,7 +770,7 @@
               lastTimeout = setTimeout(keepAlive, interval);
             }
           };
-          const ctx =  {
+          const ctx = {
             stop() {
               stop = 1;
               clearTimeout(lastTimeout);
@@ -759,8 +804,8 @@
         emitter() {
           return {
             _listeners: [],
-            on(event, cb){
-              if(Array.isArray(event)){
+            on(event, cb) {
+              if (Array.isArray(event)) {
                 this._listeners.push(
                   event.map(event => ({ event, cb }))
                 );
@@ -769,14 +814,14 @@
               }
               return this;
             },
-            off(event, cb){
+            off(event, cb) {
               this._listeners.filter((item) => {
-                if(Array.isArray(item)){
-                  if(event.includes(item.event) && (cb ? item.cb == cb : true)){
+                if (Array.isArray(item)) {
+                  if (event.includes(item.event) && (cb ? item.cb == cb : true)) {
                     return false;
                   }
                 } else {
-                  if(item.event == event && (cb ? item.cb == cb : true)){
+                  if (item.event == event && (cb ? item.cb == cb : true)) {
                     return false;
                   }
                 }
@@ -784,9 +829,9 @@
               });
               return false;
             },
-            emit(event, ...data){
+            emit(event, ...data) {
               return this._listeners.map(item => {
-                if(item.event == event || (Array.isArray(event) ? event.includes(item.event) : true)) {
+                if (item.event == event || (Array.isArray(event) ? event.includes(item.event) : true)) {
                   return item.cb.call(this, ...data);
                 }
               }).filter(Boolean);
@@ -836,10 +881,10 @@
         compile: compile,
       }),
       vfile: _createClass({
-        find(path){
+        find(path) {
           return ops.op_vfile_get(path)
         },
-        add(path, content){
+        add(path, content) {
           return ops.op_vfile_set(path, content);
         }
       }),
@@ -874,10 +919,10 @@
           _require.find((item) =>
             !_rew_extensions[item]
               ? (() => {
-                  throw new ReferenceError(
-                    `Rew extension ${name} requires extension ${item}.`,
-                  );
-                })()
+                throw new ReferenceError(
+                  `Rew extension ${name} requires extension ${item}.`,
+                );
+              })()
               : "",
           );
         }
