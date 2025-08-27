@@ -544,28 +544,87 @@
           this.write(ptr, val ? 1 : 0, "u8");
         },
 
-        readStruct(ptr, structDef) {
+        readStruct(ptr, structDef, length = 0) {
+          const view = this.view(ptr);
+
+          if (!length) {
+            length = Object.values(structDef)
+              .map((type) => this.sizeOf(type))
+              .reduce((a, b) => a + b, 0);
+          }
+
+          const buf = view.getArrayBuffer(length);
+          const dv = new DataView(buf);
           const result = {};
           let offset = 0;
+
           for (const [field, type] of Object.entries(structDef)) {
-            result[field] = this.read(Deno.UnsafePointer.create(ptr.valueOf() + offset), type);
-            offset += this.sizeOf(type);
+            const size = this.sizeOf(type);
+            result[field] = this._readFromDataView(dv, type, offset);
+            offset += size;
           }
+
           return result;
         },
 
-        create(length){
+        _readFromDataView(dv, type, offset) {
+          
+          if (typeof type == "object") {
+            return this.readStruct(this.create(dv.getBigUint64(offset, true)), type);
+          }
+
+          if (type.startsWith("string:")) {
+            const length = parseInt(type.split(":")[1], 10);
+            const bytes = [];
+            for (let i = 0; i < length; i++) {
+              const byte = dv.getUint8(offset + i);
+              if (byte === 0) break;
+              bytes.push(byte);
+            }
+            return Deno.core.decode(new Uint8Array(bytes));
+          }
+
+          if (type == "str") {
+            return this.string(this.create(dv.getBigUint64(offset, true)));
+          }
+
+          switch (type) {
+            case "u8": return dv.getUint8(offset);
+            case "u16": return dv.getUint16(offset, true);
+            case "u32": return dv.getUint32(offset, true);
+            case "i8": return dv.getInt8(offset);
+            case "i16": return dv.getInt16(offset, true);
+            case "i32": return dv.getInt32(offset, true);
+            case "f32": return dv.getFloat32(offset, true);
+            case "f64": return dv.getFloat64(offset, true);
+            case "u64": return dv.getBigUint64(offset, true);
+            default: throw new Error("Unsupported type: " + type);
+          }
+        },
+
+        create(length) {
           return Deno.UnsafePointer.create(length);
         },
 
         sizeOf(type) {
-          switch (type) {
-            case "u8": case "i8": return 1;
-            case "u16": case "i16": return 2;
-            case "u32": case "i32": case "f32": return 4;
-            case "f64": return 8;
-            default: throw new Error("Unknown type " + type);
+          if (typeof type === "string") {
+            switch (type) {
+              case "u8": case "i8": return 1;
+              case "u16": case "i16": return 2;
+              case "u32": case "i32": case "f32": return 4;
+              case "f64": return 8;
+              case "f64": return 8;
+              case "u64": case "i64": case "str": return 8;
+              default:
+                if (type.startsWith("string:")) {
+                  return parseInt(type.split(":")[1], 10);
+                }
+                throw new Error("Unknown type " + type);
+            }
+          } else if(typeof type == "object"){
+            return 8;
           }
+          throw new Error("Invalid type: " + type);
         },
 
         deref(ptr, length = 1) {
