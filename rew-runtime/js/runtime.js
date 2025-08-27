@@ -554,6 +554,10 @@
           return result;
         },
 
+        create(length){
+          return Deno.UnsafePointer.create(length);
+        },
+
         sizeOf(type) {
           switch (type) {
             case "u8": case "i8": return 1;
