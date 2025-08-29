@@ -69,7 +69,7 @@ jobs:
           Name: "{localappdata}\rew\config"
 
           [Files]
-          Source: "dist\\rew.exe"; DestDir: "{localappdata}\rew\bin"; Flags: ignoreversion
+          Source: "rew.exe"; DestDir: "{localappdata}\rew\bin"; Flags: ignoreversion
 
           [Run]
           Filename: "{localappdata}\rew\bin\\rew.exe"; Description: "Run rew"; Flags: nowait postinstall skipifsilent

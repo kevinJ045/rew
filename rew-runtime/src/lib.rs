@@ -214,10 +214,14 @@ impl RewRuntime {
   pub fn resolve_includes_recursive_from<P: AsRef<Path>>(
     filepath: P,
   ) -> Result<Vec<(PathBuf, String, bool)>> {
-    let filepath = filepath
-      .as_ref()
-      .canonicalize()
-      .with_context(|| "Failed to resolve import".to_string())?;
+    let filepath = if filepath.as_ref().starts_with("/internal/") {
+      PathBuf::from(filepath.as_ref())
+    } else {
+      filepath
+        .as_ref()
+        .canonicalize()
+        .with_context(|| format!("Failed to resolve file path: {:?}", filepath.as_ref()))?
+    };
 
     let import_re = Regex::new(r#"(?m)^\s*import\s+(?:[^;]*?\s+from\s+)?["']([^"']+)["']"#)
       .context("Invalid regex pattern")?;
@@ -529,10 +533,18 @@ impl RewRuntime {
 
         for cap in entry_regex.captures_iter(&compiled) {
           let entry_file = cap[1].to_string();
-          entry_calls.push(format!(
-            "rew.prototype.mod.prototype.get('{}');",
-            entry_file.replace('\\', "\\\\")
-          ));
+          if entry
+            .unwrap_or(Path::new(&entry_file.clone()))
+            .to_str()
+            .unwrap_or(entry_file.as_str())
+            .to_string()
+            == entry_file
+          {
+            entry_calls.push(format!(
+              "rew.prototype.mod.prototype.get('{}');",
+              entry_file.replace('\\', "\\\\")
+            ));
+          }
         }
       } else if is_js_executable(&mod_id) {
         module_wrappers.push_str(&format!(
@@ -848,10 +860,14 @@ return globalThis.module.exports;
   }
 
   pub async fn run_file<P: AsRef<Path>>(&mut self, filepath: P) -> Result<()> {
-    let filepath = filepath
-      .as_ref()
-      .canonicalize()
-      .with_context(|| format!("Failed to resolve file path: {:?}", filepath.as_ref()))?;
+    let filepath = if filepath.as_ref().starts_with("/internal/") {
+      PathBuf::from(filepath.as_ref())
+    } else {
+      filepath
+        .as_ref()
+        .canonicalize()
+        .with_context(|| format!("Failed to resolve file path: {:?}", filepath.as_ref()))?
+    };
 
     let files_with_flags = RewRuntime::resolve_includes_recursive_from(&filepath)?;
 

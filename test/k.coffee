@@ -1,3 +1,0 @@
-package MyPkg;
-
-native MyPkg;

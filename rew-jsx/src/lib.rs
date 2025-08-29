@@ -115,7 +115,7 @@ impl<'a> Parser<'a> {
       self.consume("=");
       self.skip_whitespace();
       let value = if self.starts_with("\"") {
-        self.consume_quoted_string()
+        format!("\"{}\"", self.consume_quoted_string())
       } else if self.starts_with("{") {
         self.parse_braced_attribute()
       } else {
@@ -191,25 +191,6 @@ impl<'a> Parser<'a> {
     ident
   }
 
-  // fn consume_braced_expression(&mut self) -> String {
-  //   self.consume("{");
-  //   let mut expr = String::new();
-  //   let mut depth = 1;
-  //   while self.pos < self.input.len() && depth > 0 {
-  //     let c = self.advance();
-  //     if c == '{' {
-  //       depth += 1;
-  //     } else if c == '}' {
-  //       depth -= 1;
-  //       if depth == 0 {
-  //         break;
-  //       }
-  //     }
-  //     expr.push(c);
-  //   }
-  //   format!("{{{}}}", expr.trim())
-  // }
-
   fn consume_quoted_string(&mut self) -> String {
     self.consume("\"");
     let mut value = String::new();
@@ -251,7 +232,7 @@ fn compile_node(node: &Node, pragma: Option<String>) -> String {
             if v.starts_with("jsx(") || v.contains("(") || v.contains("=>") || v.contains(".") {
               parts.push(format!(r#"{k}: {}"#, v)); // direct expression
             } else {
-              parts.push(format!(r#"{k}: "{}""#, v)); // string literal
+              parts.push(format!(r#"{k}: {}"#, v)); // string literal
             }
           }
           Attr::Spread(expr) => {

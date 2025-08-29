@@ -498,6 +498,40 @@ function proto(name, ...args) {
 proto.strict = (name, ...a) => proto(name, "strict", ...a);
 proto.unsafe = (result) => (name, fn, ...args) => rew.prototype.ptr.prototype.fn(args, result, fn)
 
+proto.class = (to_extend) => (name, fn, ...args) => {
+  if(to_extend){
+    fn.prototype = to_extend.prototype || {};
+  }
+
+  fn.prototype.new = function(...args){
+    return new fn(...args);
+  }
+
+  if(args.length){
+    let macro = args.shift();
+    return macro(name, fn, ...args)
+  }
+
+  return fn;
+};
+
+function signat(someClass){
+  const theClass = someClass ? class extends someClass {} : class {};
+  return theClass;
+}
+
+class EnumValue {}
+function const_rec(rec){
+  const e = new EnumValue;
+  Object.defineProperties(e, Object.fromEntries(Object.keys(rec).map(key => [key, {
+    enumerable: true,
+    value: rec[key],
+    writable: false,
+    configurable: false
+  }])));
+  return e;
+}
+
 if (!rew.extensions.has('types')) rew.extensions.add('types', () => rew.extensions.createClass({
   _namespace() {
     return this;
@@ -510,11 +544,13 @@ if (!rew.extensions.has('types')) rew.extensions.add('types', () => rew.extensio
   match,
   map,
   int,
+  signat,
   float,
   num,
   str,
   bool,
   struct,
   macro,
-  proto
+  proto,
+  const_rec
 }));

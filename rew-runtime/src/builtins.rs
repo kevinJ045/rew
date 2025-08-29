@@ -15,6 +15,7 @@ const HTTP_MODULE: &str = include_str!("../js/builtins/http.js");
 const NET_MODULE: &str = include_str!("../js/builtins/net.js");
 const TYPES_MODULE: &str = include_str!("../js/builtins/types.js");
 const YAML_MODULE: &str = include_str!("../js/builtins/yaml.js");
+const TESTING_MODULE: &str = include_str!("../js/builtins/testing.js");
 
 pub static BUILTIN_MODULES: Lazy<HashMap<&'static str, &'static str>> = Lazy::new(|| {
   let mut m = HashMap::new();
@@ -31,6 +32,7 @@ pub static BUILTIN_MODULES: Lazy<HashMap<&'static str, &'static str>> = Lazy::ne
   m.insert("#std.net", NET_MODULE);
   m.insert("#std.types", TYPES_MODULE);
   m.insert("#std.yaml", YAML_MODULE);
+  m.insert("#std.testing", TESTING_MODULE);
   m.insert("#std", ALL_MODULE);
 
   m

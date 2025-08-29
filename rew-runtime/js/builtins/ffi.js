@@ -27,6 +27,7 @@ if(!rew.extensions.has('ffi')) rew.extensions.add('ffi', (Deno) => rew.extension
   void: "void",
   ptr: "pointer",
   buffer: "buffer",
+  string: "str",
   u8: "u8",
   u16: "u16",
   u32: "u32",

@@ -17,9 +17,10 @@ print 1 < 2
 
 Example = (props) => <><div sksk="sss" {...props}></div></>
 s = ['s', 's', 'd']
+gum = "mug"
 
 name = <><div jdj="sss">
-  <p>sjsjsjs</p>
+  <p id={1} bane={gum}>sjsjsjs</p>
   <div>
     {s.map (i) => <p>{i}</p>}
   </div>

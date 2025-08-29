@@ -17,7 +17,7 @@ print private "s"
 # this is a comment
 # this is another comment
 
-import "./jsx.coffee";
+import "./jsx.test.coffee";
 
 let f = {}
 

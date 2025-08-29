@@ -1,17 +1,17 @@
 use clap::{Parser, Subcommand};
 use colored::*;
+use rew_core::utils;
+use rew_runtime::{RewRuntime, add_virtual_file};
 use std::fs;
 use std::path::PathBuf;
 use tokio::task::LocalSet;
-use rew_core::utils;
-use rew_runtime::RewRuntime;
 
 /// Ensures that necessary directories for the Rew runtime exist.
-/// 
+///
 /// This function creates the following directories if they are missing:
 /// - Root directory for Rew
 /// - Subdirectories: `apps`, `bin`, `data`, and `config`
-/// 
+///
 /// Returns:
 /// - `Ok(())` if all directories are created successfully.
 /// - An `anyhow::Result` error if directory creation fails.
@@ -66,6 +66,16 @@ enum Commands {
   Exec {
     #[arg(name = "CODE")]
     code: String,
+
+    #[arg(trailing_var_arg = true)]
+    args: Vec<String>,
+  },
+  Test {
+    #[arg(name = "FILE")]
+    file: PathBuf,
+
+    #[arg(short, long, help = "Specify the tests to run")]
+    test: Option<String>,
   },
   Brew {
     #[arg(name = "FILE")]
@@ -171,11 +181,32 @@ fn main() -> anyhow::Result<()> {
           let f = runtime.compile_and_run(&content, file, true).await?;
           println!("{}", f);
         }
-        Commands::Exec { code } => {
-          println!("Executing code: {}", code.blue());
-          // TODO: Implement code execution
-          // let mut runtime = RewRuntime::new()?;
-          // TODO: Add a method to execute code directly
+        Commands::Exec { code, args } => {
+          let mut runtime = RewRuntime::new(Some(args.clone()), None)?;
+          add_virtual_file(
+            "/internal/_repl.coffee",
+            format!(
+              "import \"#std!\";\nusing namespace rew::ns;\n{}",
+              &code.clone()
+            )
+            .as_str(),
+          );
+
+          runtime.run_file("/internal/_repl.coffee").await?;
+        }
+        Commands::Test { file, test } => {
+          let mut runtime = RewRuntime::new(None, None)?;
+          add_virtual_file(
+            "/internal/_testing.coffee",
+            format!(
+              "import \"#std.testing!\";tests = \"{}\";\nrew::testing::runAll(tests ? tests.split(',') : []);",
+              test.clone().unwrap_or("".to_string())
+            )
+            .as_str(),
+          );
+
+          runtime.run_file(file).await?;
+          runtime.run_file("/internal/_testing.coffee").await?;
         }
         Commands::Brew {
           file,
@@ -190,10 +221,15 @@ fn main() -> anyhow::Result<()> {
               output.display().to_string().green()
             );
             let mut runtime = RewRuntime::new(None, None)?;
-            let output_string = runtime.build_file(file_path, rew_core::BuildOptions {
-              bundle_all: *bundle_all,
-              entry_file: entry.clone(),
-            }).await?;
+            let output_string = runtime
+              .build_file(
+                file_path,
+                rew_core::BuildOptions {
+                  bundle_all: *bundle_all,
+                  entry_file: entry.clone(),
+                },
+              )
+              .await?;
 
             fs::write(output, output_string.clone())?;
           } else {
