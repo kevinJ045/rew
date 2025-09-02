@@ -459,7 +459,7 @@
           if(type == "string"){
             val = Deno.core.encode(val+'\0');
           } else if(type == "number"){
-            val = new Uint32Array([val])
+            val = new Float32Array([val])
           } else if(type == "bigint"){
             val = new BigUint64Array([val]);
           } else if (type === "boolean") {
@@ -478,7 +478,7 @@
             case "string":
               return this.string(ptr);
             case "number":
-              return this.view(ptr).getFloat64();
+              return this.view(ptr).getFloat32();
             case "bigint":
               return this.view(ptr).getBigUint64();
             case "boolean":

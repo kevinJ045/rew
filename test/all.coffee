@@ -149,9 +149,19 @@ rew::testing::describe 'rew::fs', (it) ->
 
 rew::testing::describe 'rew::ptr', (it) ->
   it 'should write and read from a pointer', ->
-    bytes = rew::encoding::stringToBytes "test"
+    bytes = rew::encoding::stringToBytes "test\0"
     ptr = rew::ptr::of bytes
     rew::testing::assert_eq rew::ptr::string(ptr), "test"
+
+    name = &"hello"
+    id = &11
+    someVal = &4.5
+    isCool = &true
+    rew::testing::assert_eq *name, "hello"
+    rew::testing::assert_eq *id, 11
+    rew::testing::assert_eq *someVal, 4.5
+    rew::testing::assert_eq *isCool, true
+
 
 rew::testing::describe 'Random Functions', (it) ->
   it 'genUid should generate a UID of specified length', ->

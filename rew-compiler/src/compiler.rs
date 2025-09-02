@@ -52,7 +52,7 @@ pub fn tokenize_coffee_script(code: &str) -> Vec<Token> {
     let char = chars[i];
     let next_char = chars.get(i + 1).copied();
     let next_next_char = chars.get(i + 2).copied();
-
+    
     if char == '#' {
       let comment_end = code[i..].find('\n').unwrap_or(code.len() - i);
       let comment = &code[i..i + comment_end + 1];
@@ -106,7 +106,7 @@ pub fn tokenize_coffee_script(code: &str) -> Vec<Token> {
           value: char.to_string(),
         });
       }
-    } else if char.is_alphanumeric() || char == '_' || char == '$' || char == '@' {
+    } else if char.is_alphabetic() || char == '_' || char == '$' || char == '@' {
       let mut identifier = char.to_string();
       i += 1;
       while i < chars.len() && (chars[i].is_alphanumeric() || chars[i] == '_' || chars[i] == '$') {
@@ -115,6 +115,18 @@ pub fn tokenize_coffee_script(code: &str) -> Vec<Token> {
       }
       tokens.push(Token {
         token_type: "IDENTIFIER".to_string(),
+        value: identifier,
+      });
+      i -= 1;
+    } else if char.is_numeric() {
+      let mut identifier = char.to_string();
+      i += 1;
+      while i < chars.len() && (chars[i].is_numeric() || chars[i] == '.') {
+        identifier.push(chars[i]);
+        i += 1;
+      }
+      tokens.push(Token {
+        token_type: "NUMBER".to_string(),
         value: identifier,
       });
       i -= 1;
@@ -377,8 +389,8 @@ fn apply_declarations(
                 value: "".to_string(),
               }
             };
-            println!("{}", next_token.value);
-            println!("{}", additional_idx);
+            // println!("{}", next_token.value);
+            // println!("{}", additional_idx);
             if next_token.token_type == "OTHER" && next_token.value == "!" {
               return Some((additional_idx, decl.replacement.clone()));
             } else {
@@ -592,7 +604,7 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
     if token.value == "&" {
       if let Some((next, _, _)) = get_next_token_whitespace(i, 1, &tokens) {
         // println!("{:?} {} {}", next.token_type, next.value, next.value.parse::<f64>().is_ok());
-        if next.token_type == "IDENTIFIER" || next.token_type == "STRING" {
+        if next.token_type == "IDENTIFIER" || next.token_type == "STRING" || next.token_type == "NUMBER" {
           result.push_str("rew::ptr::of(");
           result.push_str(next.value.clone().as_str());
           result.push_str(")");
