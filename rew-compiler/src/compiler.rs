@@ -106,7 +106,7 @@ pub fn tokenize_coffee_script(code: &str) -> Vec<Token> {
           value: char.to_string(),
         });
       }
-    } else if char.is_alphabetic() || char == '_' || char == '$' || char == '@' {
+    } else if char.is_alphanumeric() || char == '_' || char == '$' || char == '@' {
       let mut identifier = char.to_string();
       i += 1;
       while i < chars.len() && (chars[i].is_alphanumeric() || chars[i] == '_' || chars[i] == '$') {
@@ -138,6 +138,15 @@ fn get_next_token(i: usize, n: i32, tokens: &[Token]) -> Option<(Token, i32, usi
 
   if tokens[index].token_type == "WHITESPACE" {
     return get_next_token(i, n + 1, tokens);
+  }
+
+  Some((tokens[index].clone(), n, index))
+}
+
+fn get_next_token_whitespace(i: usize, n: i32, tokens: &[Token]) -> Option<(Token, i32, usize)> {
+  let index = ((i as i32) + n) as usize;
+  if index >= tokens.len() {
+    return None;
   }
 
   Some((tokens[index].clone(), n, index))
@@ -578,6 +587,32 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
     if token.token_type == "COMMENT" && i < 2 && token.value.starts_with("#!") {
       i += 1;
       continue;
+    }
+
+    if token.value == "&" {
+      if let Some((next, _, _)) = get_next_token_whitespace(i, 1, &tokens) {
+        // println!("{:?} {} {}", next.token_type, next.value, next.value.parse::<f64>().is_ok());
+        if next.token_type == "IDENTIFIER" || next.token_type == "STRING" {
+          result.push_str("rew::ptr::of(");
+          result.push_str(next.value.clone().as_str());
+          result.push_str(")");
+          i += 2;
+          continue;
+        }
+      }
+    }
+
+    if token.value == "*" {
+      if let Some((next, _, _)) = get_next_token_whitespace(i, 1, &tokens) {
+        // println!("{:?} {} {}", next.token_type, next.value, next.value.parse::<f64>().is_ok());
+        if next.token_type == "IDENTIFIER" {
+          result.push_str("rew::ptr::deref(");
+          result.push_str(next.value.clone().as_str());
+          result.push_str(")");
+          i += 2;
+          continue;
+        }
+      }
     }
 
     if token.token_type == "IDENTIFIER" && token.value == "fn" && i < 2 {

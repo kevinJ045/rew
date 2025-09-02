@@ -27,7 +27,10 @@ if(!rew.extensions.has('ffi')) rew.extensions.add('ffi', (Deno) => rew.extension
   void: "void",
   ptr: "pointer",
   buffer: "buffer",
+  buf: "buffer",
   string: "str",
+  struct: "struct",
+  fn: "function",
   u8: "u8",
   u16: "u16",
   u32: "u32",
@@ -38,7 +41,11 @@ if(!rew.extensions.has('ffi')) rew.extensions.add('ffi', (Deno) => rew.extension
   i64: "i64",
   f32: "f32",
   f64: "f64",
-  struct: (def) => ({ struct: def }),
+  usize: "usize",
+  isize: "isize",
+  bool: "bool",
+  b: "bool",
+  structDef: (def) => ({ struct: def }),
   open_raw: (libPath, symbols) => {
     try {
       return Deno.dlopen(libPath, symbols);

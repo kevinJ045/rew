@@ -260,7 +260,7 @@
       };
 
       SUB_PACKAGES.filter(
-        (p) => p.packageName == module.app.config.manifest.package,
+        (p) => p.packageName == module.app.config.manifest?.package,
       ).forEach((item) => {
         Object.defineProperty(this, item.name, {
           value: item,
@@ -446,6 +446,7 @@
 
   delete globalThis.console;
 
+  const pointerMap = new WeakMap();
   const _rew_extensions = {};
   const _createRew = (...args) =>
     _createClass({
@@ -454,7 +455,42 @@
           return "ptr";
         },
         of(val) {
-          return Deno.UnsafePointer.of(val);
+          const type = typeof val;
+          if(type == "string"){
+            val = Deno.core.encode(val+'\0');
+          } else if(type == "number"){
+            val = new Uint32Array([val])
+          } else if(type == "bigint"){
+            val = new BigUint64Array([val]);
+          } else if (type === "boolean") {
+            val = new Uint8Array([val ? 1 : 0]);
+          }
+          const ptr = Deno.UnsafePointer.of(val);
+          pointerMap.set(ptr, type);
+          return ptr;
+        },
+        val(ptr) {
+          return Deno.UnsafePointer.value(ptr);
+        },
+        deref(ptr) {
+          const type = pointerMap.get(ptr);
+          switch (type) {
+            case "string":
+              return this.string(ptr);
+            case "number":
+              return this.view(ptr).getFloat64();
+            case "bigint":
+              return this.view(ptr).getBigUint64();
+            case "boolean":
+              return !!this.view(ptr).getUint8();
+          }
+          const view = this.view(ptr);
+          view.toString = () => this.string(ptr);
+          view.asInt = () => view.getFloat64();
+          view.asFloat = () => view.getFloat64();
+          view.asBig = () => view.getBigUint64();
+          view.asBool = () => !!view.getUint8();
+          return view;
         },
 
         fn(params, result, callback) {
@@ -627,13 +663,13 @@
           throw new Error("Invalid type: " + type);
         },
 
-        deref(ptr, length = 1) {
+        buff(ptr, length = 1) {
           const view = this.view(ptr);
           return view.getArrayBuffer(length);
         },
 
         toBytes(ptr, length = 1) {
-          const buf = this.deref(ptr, length);
+          const buf = this.buff(ptr, length);
           return new Uint8Array(buf);
         },
 

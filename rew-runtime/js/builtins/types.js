@@ -532,6 +532,12 @@ function const_rec(rec){
   return e;
 }
 
+// function getters(object, key, cb){
+//   Object.defineProperty(object, key, {
+//     get: cb
+//   });
+// }
+
 if (!rew.extensions.has('types')) rew.extensions.add('types', () => rew.extensions.createClass({
   _namespace() {
     return this;
