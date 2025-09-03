@@ -534,11 +534,11 @@ impl RewRuntime {
         for cap in entry_regex.captures_iter(&compiled) {
           let entry_file = cap[1].to_string();
           if entry
-            .unwrap_or(Path::new(&entry_file.clone()))
+            .unwrap_or(Path::new(""))
             .to_str()
-            .unwrap_or(entry_file.as_str())
+            .unwrap_or("")
             .to_string()
-            == entry_file
+            == entry_file.replace(".coffee", ".brew")
           {
             entry_calls.push(format!(
               "rew.prototype.mod.prototype.get('{}');",

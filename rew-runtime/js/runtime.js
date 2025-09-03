@@ -861,9 +861,9 @@
           if (interval < 1) interval = 1;
           let stop = 0;
           let lastTimeout = 0;
-          const keepAlive = () => {
+          const keepAlive = async () => {
             if (typeof cb == "function") {
-              cb.call(ctx);
+              await cb.call(ctx);
             }
             if (!stop) {
               lastTimeout = setTimeout(keepAlive, interval);
@@ -930,7 +930,7 @@
             },
             emit(event, ...data) {
               return this._listeners.map(item => {
-                if (item.event == event || (Array.isArray(event) ? event.includes(item.event) : true)) {
+                if (item.event == event || (Array.isArray(event) ? event.includes(item.event) : false)) {
                   return item.cb.call(this, ...data);
                 }
               }).filter(Boolean);
