@@ -466,7 +466,9 @@
             val = new Uint8Array([val ? 1 : 0]);
           }
           const ptr = Deno.UnsafePointer.of(val);
-          pointerMap.set(ptr, type);
+          try{
+            pointerMap.set(ptr, type);
+          } catch(e) {}
           return ptr;
         },
         val(ptr) {
