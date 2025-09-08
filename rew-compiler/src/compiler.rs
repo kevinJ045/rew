@@ -629,13 +629,24 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
         }
       }
     }
+
+    if token.value == "\\" {
+      if let Some((next, _, _)) = get_next_token_whitespace(i, 1, &tokens) {
+        if next.value == "^" {
+          i += 1;
+          continue;
+        }
+      }
+    }
     
     if token.value == "^" {
       if let Some((next, _, _)) = get_next_token_whitespace(i, 1, &tokens) {
-        if next.token_type == "STRING" || next.token_type == "IDENTIFIER" {
+        if (next.token_type == "STRING" || next.token_type == "IDENTIFIER" || next.value == "(") && prev_token.clone().is_none_or(|(t, _, _)| t.value != "/" && t.value != "\\") {
           result.push_str("rew::encoding::stringToBytes(");
-          result.push_str(next.value.clone().as_str());
-          result.push_str(")");
+          if next.value != "(" {
+            result.push_str(next.value.clone().as_str());
+            result.push_str(")");
+          }
           i += 2;
           continue;
         }

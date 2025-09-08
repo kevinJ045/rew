@@ -454,12 +454,33 @@
         _namespace() {
           return "ptr";
         },
-        of(val) {
-          const type = typeof val;
+        of(val, _type = 'auto') {
+          let type = typeof val;
           if(type == "string"){
             val = Deno.core.encode(val+'\0');
           } else if(type == "number"){
-            val = new Float32Array([val])
+            type = 'number-' + _type;
+            switch(_type){
+              case 'u8':
+                val = new Uint8Array([val])
+              case 'u16':
+                val = new Uint16Array([val])
+              case 'u32':
+                val = new Uint32Array([val])
+              case 'i8':
+                val = new Int8Array([val])
+              case 'i16':
+                val = new Int16Array([val])
+              case 'i32':
+                val = new Int32Array([val])
+              case 'f32':
+                val = new Float32Array([val])
+              case 'f64':
+                val = new Float64Array([val])
+              default:
+                type = 'number-' + (val.toString().includes('.') ? 'f32' : 'i32');
+                val = val.toString().includes('.') ? new Float32Array([val]) : new Int32Array([val])
+            }
           } else if(type == "bigint"){
             val = new BigUint64Array([val]);
           } else if (type === "boolean") {
@@ -479,18 +500,17 @@
           switch (type) {
             case "string":
               return this.string(ptr);
-            case "number":
-              return this.view(ptr).getFloat32();
             case "bigint":
               return this.view(ptr).getBigUint64();
             case "boolean":
               return !!this.view(ptr).getUint8();
           }
+          if(type.startsWith('number-')){ 
+            return this.read(ptr, type.split('-')[1]);
+          }
           const view = this.view(ptr);
           view.toString = () => this.string(ptr);
-          view.asInt = () => view.getFloat64();
-          view.asFloat = () => view.getFloat64();
-          view.asBig = () => view.getBigUint64();
+          view.as = (type) => this.read(ptr, type);
           view.asBool = () => !!view.getUint8();
           return view;
         },

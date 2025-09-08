@@ -149,18 +149,29 @@ rew::testing::describe 'rew::fs', (it) ->
 
 rew::testing::describe 'rew::ptr', (it) ->
   it 'should write and read from a pointer', ->
-    bytes = rew::encoding::stringToBytes "test\0"
-    ptr = rew::ptr::of bytes
-    rew::testing::assert_eq rew::ptr::string(ptr), "test"
+    bytes = ^"test\0"
+    ptr = &bytes
+    rew::testing::assert_eq *ptr.toString(), "test"
 
     name = &"hello"
-    id = &11
+    id = &(11, 'u8')
+    age = &24
     someVal = &4.5
     isCool = &true
     rew::testing::assert_eq *name, "hello"
     rew::testing::assert_eq *id, 11
+    rew::testing::assert_eq *age, 24
     rew::testing::assert_eq *someVal, 4.5
     rew::testing::assert_eq *isCool, true
+
+  it 'should test possible syntaxes', ->
+    myMatch = /^Hello/
+    myMatch2 = /(\^\\^something)/
+    rew::testing::assert_eq myMatch.test("Hello"), true
+    rew::testing::assert_eq myMatch2.test("^something"), true
+
+    rew::testing::assert_eq 1 * 1, 1
+    rew::testing::assert_eq 1 & 1, 1
 
 
 rew::testing::describe 'Random Functions', (it) ->
