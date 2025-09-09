@@ -32,6 +32,10 @@ pub fn get_rew_root() -> PathBuf {
   }
 }
 
+pub fn pimmy_data_path() -> Option<PathBuf> {
+  Some(get_rew_root().join(".pimmy"))
+}
+
 // Find an app by package name
 pub fn find_app_by_package(package_name: &str) -> Option<AppInfo> {
   let rew_root = get_rew_root();

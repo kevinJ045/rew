@@ -11,7 +11,7 @@ members = [
   "rew-utils",
   "rew-vfile",
   "rew-brew",
-  "rew-ops",
+  "rew-ops", "rew-pimmy",
 ]
 resolver = "2"
 

@@ -31,6 +31,7 @@ fn ensure_rew_dirs() -> anyhow::Result<()> {
   create_dir_if_missing(&rew_root.join("bin"))?;
   create_dir_if_missing(&rew_root.join("data"))?;
   create_dir_if_missing(&rew_root.join("config"))?;
+  create_dir_if_missing(&rew_root.join(".pimmy"))?;
 
   Ok(())
 }
@@ -94,6 +95,72 @@ enum Commands {
     )]
     entry: Option<PathBuf>,
   },
+  App {
+    #[arg(name = "APP")]
+    app: String,
+
+    #[arg(short = 'r', long)]
+    remove: bool,
+
+    #[arg(short = 'a', long)]
+    add: bool,
+
+    #[arg(short = 'q', long)]
+    query: Option<String>,
+  },
+  Repo {
+    #[arg(name = "APP")]
+    repo: String,
+
+    #[arg(short = 'r', long)]
+    remove: bool,
+
+    #[arg(short = 'a', long)]
+    add: Option<String>,
+
+    #[arg(short = 's', long)]
+    sync: bool,
+
+    #[arg(short = 'q', long)]
+    query: Option<String>,
+  },
+  Build {
+    #[arg(name = "APP")]
+    app: String,
+
+    #[arg(short = 's', long)]
+    safe: bool,
+
+    // #[arg(short = 'c', long)]
+    // cache: bool,
+  },
+  List {
+    #[arg(short = 'a', long)]
+    app: bool,
+
+    #[arg(short = 'r', long)]
+    repo: Option<String>,
+
+    #[arg(short = 'c', long)]
+    cache: bool,
+  },
+  Readme {
+    #[arg(name = "APP")]
+    app: String,
+  },
+  New {
+    #[arg(name = "APP")]
+    app: String,
+    
+    #[arg(short = 'g', long)]
+    git: bool,
+    
+    #[arg(short = 't', long)]
+    types: bool,
+    
+    #[arg(short = 'i', long)]
+    ignore: bool,
+  }
 }
 
 fn main() -> anyhow::Result<()> {
@@ -234,6 +301,54 @@ fn main() -> anyhow::Result<()> {
             fs::write(output, output_string.clone())?;
           } else {
             println!("No file specified for brewing");
+          }
+        },
+        Commands::New { app, git, types, ignore } => {
+          rew_pimmy::repo::init();
+          rew_pimmy::project::new(app.into(), *git, *ignore, *types);
+        },
+        Commands::App { app, remove, add, query } => {
+          rew_pimmy::repo::init();
+          if *add {
+            if let Some(cache_entry) = rew_pimmy::cache::resolve_cache_entry(app, true, true, false).await {
+              rew_pimmy::cache::install(cache_entry.to_string_lossy().to_string().as_str(), Some(true)).await;
+            } else {
+              println!("App {} is not found!", app);
+            }
+          } else if *remove {
+            rew_pimmy::cache::remove_app_impl(app, true);
+          } else if let Some(query) = query {
+            rew_pimmy::repo::find_app(query);
+          }
+        },
+        Commands::Build { app, safe} => {
+          rew_pimmy::repo::init();
+          rew_pimmy::builder::build(app, *safe).await;
+        },
+        Commands::Repo { repo, remove, add, query, sync } => {
+          rew_pimmy::repo::init();
+          if *sync {
+            rew_pimmy::repo::sync_all(Some(repo.into())).await;
+          } else if let Some(add) = add {
+            rew_pimmy::repo::add(repo.into(), add.into());
+          } else if *remove {
+            rew_pimmy::repo::remove(repo.into());
+          } else if let Some(query) = query {
+            rew_pimmy::repo::find_app(query);
+          }
+        },
+        Commands::Readme { app } => {
+          rew_pimmy::repo::init();
+          rew_pimmy::repo::readme(app).await;
+        },
+        Commands::List { app, repo, cache } => {
+          rew_pimmy::repo::init();
+          if let Some(repo) = repo {
+            rew_pimmy::repo::list_packages_in_repo(repo);
+          } else if *app || *cache {
+            rew_pimmy::cache::list_installed();
+          } else {
+            rew_pimmy::repo::list(None)
           }
         }
       }
