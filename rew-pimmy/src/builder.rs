@@ -69,6 +69,7 @@ pub struct AppConfig {
   pub prefetch: Option<Vec<PrefetchConfig>>,
   pub build: Option<Vec<BuildConfig>>,
   pub native: Option<Value>,
+  pub dependencies: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone)]
@@ -164,12 +165,10 @@ pub async fn build_rew_app<'a>(
     if let Some(native) = &app_config.native {
       if let Some(on) = native.get("on").and_then(|v| v.as_str()) {
         if on == "build" {
-          logger::info("    Installing native dependencies");
           if let Err(e) = install_native_deps(native, app_path, safe) {
             logger::error(&format!("Failed to install native dependencies: {}", e));
             errors += 1;
           }
-          logger::info("    Dependencies installed");
         }
       }
     }
@@ -312,6 +311,18 @@ pub fn parse_app_config(config_yaml: &Value) -> Result<AppConfig, Box<dyn std::e
     cmods: None,
     prefetch: None,
     build: None,
+    dependencies: config_yaml
+      .get("dependencies")
+      .and_then(|c| c.as_sequence())
+      .map(|seq| {
+        Some(
+          seq
+            .iter()
+            .filter_map(|v| v.as_str().map(|s| s.to_string()))
+            .collect(),
+        )
+      })
+      .unwrap_or(None),
     native: config_yaml.get("native").cloned(),
   };
 
@@ -1029,7 +1040,6 @@ fn run_command(
   command: &str,
   safe: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
-
   if safe {
     logger::info(&format!("{}", "[SAFE MODE] Command run halted.".yellow()));
     return Ok(());

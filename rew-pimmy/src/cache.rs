@@ -352,7 +352,6 @@ pub fn list_directory_contents(path: &PathBuf) -> Result<Vec<PathBuf>, std::io::
   Ok(files)
 }
 
-// CoffeeScript-style resolve function
 pub async fn resolve_cache_entry(
   key: &str,
   update: bool,
@@ -371,7 +370,6 @@ pub async fn resolve_cache_entry(
     return None;
   };
 
-  // Check if key is a local path
   let app_path = PathBuf::from(key);
   if app_path.exists() {
     match resolve_local_path(&app_path, &cache_path, silent, cache).await {
@@ -390,7 +388,6 @@ pub async fn resolve_cache_entry(
     }
   }
 
-  // Check if key matches URL pattern
   if let Ok(url_pattern) = parse_url_pattern(key) {
     match resolve_url_pattern(&url_pattern, &cache_path, update, silent).await {
       Ok(path) => {
@@ -408,7 +405,6 @@ pub async fn resolve_cache_entry(
     }
   }
 
-  // Check if key is a GitHub URL
   if key.starts_with("github:") {
     match resolve_github_entry(key, &cache_path, update, silent).await {
       Ok(path) => {
@@ -476,6 +472,13 @@ async fn resolve_local_path(
     return Err("app.yaml not found".into());
   }
 
+  match build_cache_entry(cache_entry_path.clone()).await {
+    Ok(_) => {}
+    Err(_) => {
+      return Err("Build error occured".into());
+    }
+  };
+
   Ok(cache_entry_path)
 }
 
@@ -532,29 +535,38 @@ async fn resolve_url_pattern(
   }
 
   let unarchive_path = cache_entry_path.join("_out");
-  let built_path = cache_entry_path.join("_out/.built");
 
-  if built_path.exists() {
-    return Ok(unarchive_path);
-  }
+  match build_cache_entry(unarchive_path.clone()).await {
+    Ok(pass) => {
+      if pass {
+        return Ok(unarchive_path);
+      }
+    }
+    Err(_) => {
+      return Err("Build error occured".into());
+    }
+  };
 
   fs::create_dir_all(&unarchive_path)?;
 
   // Extract archive
   unarchive(&url_pattern.archiver, &cache_file, &unarchive_path)?;
 
-  // Validate app.yaml
-  let app_yaml_path = unarchive_path.join("app.yaml");
+  Ok(unarchive_path)
+}
+
+async fn build_cache_entry(cache_entry_path: PathBuf) -> Result<bool, Box<dyn std::error::Error>> {
+  let built_path = cache_entry_path.join(".built");
+
+  if built_path.exists() {
+    return Ok(true);
+  }
+
+  let app_yaml_path = cache_entry_path.join("app.yaml");
   if !app_yaml_path.exists() {
-    if !silent {
-      logger::error(
-        "Not a compatible rew app, seed file app.yaml could not be found. A bare minimum of a manifest with a package name is required for a rew app to be cached and processed",
-      );
-    }
     return Err("app.yaml not found".into());
   }
 
-  // Read config and potentially build
   let config_content = fs::read_to_string(&app_yaml_path)?;
   let config: Value = serde_yaml::from_str(&config_content)?;
 
@@ -564,16 +576,15 @@ async fn resolve_url_pattern(
       .and_then(|b| b.as_bool())
       .unwrap_or(false)
     {
-      crate::builder::build_rew_app(&unarchive_path, false)
+      crate::builder::build_rew_app(&cache_entry_path, false)
         .await
         .await?;
     }
 
-    // Handle cleanup
     if let Some(cleanup) = install.get("cleanup") {
       match cleanup {
         Value::String(path) => {
-          let cleanup_path = unarchive_path.join(path);
+          let cleanup_path = cache_entry_path.join(path);
           if cleanup_path.exists() {
             if cleanup_path.is_dir() {
               fs::remove_dir_all(&cleanup_path)?;
@@ -585,7 +596,7 @@ async fn resolve_url_pattern(
         Value::Sequence(paths) => {
           for path_val in paths {
             if let Some(path) = path_val.as_str() {
-              let cleanup_path = unarchive_path.join(path);
+              let cleanup_path = cache_entry_path.join(path);
               if cleanup_path.exists() {
                 if cleanup_path.is_dir() {
                   fs::remove_dir_all(&cleanup_path)?;
@@ -601,10 +612,9 @@ async fn resolve_url_pattern(
     }
   }
 
-  // Mark as built
   fs::write(&built_path, "")?;
 
-  Ok(unarchive_path)
+  Ok(false)
 }
 
 async fn resolve_github_entry(
@@ -679,6 +689,17 @@ async fn resolve_github_entry(
       );
     }
   }
+
+  match build_cache_entry(cache_entry_path.clone()).await {
+    Ok(pass) => {
+      if pass {
+        return Ok(cache_entry_path);
+      }
+    }
+    Err(_) => {
+      return Err("Build error occured".into());
+    }
+  };
 
   Ok(cache_entry_path)
 }
@@ -786,12 +807,17 @@ pub async fn install_from(app_path: PathBuf, sync: Option<bool>) {
     if let Some(native) = &app_config.native {
       if let Some(on) = native.get("on").and_then(|v| v.as_str()) {
         if on == "install" {
-          logger::info("    Installing native dependencies");
           if let Err(e) = install_native_deps(native, Path::new(&app_path), false) {
             logger::error(&format!("Failed to install native dependencies: {}", e));
             return;
           }
-          logger::info("    Dependencies installed");
+        }
+      }
+    }
+    if let Some(dependencies) = &app_config.dependencies {
+      for dep in dependencies {
+        if let Some(entry) = Box::pin(resolve_cache_entry(dep, true, true, true, true)).await {
+          Box::pin(install_from(entry, sync)).await;
         }
       }
     }
