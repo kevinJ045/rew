@@ -105,6 +105,9 @@ enum Commands {
     #[arg(short = 'a', long)]
     add: bool,
 
+    #[arg(short = 'c', long)]
+    cache: bool,
+
     #[arg(short = 'q', long)]
     query: Option<String>,
   },
@@ -305,28 +308,37 @@ fn main() -> anyhow::Result<()> {
         },
         Commands::New { app, git, types, ignore } => {
           rew_pimmy::repo::init();
+          rew_pimmy::logger::begin();
           rew_pimmy::project::new(app.into(), *git, *ignore, *types);
+          rew_pimmy::logger::end();
         },
-        Commands::App { app, remove, add, query } => {
+        Commands::App { app, remove, add, query, cache } => {
           rew_pimmy::repo::init();
+          rew_pimmy::logger::begin();
           if *add {
-            if let Some(cache_entry) = rew_pimmy::cache::resolve_cache_entry(app, true, true, false).await {
-              rew_pimmy::cache::install(cache_entry.to_string_lossy().to_string().as_str(), Some(true)).await;
+            if let Some(cache_entry) = rew_pimmy::cache::resolve_cache_entry(app, true, true, false, *cache).await {
+              rew_pimmy::cache::install_from(cache_entry, Some(true)).await;
             } else {
-              println!("App {} is not found!", app);
+              rew_pimmy::cache::install(app, Some(true)).await;
             }
           } else if *remove {
             rew_pimmy::cache::remove_app_impl(app, true);
           } else if let Some(query) = query {
             rew_pimmy::repo::find_app(query);
+          } else {
+            rew_pimmy::logger::info("Nothing to do");
           }
+          rew_pimmy::logger::end();
         },
         Commands::Build { app, safe} => {
           rew_pimmy::repo::init();
+          rew_pimmy::logger::begin();
           rew_pimmy::builder::build(app, *safe).await;
+          rew_pimmy::logger::end();
         },
         Commands::Repo { repo, remove, add, query, sync } => {
           rew_pimmy::repo::init();
+          rew_pimmy::logger::begin();
           if *sync {
             rew_pimmy::repo::sync_all(Some(repo.into())).await;
           } else if let Some(add) = add {
@@ -335,7 +347,10 @@ fn main() -> anyhow::Result<()> {
             rew_pimmy::repo::remove(repo.into());
           } else if let Some(query) = query {
             rew_pimmy::repo::find_app(query);
+          } else {
+            rew_pimmy::logger::info("Nothing to do");
           }
+          rew_pimmy::logger::end();
         },
         Commands::Readme { app } => {
           rew_pimmy::repo::init();
@@ -343,6 +358,7 @@ fn main() -> anyhow::Result<()> {
         },
         Commands::List { app, repo, cache } => {
           rew_pimmy::repo::init();
+          rew_pimmy::logger::begin();
           if let Some(repo) = repo {
             rew_pimmy::repo::list_packages_in_repo(repo);
           } else if *app || *cache {
@@ -350,6 +366,7 @@ fn main() -> anyhow::Result<()> {
           } else {
             rew_pimmy::repo::list(None)
           }
+          rew_pimmy::logger::end();
         }
       }
 

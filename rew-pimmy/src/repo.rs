@@ -51,6 +51,7 @@ pub struct AppManifest {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Manifest {
+  pub package: String,
   pub version: String,
   pub description: Option<String>,
   pub readme: Option<String>,
@@ -286,8 +287,6 @@ fn list_repos() {
 }
 
 pub fn init() {
-  logger::info("Initializing repositories.");
-
   let Some(pimmy_data_path) = utils::pimmy_data_path() else {
     return;
   };

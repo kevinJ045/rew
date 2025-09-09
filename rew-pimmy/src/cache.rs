@@ -1,5 +1,6 @@
+use crate::builder::{install_native_deps, parse_app_config};
+use crate::logger;
 use crate::repo::Package;
-use crate::{logger};
 use colored::*;
 use indicatif::{ProgressBar, ProgressStyle};
 use regex::Regex;
@@ -357,6 +358,7 @@ pub async fn resolve_cache_entry(
   update: bool,
   is_recursed: bool,
   silent: bool,
+  cache: bool,
 ) -> Option<PathBuf> {
   if !is_recursed {
     logger::info(&format!("Resolve cache entry {}", key));
@@ -372,7 +374,7 @@ pub async fn resolve_cache_entry(
   // Check if key is a local path
   let app_path = PathBuf::from(key);
   if app_path.exists() {
-    match resolve_local_path(&app_path, &cache_path, silent).await {
+    match resolve_local_path(&app_path, &cache_path, silent, cache).await {
       Ok(path) => {
         if !silent {
           logger::info("Cache resolved");
@@ -427,7 +429,14 @@ pub async fn resolve_cache_entry(
   // Check if key is in repo cache
   if let Some(package) = find_package_in_repos(key) {
     // Recursively resolve the package URL
-    return Box::pin(resolve_cache_entry(&package.url, update, true, silent)).await;
+    return Box::pin(resolve_cache_entry(
+      &package.url,
+      update,
+      true,
+      silent,
+      cache,
+    ))
+    .await;
   }
 
   if !silent {
@@ -440,7 +449,11 @@ async fn resolve_local_path(
   app_path: &Path,
   cache_path: &Path,
   silent: bool,
+  cache: bool,
 ) -> Result<PathBuf, Box<dyn std::error::Error>> {
+  if !cache {
+    return Ok(PathBuf::from(app_path));
+  }
   let cache_id = generate_id_for_existing(app_path)?;
   let cache_entry_path = cache_path.join(&cache_id);
 
@@ -551,7 +564,9 @@ async fn resolve_url_pattern(
       .and_then(|b| b.as_bool())
       .unwrap_or(false)
     {
-      crate::builder::build_rew_app(&unarchive_path, false).await.await?;
+      crate::builder::build_rew_app(&unarchive_path, false)
+        .await
+        .await?;
     }
 
     // Handle cleanup
@@ -693,6 +708,114 @@ pub async fn resolve(app_name: &str) -> Option<String> {
   None
 }
 
+pub async fn install_from(app_path: PathBuf, sync: Option<bool>) {
+  let mut cache = load_app_cache();
+
+  let app_yaml_path = app_path.join("app.yaml");
+  if !app_yaml_path.exists() {
+    logger::error("app.yaml not found".into());
+    return;
+  }
+
+  let content = match fs::read_to_string(&app_yaml_path) {
+    Ok(s) => s,
+    Err(e) => {
+      logger::error(&format!(
+        "Unable to read app.yaml at {}: {}",
+        app_yaml_path.display(),
+        e
+      ));
+      return;
+    }
+  };
+  let manifest: Value = match serde_yaml::from_str(&content).ok() {
+    Some(s) => s,
+    _ => {
+      logger::error(&format!(
+        "Unable to read app.yaml at {}",
+        app_yaml_path.display()
+      ));
+      return;
+    }
+  };
+
+  let package = manifest
+    .get("manifest")
+    .and_then(|m| m.get("package"))
+    .and_then(|p| p.as_str())
+    .unwrap_or("unknown");
+
+  let version = manifest
+    .get("manifest")
+    .and_then(|m| m.get("version"))
+    .and_then(|v| v.as_str())
+    .unwrap_or("");
+
+  let apps_dir = utils::get_rew_root().join("apps");
+  if let Err(e) = fs::create_dir_all(&apps_dir) {
+    logger::error(&format!("Failed to create paths: {}", e));
+  }
+
+  let install_path = apps_dir.join(&package);
+
+  if install_path.exists() {
+    if let Some(sync) = sync {
+      if !sync {
+        logger::error(&format!("App {} already installed.", package));
+      }
+    }
+    if let Err(e) = fs::remove_dir_all(&install_path) {
+      logger::error(&format!("Failed to remove existing install: {}", e));
+    }
+  }
+
+  let mut options = fs_extra::dir::CopyOptions::new();
+  options.overwrite = true;
+  options.copy_inside = true;
+  options.content_only = false;
+
+  match fs_extra::dir::copy(app_path.clone(), install_path.clone(), &options) {
+    Ok(_) => {}
+    Err(e) => {
+      logger::error(&format!("Failed to install: {}", e));
+      return;
+    }
+  };
+
+  if let Ok(app_config) = parse_app_config(&manifest) {
+    if let Some(native) = &app_config.native {
+      if let Some(on) = native.get("on").and_then(|v| v.as_str()) {
+        if on == "install" {
+          logger::info("    Installing native dependencies");
+          if let Err(e) = install_native_deps(native, Path::new(&app_path), false) {
+            logger::error(&format!("Failed to install native dependencies: {}", e));
+            return;
+          }
+          logger::info("    Dependencies installed");
+        }
+      }
+    }
+  }
+
+  let cached_app = CachedApp {
+    name: package.to_string(),
+    version: version.to_string(),
+    repo: "unknown".to_string(),
+    url: "unknown".to_string(),
+    install_path,
+    installed_at: chrono::Utc::now().to_rfc3339(),
+  };
+
+  cache.apps.insert(package.to_string(), cached_app);
+
+  if let Err(e) = save_app_cache(&cache) {
+    logger::error(&format!("Failed to save cache: {}", e));
+    return;
+  }
+
+  logger::info(&format!("Successfully installed '{}'", package));
+}
+
 pub async fn install(app_name: &str, sync: Option<bool>) {
   let action = if sync.unwrap_or(false) {
     "Syncing"
@@ -704,17 +827,14 @@ pub async fn install(app_name: &str, sync: Option<bool>) {
   // Check if already installed and sync is false
   let mut cache = load_app_cache();
   if !sync.unwrap_or(false) && cache.apps.contains_key(app_name) {
-    logger::warn(&format!(
-      "App '{}' is already installed. Use --sync to update.",
-      app_name
-    ));
+    logger::warn(&format!("App '{}' is already installed.", app_name));
     return;
   }
 
   // Find package in repositories
   let Some(package) = find_package_in_repos(app_name) else {
     logger::error(&format!(
-      "Package '{}' not found in any repository. Try running --sync first.",
+      "Package '{}' not found in any repository. Try running repo [repo] --sync first.",
       app_name
     ));
     return;
@@ -728,6 +848,50 @@ pub async fn install(app_name: &str, sync: Option<bool>) {
   // Download and install
   match download_and_install(&package).await {
     Ok(install_path) => {
+      let app_yaml_path = install_path.join("app.yaml");
+      if !app_yaml_path.exists() {
+        logger::error("app.yaml not found".into());
+        return;
+      }
+
+      let content = match fs::read_to_string(&app_yaml_path) {
+        Ok(s) => s,
+        Err(e) => {
+          logger::error(&format!(
+            "Unable to read app.yaml at {}: {}",
+            app_yaml_path.display(),
+            e
+          ));
+          return;
+        }
+      };
+
+      let manifest: Value = match serde_yaml::from_str(&content).ok() {
+        Some(s) => s,
+        _ => {
+          logger::error(&format!(
+            "Unable to read app.yaml at {}",
+            app_yaml_path.display()
+          ));
+          return;
+        }
+      };
+
+      if let Ok(app_config) = parse_app_config(&manifest) {
+        if let Some(native) = &app_config.native {
+          if let Some(on) = native.get("on").and_then(|v| v.as_str()) {
+            if on == "install" {
+              logger::info("    Installing native dependencies");
+              if let Err(e) = install_native_deps(native, Path::new(&install_path), false) {
+                logger::error(&format!("Failed to install native dependencies: {}", e));
+                return;
+              }
+              logger::info("    Dependencies installed");
+            }
+          }
+        }
+      }
+
       let cached_app = CachedApp {
         name: package.name.clone(),
         version: package.version.clone(),
@@ -760,7 +924,6 @@ async fn download_and_install(
 
   let install_path = apps_dir.join(&package.name);
 
-  // Remove existing installation if it exists
   if install_path.exists() {
     fs::remove_dir_all(&install_path)?;
   }
@@ -770,7 +933,7 @@ async fn download_and_install(
   } else if package.url.starts_with("http://") || package.url.starts_with("https://") {
     download_http_archive(package, &install_path).await
   } else {
-    Err(format!("Unsupported URL format: {}", package.url).into())
+    return Err(format!("Unsupported URL format: {}", package.url).into());
   }
 }
 
@@ -782,8 +945,10 @@ async fn download_github_repo(
     resolve_github_url(&package.url).map_err(|e| format!("Invalid GitHub URL: {}", e))?;
 
   let archive_url = format!(
-    "https://github.com/{}/{}/archive/refs/heads/main.zip",
-    user, repo
+    "https://github.com/{}/{}/archive/refs/heads/{}.zip",
+    user,
+    repo,
+    _branch.unwrap_or("main".to_string())
   );
   logger::info(&format!("Downloading from GitHub: {}/{}", user, repo));
 
@@ -1056,4 +1221,3 @@ fn unarchive(
 
   Ok(())
 }
-

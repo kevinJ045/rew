@@ -4,7 +4,7 @@ use rew_runtime::RewRuntime;
 use serde_yaml::Value;
 use std::collections::HashMap;
 use std::fs;
-use std::path::{PathBuf, Path};
+use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::process::Command;
 
@@ -51,6 +51,7 @@ struct NativeDep {
   postinstall: Option<Vec<ShellCommand>>,
   fallback: Option<Value>,
   content: Option<String>,
+  url: Option<String>,
   // path: Option<String>,
   // url: Option<String>,
 }
@@ -304,7 +305,7 @@ fn parse_prefetch_config(prefetch_yaml: &Value) -> PrefetchConfig {
   }
 }
 
-fn parse_app_config(config_yaml: &Value) -> Result<AppConfig, Box<dyn std::error::Error>> {
+pub fn parse_app_config(config_yaml: &Value) -> Result<AppConfig, Box<dyn std::error::Error>> {
   let mut app_config = AppConfig {
     manifest: config_yaml.get("manifest").cloned(),
     crates: None,
@@ -502,7 +503,7 @@ fn is_cargo_available() -> bool {
   Command::new("cargo").arg("--version").output().is_ok()
 }
 
-fn build_files(files: &[FileConfig], root_path: PathBuf, app_path: &Path, safe: bool){
+fn build_files(files: &[FileConfig], root_path: PathBuf, app_path: &Path, safe: bool) {
   for file in files {
     if file.system.is_none() || (file.system.as_deref() == Some(std::env::consts::OS)) {
       let input_path = root_path.join(&file.input);
@@ -622,7 +623,6 @@ fn build_crate(crate_config: &CrateConfig, app_path: &Path, safe: bool) -> bool 
     Ok(output) if output.status.success() => {
       logger::info(&format!("Built Crate {}", crate_config.name));
 
-      
       if let Some(files) = &crate_config.files {
         build_files(files, crate_path, app_path, safe);
       }
@@ -666,7 +666,7 @@ fn build_crate(crate_config: &CrateConfig, app_path: &Path, safe: bool) -> bool 
   }
 }
 
-fn install_native_deps(
+pub fn install_native_deps(
   native: &Value,
   app_path: &Path,
   safe: bool,
@@ -702,7 +702,7 @@ fn install_native_deps(
     let mut installed = false;
 
     if let Some(check_cmd) = &dep.check {
-      if run_command(app_path, check_cmd, true).is_ok() {
+      if run_command(app_path, check_cmd, false).is_ok() {
         logger::info("Already installed");
         continue;
       }
@@ -710,7 +710,7 @@ fn install_native_deps(
 
     if let Some(preinstall_cmds) = &dep.preinstall {
       for cmd in preinstall_cmds {
-        let _ = run_command(app_path, &cmd.shell, safe);
+        let _ = run_command(app_path, &cmd.shell, false);
       }
     }
 
@@ -721,8 +721,31 @@ fn install_native_deps(
             "Running custom command for {}",
             dep.name.as_deref().unwrap_or("?")
           ));
-          if run_command(app_path, content, safe).is_ok() {
+          if run_command(app_path, content, false).is_ok() {
             installed = true;
+          }
+        }
+      }
+      Some("installer") => {
+        if let Some(url) = &dep.url {
+          logger::info(&format!(
+            "Downloading installer for {}",
+            dep.name.as_deref().unwrap_or("?")
+          ));
+
+          let file_name = url.split('/').last().unwrap_or("installer");
+          let temp_dir = std::env::temp_dir();
+          let dest_path = temp_dir.join(file_name);
+
+          if let Ok(response) = reqwest::blocking::get(url) {
+            if let Ok(bytes) = response.bytes() {
+              if fs::write(&dest_path, &bytes).is_ok() {
+                logger::info(&format!("Downloaded installer to {}", dest_path.display()));
+                if run_command(&temp_dir, &dest_path.to_string_lossy(), false).is_ok() {
+                  installed = true;
+                }
+              }
+            }
           }
         }
       }
@@ -736,7 +759,7 @@ fn install_native_deps(
                 mgr
               ));
               let cmd = get_install_command(mgr, pkg);
-              if let Ok(_) = run_command(app_path, &cmd, safe) {
+              if let Ok(_) = run_command(app_path, &cmd, false) {
                 installed = true;
                 break;
               }
@@ -749,11 +772,10 @@ fn install_native_deps(
 
     if !installed {
       if let Some(fallback) = &dep.fallback {
-        logger::info("Trying fallback...");
         if let Ok(fallback_dep) = serde_yaml::from_value(fallback.clone()) {
           let fb: NativeDep = fallback_dep;
           if let Some(content) = &fb.content {
-            if run_command(app_path, content, safe).is_ok() {
+            if run_command(app_path, content, false).is_ok() {
               installed = true;
             }
           }
@@ -832,15 +854,6 @@ async fn handle_prefetch(
     prefetch.url, prefetch.output
   ));
 
-  if safe {
-    logger::info(&format!(
-      "[SAFE MODE] Would download {} to {}",
-      prefetch.url,
-      output_path.display()
-    ));
-    return Ok(());
-  }
-
   if output_path.exists() {
     logger::info(&format!("File already exists: {}", prefetch.output));
     return Ok(());
@@ -889,14 +902,6 @@ async fn handle_build_step(
     "Building: {} -> {}",
     build_config.input, build_config.output
   ));
-
-  if safe {
-    logger::info(&format!(
-      "[SAFE MODE] Would build {} using {:?}",
-      build_config.input, build_config.using
-    ));
-    return Ok(());
-  }
 
   if let Some(parent) = output_path.parent() {
     fs::create_dir_all(parent)?;
@@ -1024,48 +1029,64 @@ fn run_command(
   command: &str,
   safe: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
-  logger::info(&format!(
-    "Running: {} (in {})",
-    command.blue(),
-    working_dir.display()
-  ));
 
   if safe {
-    logger::info(&format!("{}", "[SAFE MODE] Would run:".yellow()));
-    logger::info(&format!("{}", command.cyan()));
+    logger::info(&format!("{}", "[SAFE MODE] Command run halted.".yellow()));
     return Ok(());
   }
 
-  let parts: Vec<&str> = command.split_whitespace().collect();
-  if parts.is_empty() {
-    return Err("Empty command".into());
-  }
-
-  let mut cmd = Command::new(parts[0]);
-  cmd.current_dir(working_dir);
-
-  if parts.len() > 1 {
-    cmd.args(&parts[1..]);
-  }
-
-  let output = cmd.output()?;
-
-  if !output.status.success() {
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    let stdout = String::from_utf8_lossy(&output.stdout);
-
-    if !stdout.is_empty() {
-      logger::info(&format!("stdout: {}", stdout));
-    }
-    if !stderr.is_empty() {
-      logger::error(&format!("stderr: {}", stderr));
+  for line in command.lines() {
+    let trimmed = line.trim();
+    if trimmed.is_empty() {
+      continue;
     }
 
-    return Err(format!("Command failed with exit code: {:?}", output.status.code()).into());
-  } else {
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    if !stdout.is_empty() {
-      logger::info(&format!("Output: {}", stdout));
+    for cmd_str in trimmed.split(';') {
+      let cmd_str = cmd_str.trim();
+      if cmd_str.is_empty() {
+        continue;
+      }
+
+      let parts: Vec<&str> = cmd_str.split_whitespace().collect();
+      if parts.is_empty() {
+        return Err("Empty command".into());
+      }
+
+      let command_name = parts[0];
+      let mut cmd = Command::new(command_name);
+      cmd.current_dir(working_dir);
+
+      if parts.len() > 1 {
+        cmd.args(&parts[1..]);
+      }
+
+      let output = cmd.output()?;
+
+      if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+
+        if !stdout.is_empty() {
+          logger::info(&format!("{}", stdout));
+        }
+        if !stderr.is_empty() {
+          logger::error(&format!("{}", stderr));
+        }
+
+        return Err(
+          format!(
+            "Command `{}` failed with exit code: {:?}",
+            cmd_str,
+            output.status.code()
+          )
+          .into(),
+        );
+      } else {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        if command_name == "echo" {
+          logger::info(&format!("{}", stdout.trim()));
+        }
+      }
     }
   }
 

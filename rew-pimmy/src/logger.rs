@@ -27,17 +27,29 @@ fn get_symbol(name: &str) -> &str {
   }
 }
 
-const SEPARATOR: &str = "│";
+const BEGIN: &str         = "╭";
+const SEPARATOR: &str     = "│";
 const MIDDLE_PREFIX: &str = "├";
+const END: &str           = "╰";
 
 fn print_norm(logs: String) {
   println!("{}", SEPARATOR.dimmed());
   println!("{} {}", MIDDLE_PREFIX.dimmed(), logs);
 }
 
+pub fn begin() {
+  // let symbol = get_symbol("info").blue();
+  println!("{}", BEGIN.dimmed());
+}
+
+pub fn end() {
+  // let symbol = get_symbol("info").blue();
+  println!("{}", END.dimmed());
+}
+
 pub fn info(message: &str) {
-  let symbol = get_symbol("info").blue();
-  print_norm(format!("{} {}", symbol, message));
+  // let symbol = get_symbol("info").blue();
+  print_norm(format!("{}", message));
 }
 
 pub fn warn(message: &str) {
