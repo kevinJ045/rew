@@ -53,6 +53,17 @@ if(!rew.extensions.has('ffi')) rew.extensions.add('ffi', (Deno) => rew.extension
       throw new Error(`Failed to load dynamic library "${libPath}": ${e.message}`);
     }
   },
+  load(path, object){
+    if(typeof object !== "object"){
+      throw new TypeError("Invalid object passed to ffi loader");
+    }
+    object = Object.fromEntries(Object.keys(object).map((key) => [key, typeof object[key] == "string" ? {
+      pre: undefined,
+      parameters: object[key].split(',')[0],
+      result: object[key].split(',').slice(1)
+    } : object[key]]));
+    return this.open(path, instance);
+  },
   open(libPath, instance) {
     const entries = Object.entries(instance);
     const symbols = {};

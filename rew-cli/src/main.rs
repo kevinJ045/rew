@@ -108,6 +108,9 @@ enum Commands {
     #[arg(short = 'c', long)]
     cache: bool,
 
+    #[arg(short = 'i', long = "ignore-deps")]
+    ignore_deps: bool,
+
     #[arg(short = 'q', long)]
     query: Option<String>,
   },
@@ -312,12 +315,12 @@ fn main() -> anyhow::Result<()> {
           rew_pimmy::project::new(app.into(), *git, *ignore, *types);
           rew_pimmy::logger::end();
         },
-        Commands::App { app, remove, add, query, cache } => {
+        Commands::App { app, remove, add, query, cache, ignore_deps } => {
           rew_pimmy::repo::init();
           rew_pimmy::logger::begin();
           if *add {
             if let Some(cache_entry) = rew_pimmy::cache::resolve_cache_entry(app, true, true, false, *cache).await {
-              rew_pimmy::cache::install_from(cache_entry, Some(true)).await;
+              rew_pimmy::cache::install_from(cache_entry, Some(true), *ignore_deps).await;
             } else {
               rew_pimmy::cache::install(app, Some(true)).await;
             }

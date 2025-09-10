@@ -10,7 +10,18 @@ if(!rew.extensions.has('threads')) rew.extensions.add('threads', (Deno, module) 
       code = `(${code.toString()})();`;
     }
     
-    const id = rew.ops.op_thread_spawn(code);
+    const id = rew.ops.op_thread_spawn(code, JSON.stringify({
+      path: module.app.path,
+      config: {
+        manifest: {
+          package: module.app.config.manifest.package,
+          version: module.app.config.manifest.version,
+        },
+        entries: {
+          ...module.app.config.entries
+        }
+      }
+    }));
     liveThreads.push(id);
     return id;
   },

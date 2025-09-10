@@ -24,6 +24,9 @@ if(!rew.extensions.has('path')) rew.extensions.add('path', (Deno, module) => {
     _namespace(){
       return 'path';
     },
+    inapp(path){
+      return this.join(module.app.path || ".", path);
+    },
     resolveFrom(base, relative) {
       return rew.prototype._path.prototype.resolveFrom(base, relative);
     },

@@ -639,6 +639,12 @@ async fn resolve_github_entry(
     ));
   }
 
+  if cache_entry_path.exists() {
+    if _update {
+      fs::remove_dir_all(&cache_entry_path)?;
+    }
+  }
+
   // Clone the repository
   let output = Command::new("git")
     .args(&["clone", &home_url, &cache_entry_path.to_string_lossy()])
@@ -729,7 +735,7 @@ pub async fn resolve(app_name: &str) -> Option<String> {
   None
 }
 
-pub async fn install_from(app_path: PathBuf, sync: Option<bool>) {
+pub async fn install_from(app_path: PathBuf, sync: Option<bool>, ignore_deps: bool) {
   let mut cache = load_app_cache();
 
   let app_yaml_path = app_path.join("app.yaml");
@@ -815,9 +821,11 @@ pub async fn install_from(app_path: PathBuf, sync: Option<bool>) {
       }
     }
     if let Some(dependencies) = &app_config.dependencies {
-      for dep in dependencies {
-        if let Some(entry) = Box::pin(resolve_cache_entry(dep, true, true, true, true)).await {
-          Box::pin(install_from(entry, sync)).await;
+      if ignore_deps == false {
+        for dep in dependencies {
+          if let Some(entry) = Box::pin(resolve_cache_entry(dep, true, true, false, true)).await {
+            Box::pin(install_from(entry, sync, false)).await;
+          }
         }
       }
     }
