@@ -1,5 +1,5 @@
-use crate::logger;
-use colored::*;
+use rew_core::logger;
+use colored::Colorize;
 use rew_runtime::RewRuntime;
 use serde_yaml::Value;
 use std::collections::HashMap;
@@ -937,9 +937,9 @@ async fn handle_build_step(
       logger::info("Brew compilation complete");
     }
     Some("qrew") => {
-      logger::info("Building with qrew compiler");
-      // TODO: Implement qrew compilation
-      logger::warn("Qrew compilation not implemented yet");
+      logger::info("Building with qrew stub injector");
+      rew_brew::make_qrew(&rew_brew::to_qrew(input_path.clone()), &input_path)?;
+      logger::info("Brew stub injection complete");
     }
     Some("make") => {
       logger::info("Building with make");

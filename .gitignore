@@ -4,3 +4,6 @@
 .envrc
 target/
 **/target/
+
+**/**.qrew
+**/**.brew

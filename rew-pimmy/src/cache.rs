@@ -1,13 +1,14 @@
 use crate::builder::{install_native_deps, parse_app_config};
-use crate::logger;
 use crate::repo::Package;
-use colored::*;
+use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
 use regex::Regex;
+use rew_core::logger;
 use rew_core::utils;
 use serde::{Deserialize, Serialize};
 use serde_yaml::Value;
 use std::collections::BTreeMap;
+use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -735,6 +736,61 @@ pub async fn resolve(app_name: &str) -> Option<String> {
   None
 }
 
+pub fn create_bins(bins: HashMap<String, String>, install_path: &PathBuf) -> std::io::Result<()> {
+  let bin_dir = utils::get_rew_root().join("bin");
+  fs::create_dir_all(&bin_dir).unwrap();
+
+  for (name, file) in bins {
+    let file_path = install_path.join(file);
+    let bin_path = bin_dir.join(&name);
+
+    #[cfg(windows)]
+    {
+      let is_qrew = file_path
+        .extension()
+        .map(|ext| ext == "qrew" || ext == "exe" || ext == "qrew.exe")
+        .unwrap_or(false);
+
+      let script_content = if is_qrew {
+        format!("@echo off\n\"{}\" %*", file_path.to_str().unwrap())
+      } else {
+        format!(
+          "@echo off\nrew run \"{}\" -- %*",
+          file_path.to_str().unwrap()
+        )
+      };
+
+      fs::write(bin_path.with_extension("bat"), script_content)?;
+    }
+
+    #[cfg(unix)]
+    {
+      use std::os::unix::fs::PermissionsExt;
+
+      let is_qrew = file_path
+        .extension()
+        .map(|ext| ext == "qrew")
+        .unwrap_or(false);
+
+      let script_content = if is_qrew {
+        format!("#!/bin/sh\n\"{}\" \"$@\"", file_path.to_str().unwrap())
+      } else {
+        format!(
+          "#!/bin/sh\nrew run \"{}\" -- \"$@\"",
+          file_path.to_str().unwrap()
+        )
+      };
+
+      fs::write(&bin_path, script_content)?;
+      let mut perms = fs::metadata(&bin_path)?.permissions();
+      perms.set_mode(0o755);
+      fs::set_permissions(&bin_path, perms)?;
+    }
+  }
+
+  Ok(())
+}
+
 pub async fn install_from(app_path: PathBuf, sync: Option<bool>, ignore_deps: bool) {
   let mut cache = load_app_cache();
 
@@ -831,6 +887,14 @@ pub async fn install_from(app_path: PathBuf, sync: Option<bool>, ignore_deps: bo
     }
   }
 
+  if let Some(bins) = manifest
+    .get("install")
+    .and_then(|m| m.get("bin"))
+    .and_then(|p| serde_yaml::from_value::<HashMap<String, String>>(p.clone()).ok())
+  {
+    create_bins(bins, &install_path.clone()).ok();
+  }
+
   let cached_app = CachedApp {
     name: package.to_string(),
     version: version.to_string(),
@@ -924,6 +988,14 @@ pub async fn install(app_name: &str, sync: Option<bool>) {
             }
           }
         }
+      }
+
+      if let Some(bins) = manifest
+        .get("install")
+        .and_then(|m| m.get("bin"))
+        .and_then(|p| serde_yaml::from_value::<HashMap<String, String>>(p.clone()).ok())
+      {
+        create_bins(bins, &install_path.clone()).ok();
       }
 
       let cached_app = CachedApp {

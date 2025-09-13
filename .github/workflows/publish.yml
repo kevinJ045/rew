@@ -31,5 +31,6 @@ jobs:
         cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }} -p rew-utils &&
         cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }} -p rew-vfile &&  
         cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }} -p rew-ops &&
+        cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }} -p rew-pimmy &&
         cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }} -p rew_runtime
         

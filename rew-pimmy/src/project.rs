@@ -1,4 +1,4 @@
-use crate::logger;
+use rew_core::logger;
 use std::fs;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
@@ -200,7 +200,6 @@ fn create_git_files(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 pub fn new(path: String, git: bool, ignore: bool, types: bool) {
-
   // Determine the target path
   let current_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
   let new_path = if path == "." || path.is_empty() {

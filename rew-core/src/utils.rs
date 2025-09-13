@@ -132,7 +132,6 @@ pub fn find_app_path(dir_path: &Path) -> Option<PathBuf> {
   None
 }
 
-#[allow(unused)]
 pub fn is_valid_utf8<P: AsRef<Path>>(path: P) -> std::io::Result<bool> {
   let bytes = std::fs::read(path)?;
   Ok(std::str::from_utf8(&bytes).is_ok())

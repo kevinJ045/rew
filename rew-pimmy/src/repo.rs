@@ -1,5 +1,5 @@
-use crate::logger;
-use colored::*;
+use rew_core::logger;
+use colored::Colorize;
 use rew_core::utils;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;

@@ -3469,6 +3469,7 @@ dependencies = [
  "anyhow",
  "clap",
  "colored",
+ "rew-brew",
  "rew-core",
  "rew-pimmy",
  "rew_runtime",
@@ -3493,6 +3494,7 @@ name = "rew-core"
 version = "0.0.63"
 dependencies = [
  "anyhow",
+ "colored",
  "serde",
  "serde_yaml",
 ]
@@ -3595,6 +3597,7 @@ dependencies = [
  "indicatif",
  "regex",
  "reqwest",
+ "rew-brew",
  "rew-core",
  "rew_runtime",
  "serde",
