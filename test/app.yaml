@@ -7,17 +7,22 @@ entries:
 assets:
   icon: assets/icon.png
   folder: ./assets
-pimmy.install:
-  dependencies:
-    - rew.webkitui (1.0.0)
-    - rew.appguard (1.0.0)
-    - "@rewpkgs/rew.something"
-    - github:someone/third.party (1.0.0)
-    - github:someone/third.party#commit
-    - github:someone/third.party@branch#commit
-    - file+unzip:https://example.com/example.zip (1.0.0)
-    - file+tar(tar -xf \$file -C \$path):https://example.com/example.tar
-    - file+sha(SHA)+tar(tar -xf \$file -C \$path):https://example.com/example.tar
+dependencies:
+  - rew.webkitui (1.0.0)
+  - rew.appguard (1.0.0)
+  - "@rewpkgs/rew.something"
+  - github:someone/third.party (1.0.0)
+  - github:someone/third.party#commit
+  - github:someone/third.party@branch#commit
+  - file+unzip:https://example.com/example.zip (1.0.0)
+  - file+tar(tar -xf \$file -C \$path):https://example.com/example.tar
+  - file+sha(SHA)+tar(tar -xf \$file -C \$path):https://example.com/example.tar
+libattachments:
+  - input: .artifacts/lib.so
+    output: .artifacts/lib.so
+  - input: main.qrew
+    output: libname.qrew
+install:
   bin:
     test: test.qrew 
   preinstall:

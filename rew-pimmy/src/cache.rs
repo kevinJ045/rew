@@ -29,6 +29,15 @@ pub struct AppCache {
   pub apps: BTreeMap<String, CachedApp>,
 }
 
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AppLibIncludeFile {
+  pub input: String,
+  pub output: String,
+  pub dir: Option<String>,
+}
+
+
 fn get_cache_file_path() -> Option<PathBuf> {
   let pimmy_data_path = utils::pimmy_data_path()?;
   Some(
@@ -790,6 +799,55 @@ pub fn create_bins(bins: HashMap<String, String>, install_path: &PathBuf) -> std
 
   Ok(())
 }
+
+pub async fn install_into(app_path: PathBuf, resolve_path: PathBuf){
+  let app_yaml_path = resolve_path.join("app.yaml");
+  if !app_yaml_path.exists() {
+    logger::error("app.yaml not found".into());
+    return;
+  }
+
+  let content = match fs::read_to_string(&app_yaml_path) {
+    Ok(s) => s,
+    Err(e) => {
+      logger::error(&format!(
+        "Unable to read app.yaml at {}: {}",
+        app_yaml_path.display(),
+        e
+      ));
+      return;
+    }
+  };
+  let manifest: Value = match serde_yaml::from_str(&content).ok() {
+    Some(s) => s,
+    _ => {
+      logger::error(&format!(
+        "Unable to read app.yaml at {}",
+        app_yaml_path.display()
+      ));
+      return;
+    }
+  };
+
+
+  if let Some(libs) = manifest
+    .get("libattachments")
+    .and_then(|p| serde_yaml::from_value::<Vec<AppLibIncludeFile>>(p.clone()).ok())
+  {
+    for lib in libs {
+      let inputfile = resolve_path.join(lib.input);
+      let mut outputfile = app_path.join(lib.output.clone());
+
+      if let Some(dir) = lib.dir {
+        fs::create_dir_all(&app_path.join(dir.clone())).ok();
+        outputfile = app_path.join(dir).join(lib.output);
+      }
+
+      fs::copy(inputfile, outputfile).ok();
+    }
+  }
+
+} 
 
 pub async fn install_from(app_path: PathBuf, sync: Option<bool>, ignore_deps: bool) {
   let mut cache = load_app_cache();

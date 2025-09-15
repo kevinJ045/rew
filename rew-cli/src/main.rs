@@ -118,6 +118,16 @@ enum Commands {
     #[arg(short = 'q', long)]
     query: Option<String>,
   },
+  Attach {
+    #[arg(name = "APP")]
+    app: String,
+
+    #[arg(name = "CURRENT_APP", default_value = ".")]
+    current_app: PathBuf,
+
+    #[arg(short = 'c', long)]
+    cache: bool,
+  },
   Repo {
     #[arg(name = "APP")]
     repo: String,
@@ -380,6 +390,18 @@ fn main() -> anyhow::Result<()> {
             } else {
                 logger::info("Nothing to do");
             }
+        }
+        Commands::Attach { app, current_app, cache } => {
+          rew_pimmy::repo::init();
+          if let Some(cache_entry) =
+            rew_pimmy::cache::resolve_cache_entry(app, true, true, false, *cache)
+                .await
+          {
+            rew_pimmy::cache::install_into(current_app.to_path_buf(), cache_entry)
+                  .await;
+          } else {
+            rew_core::logger::error(format!("Could not cache app: {}", app).as_str());
+          }
         }
         Commands::Build {
             app,
