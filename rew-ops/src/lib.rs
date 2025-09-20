@@ -1,19 +1,19 @@
-use rew_data_manager::{DataFormat, DataManager};
-use rew_core::utils::find_app_path;
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use deno_core::OpState;
 use deno_core::error::CoreError;
+use deno_core::op2;
+use rew_core::RuntimeState;
+use rew_core::utils::find_app_path;
+use rew_data_manager::{DataFormat, DataManager};
+use rew_vfile::{VIRTUAL_FILES, add_virtual_file};
 use serde::{Deserialize, Serialize};
 use serde_yaml;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::{self, Read, Write};
-use deno_core::{op2};
-use rew_core::{RuntimeState};
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
-use rew_vfile::{VIRTUAL_FILES, add_virtual_file};
 
 #[op2]
 #[serde]
@@ -22,7 +22,6 @@ pub fn op_get_args(state: Rc<RefCell<OpState>>) -> Result<serde_json::Value, Cor
   let runtime_args = state.borrow::<RuntimeState>();
   Ok(serde_json::json!(runtime_args.args.clone()))
 }
-
 
 // Base64 encoding/decoding operations
 #[op2]
@@ -95,7 +94,10 @@ struct Base64DecodeOptions {
 
 #[op2]
 #[string]
-pub fn op_find_app(#[string] filepath: String, _: Rc<RefCell<OpState>>) -> Result<String, CoreError> {
+pub fn op_find_app(
+  #[string] filepath: String,
+  _: Rc<RefCell<OpState>>,
+) -> Result<String, CoreError> {
   let current_file = Path::new(&filepath);
 
   let app_path = find_app_path(current_file);
@@ -186,7 +188,7 @@ pub fn op_data_read(
 }
 
 #[op2(async)]
-pub async fn  op_data_write(
+pub async fn op_data_write(
   #[string] app_package: String,
   #[string] key: String,
   #[string] content: String,
@@ -199,7 +201,7 @@ pub async fn  op_data_write(
 }
 
 #[op2(async)]
-pub async fn  op_data_delete(
+pub async fn op_data_delete(
   #[string] app_package: String,
   #[string] key: String,
   _: Rc<RefCell<OpState>>,
@@ -274,7 +276,7 @@ pub fn op_fetch_env(_: Rc<RefCell<OpState>>) -> Result<String, CoreError> {
 }
 
 #[op2(async)]
-pub async fn  op_data_write_binary(
+pub async fn op_data_write_binary(
   #[string] app_package: String,
   #[string] key: String,
   #[serde] data: Vec<u8>,
@@ -300,7 +302,7 @@ pub fn op_data_read_yaml(
 }
 
 #[op2(async)]
-pub async fn  op_data_write_yaml(
+pub async fn op_data_write_yaml(
   #[string] app_package: String,
   #[string] key: String,
   #[serde] data: serde_json::Value,
@@ -482,7 +484,6 @@ pub fn op_terminal_size() -> Result<(u16, u16), std::io::Error> {
   }
 }
 
-
 #[op2]
 #[serde]
 pub fn op_fs_read(
@@ -590,7 +591,7 @@ struct WriteOptions {
 use sha2::{Digest, Sha256};
 #[op2]
 #[string]
-pub fn  op_fs_sha(
+pub fn op_fs_sha(
   #[string] current_file: String,
   #[string] filepath: String,
   _: Rc<RefCell<OpState>>,
@@ -609,7 +610,7 @@ pub fn  op_fs_sha(
 }
 
 #[op2(fast)]
-pub fn  op_fs_exists(
+pub fn op_fs_exists(
   #[string] current_file: String,
   #[string] filepath: String,
   _: Rc<RefCell<OpState>>,
@@ -684,7 +685,7 @@ struct MkdirOptions {
 
 #[op2]
 #[string]
-pub fn  op_fs_readdir(
+pub fn op_fs_readdir(
   #[string] current_file: String,
   #[string] dirpath: String,
   #[serde] options: Option<ReaddirOptions>,
@@ -794,7 +795,7 @@ struct DirEntryInfo {
 
 #[op2]
 #[string]
-pub fn  op_fs_stats(
+pub fn op_fs_stats(
   #[string] current_file: String,
   #[string] filepath: String,
   _: Rc<RefCell<OpState>>,
@@ -911,9 +912,30 @@ pub async fn op_fs_rename(
 
 #[op2]
 #[string]
-pub fn  op_fs_cwdir(state: Rc<RefCell<OpState>>) -> Result<String, CoreError> {
+pub fn op_fs_cwdir(state: Rc<RefCell<OpState>>) -> Result<String, CoreError> {
   let state = state.borrow();
   let runtime_state = state.borrow::<RuntimeState>();
 
   Ok(runtime_state.current_dir.to_string_lossy().to_string())
+}
+
+#[op2]
+#[string]
+pub fn op_p_exit(code: i32) -> Result<String, CoreError> {
+  std::process::exit(code);
+}
+
+#[op2]
+#[string]
+pub fn op_p_panic(#[string] msg: String) -> Result<String, CoreError> {
+  panic!("{}", msg);
+}
+
+
+use tokio::time::{sleep, Duration};
+#[op2(async)]
+#[serde]
+pub async fn op_p_sleep(#[bigint] ms: u64) -> Result<(), CoreError> {
+  sleep(Duration::from_millis(ms)).await;
+  Ok(())
 }

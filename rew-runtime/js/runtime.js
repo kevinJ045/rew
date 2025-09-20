@@ -490,7 +490,7 @@
           };
         },
         bytes(val, _type = 'auto', giveType = false){
-          let type = typeof val, v = val;
+          let type = typeof val;
           if(type == "string"){
             const bytes = Deno.core.encode(val+'\0');
             const buff = new ArrayBuffer(bytes.length, { maxByteLength: 1_000_000_000 })
@@ -981,6 +981,9 @@
         },
       }),
       channel: _createClass({
+        async sleep(time){
+          await Deno.core.ops.op_p_sleep(time);
+        },
         new(interval = 1, cb) {
           if (typeof interval == "function") {
             cb = interval;
@@ -988,24 +991,22 @@
           }
           if (interval < 1) interval = 1;
           let stop = 0;
-          let lastTimeout = 0;
           const keepAlive = async () => {
-            if (typeof cb == "function") {
-              await cb.call(ctx);
-            }
-            if (!stop) {
-              lastTimeout = setTimeout(keepAlive, interval);
+            while(!stop){
+              if (typeof cb == "function") {  
+                await cb.call(ctx);
+              }
+              await Deno.core.ops.op_p_sleep(interval);
             }
           };
           const ctx = {
             stop() {
               stop = 1;
-              clearTimeout(lastTimeout);
               return this;
             },
             start() {
               stop = 0;
-              keepAlive();
+              setTimeout(keepAlive, 1);
               return this;
             },
             setpoll(_cb) {
@@ -1013,7 +1014,7 @@
               return this;
             },
           };
-          keepAlive();
+          setTimeout(keepAlive, 1);
           return ctx;
         },
         interval(interval = 1, cb) {
@@ -1099,9 +1100,11 @@
         onExit: (cb) => {
           Deno.os.setExitHandler(cb);
         },
+        panic: (text) => {
+          Deno.core.ops.op_p_panic(text);
+        },
         exit(code = 0) {
-          Deno.core.ops.op_set_exit_code(code);
-          Deno.core.ops.op_exit();
+          Deno.core.ops.op_p_exit(code);
         },
       }),
       bootstrap: _createClass({

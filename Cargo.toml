@@ -20,22 +20,22 @@ authors = ["makano"]
 edition = "2024"
 license = "MIT"
 repository = "https://github.com/kevinj045/rew"
-version = "0.0.65"
+version = "0.0.66"
 
 [workspace.dependencies]
 # Workspace Dependencies
-rew-cli          = { version = "0.0.65", path = "rew-cli" }
-rew-compiler     = { version = "0.0.65", path = "rew-compiler" }
-rew-core         = { version = "0.0.65", path = "rew-core" }
-rew-data-manager = { version = "0.0.65", path = "rew-data-manager" }
-rew-extensions   = { version = "0.0.65", path = "rew-extensions" }
-rew-jsx          = { version = "0.0.65", path = "rew-jsx" }
-rew-permissions  = { version = "0.0.65", path = "rew-permissions" }
-rew_runtime      = { version = "0.0.65", path = "rew-runtime" }
-rew-utils        = { version = "0.0.65", path = "rew-utils" }
-rew-vfile        = { version = "0.0.65", path = "rew-vfile" }
-rew-brew         = { version = "0.0.65", path = "rew-brew" }
-rew-ops          = { version = "0.0.65", path = "rew-ops" }
+rew-cli          = { version = "0.0.66", path = "rew-cli" }
+rew-compiler     = { version = "0.0.66", path = "rew-compiler" }
+rew-core         = { version = "0.0.66", path = "rew-core" }
+rew-data-manager = { version = "0.0.66", path = "rew-data-manager" }
+rew-extensions   = { version = "0.0.66", path = "rew-extensions" }
+rew-jsx          = { version = "0.0.66", path = "rew-jsx" }
+rew-permissions  = { version = "0.0.66", path = "rew-permissions" }
+rew_runtime      = { version = "0.0.66", path = "rew-runtime" }
+rew-utils        = { version = "0.0.66", path = "rew-utils" }
+rew-vfile        = { version = "0.0.66", path = "rew-vfile" }
+rew-brew         = { version = "0.0.66", path = "rew-brew" }
+rew-ops          = { version = "0.0.66", path = "rew-ops" }
 # Common dependencies
 anyhow = "1.0.96"
 base64 = "0.21.0"

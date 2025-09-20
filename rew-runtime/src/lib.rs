@@ -84,7 +84,10 @@ extension!(
     op_gen_uid,
     op_vfile_set,
     op_vfile_get,
-    op_terminal_size
+    op_terminal_size,
+    op_p_exit,
+    op_p_panic,
+    op_p_sleep
   ],
   state = |state| {
     let permissions =
