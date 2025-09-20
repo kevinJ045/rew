@@ -148,21 +148,24 @@ rew::testing::describe 'rew::fs', (it) ->
     rew::fs::rm "test_fs.txt"
 
 rew::testing::describe 'rew::ptr', (it) ->
-  it 'should write and read from a pointer', ->
+
+  it 'should read and write from and to a pointer', ->
     bytes = ^"test\0"
     ptr = &bytes
-    rew::testing::assert_eq *ptr.toString(), "test"
+    rew::testing::assert_eq *ptr as str, "test"
 
     name = &"hello"
-    id = &(11, 'u8')
+    id = &11 as u8
     age = &24
-    someVal = &4.5
+    someVal = &9.5
     isCool = &true
-    rew::testing::assert_eq *name, "hello"
-    rew::testing::assert_eq *id, 11
-    rew::testing::assert_eq *age, 24
-    rew::testing::assert_eq *someVal, 4.5
-    rew::testing::assert_eq *isCool, true
+    rew::testing::assert_eq *name!, "hello"
+    rew::testing::assert_eq *id!, 11
+    rew::testing::assert_eq *age!, 24
+    *someVal = 4.5
+    rew::testing::assert_eq *someVal!, 4.5
+    *isCool = false
+    rew::testing::assert_eq *isCool!, false
 
   it 'should test possible syntaxes', ->
     myMatch = /^Hello/
@@ -170,6 +173,8 @@ rew::testing::describe 'rew::ptr', (it) ->
     rew::testing::assert_eq myMatch.test("Hello"), true
     rew::testing::assert_eq myMatch2.test("^something"), true
 
+    rew::testing::assert_eq 1 * (1), 1
+    rew::testing::assert_eq 1 & (1), 1
     rew::testing::assert_eq 1 * 1, 1
     rew::testing::assert_eq 1 & 1, 1
 

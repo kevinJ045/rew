@@ -37,10 +37,10 @@ pub struct CompilerResults {
 
 // i hate this function
 /// Tokenizes CoffeeScript code into a vector of `Token` structs.
-/// 
+///
 /// # Arguments
 /// * `code` - A string slice containing the CoffeeScript code to tokenize.
-/// 
+///
 /// # Returns
 /// * A vector of `Token` structs representing the parsed tokens.
 pub fn tokenize_coffee_script(code: &str) -> Vec<Token> {
@@ -52,7 +52,7 @@ pub fn tokenize_coffee_script(code: &str) -> Vec<Token> {
     let char = chars[i];
     let next_char = chars.get(i + 1).copied();
     let next_next_char = chars.get(i + 2).copied();
-    
+
     if char == '#' {
       let comment_end = code[i..].find('\n').unwrap_or(code.len() - i);
       let comment = &code[i..i + comment_end + 1];
@@ -229,14 +229,14 @@ fn find_next_token(
 }
 
 /// Applies declarations to transform tokens based on predefined rules.
-/// 
+///
 /// # Arguments
 /// * `token` - The current token being analyzed.
 /// * `index` - The index of the current token in the tokens array.
 /// * `tokens` - A slice of all tokens in the code.
 /// * `local_declarations` - A reference to local declarations for this compilation.
 /// * `global_declarations` - A reference to global declarations shared across compilations.
-/// 
+///
 /// # Returns
 /// * An optional tuple containing the new index and transformed string, if applicable.
 fn apply_declarations(
@@ -570,11 +570,11 @@ fn handle_compiler_options(
 
 // i hate this function too!
 /// Compiles Rew content by tokenizing, analyzing, and transforming the code.
-/// 
+///
 /// # Arguments
 /// * `content` - A string slice containing the Rew code to compile.
 /// * `options` - A mutable reference to `CompilerOptions` containing compilation options.
-/// 
+///
 /// # Returns
 /// * A `Result` containing `CompilerResults` or an error message.
 pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result<CompilerResults> {
@@ -604,13 +604,35 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
     if token.value == "&" {
       if let Some((next, _, _)) = get_next_token_whitespace(i, 1, &tokens) {
         // println!("{:?} {} {}", next.token_type, next.value, next.value.parse::<f64>().is_ok());
-        if next.token_type == "IDENTIFIER" || next.token_type == "STRING" || next.value == "(" || next.token_type == "NUMBER" {
+        if next.token_type == "IDENTIFIER"
+          || next.token_type == "STRING"
+          || next.value == "("
+          || next.token_type == "NUMBER"
+        {
           result.push_str("rew::ptr::of(");
           if next.value != "(" {
             result.push_str(next.value.clone().as_str());
-            result.push_str(")");
+            if let Some((token, _, idx)) = get_next_token(i + 2, 1, &tokens) {
+              if token.value == "as" {
+                if let Some((token, _, idx)) = get_next_token(idx, 1, &tokens) {
+                  result.push_str(format!(", \"{}\"", token.value).as_str());
+                  result.push_str(")");
+                  i = idx + 1;
+                } else {
+                  result.push_str(")");
+                  i += 2;
+                }
+              } else {
+                result.push_str(")");
+                i += 2;
+              }
+            } else {
+              result.push_str(")");
+              i += 2;
+            }
+          } else {
+            i += 2;
           }
-          i += 2;
           continue;
         }
       }
@@ -622,9 +644,46 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
           result.push_str("rew::ptr::deref(");
           if next.value != "(" {
             result.push_str(next.value.clone().as_str());
-            result.push_str(")");
+            if let Some((token, _, idx)) = get_next_token(i + 1, 1, &tokens) {
+              if token.value == "!" {
+                result.push_str(", 'any')");
+                i = idx + 1;
+              } else if let Some((token, _, idx)) = get_next_token(i + 2, 1, &tokens) {
+                if token.value == "as" {
+                  if let Some((token, _, idx)) = get_next_token(idx, 1, &tokens) {
+                    if token.token_type == "IDENTIFIER" {
+                      result.push_str(format!(", \"{}\"", token.value).as_str());
+                      result.push_str(")");
+                      i = idx + 1;
+                    } else {
+                      result.push_str(")");
+                      i += 2;
+                    }
+                  } else {
+                    result.push_str(")");
+                    i += 2;
+                  }
+                } else if token.value == "=" {
+                  result.push_str(").set ");
+                  i = idx + 1;
+                } else if token.value == "!" {
+                  result.push_str(", 'any')");
+                  i = idx + 1;
+                } else {
+                  result.push_str(")");
+                  i += 2;
+                }
+              } else {
+                result.push_str(")");
+                i += 2;
+              }
+            } else {
+              result.push_str(")");
+              i += 2;
+            }
+          } else {
+            i += 2;
           }
-          i += 2;
           continue;
         }
       }
@@ -638,10 +697,14 @@ pub fn compile_rew_stuff(content: &str, options: &mut CompilerOptions) -> Result
         }
       }
     }
-    
+
     if token.value == "^" {
       if let Some((next, _, _)) = get_next_token_whitespace(i, 1, &tokens) {
-        if (next.token_type == "STRING" || next.token_type == "IDENTIFIER" || next.value == "(") && prev_token.clone().is_none_or(|(t, _, _)| t.value != "/" && t.value != "\\") {
+        if (next.token_type == "STRING" || next.token_type == "IDENTIFIER" || next.value == "(")
+          && prev_token
+            .clone()
+            .is_none_or(|(t, _, _)| t.value != "/" && t.value != "\\")
+        {
           result.push_str("rew::encoding::stringToBytes(");
           if next.value != "(" {
             result.push_str(next.value.clone().as_str());

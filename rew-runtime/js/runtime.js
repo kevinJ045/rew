@@ -446,72 +446,165 @@
 
   delete globalThis.console;
 
-  const pointerMap = new WeakMap();
+  const jstypetorust = (type) => {
+    switch(type){
+      case "number":
+        return 'i32'
+    }
+    return type;
+  }
+
+  let pointerMap = new WeakMap();
+  function __rew_ptr(ptr, buff, type){
+    pointerMap.set(ptr, {
+      type,
+      buff
+    });
+    return ptr;
+  }
+
+  function __rew_ptr_type(ptr){
+    return pointerMap.get(ptr)?.type;
+  }
+  function __rew_ptr_buff(ptr, cb){
+    const { buff } = pointerMap.get(ptr) || {};
+    if(buff) cb(buff);
+  }
+
   const _rew_extensions = {};
   const _createRew = (...args) =>
     _createClass({
       ptr: _createClass({
         _namespace() {
-          return "ptr";
+          return {
+            ptr: this,
+            ptr_of: this.of,
+            ptr_deref: this.deref,
+            ptr_val: this.val,
+            ptr_new: this.create,
+            ptr_offset: this.offset,
+            ptr_fn: this.fn,
+            ptr_free: this.free,
+            ptr_view: this.view,
+            ptr_struct: this.readStruct
+          };
         },
-        of(val, _type = 'auto') {
-          let type = typeof val;
+        bytes(val, _type = 'auto', giveType = false){
+          let type = typeof val, v = val;
           if(type == "string"){
-            val = Deno.core.encode(val+'\0');
+            const bytes = Deno.core.encode(val+'\0');
+            const buff = new ArrayBuffer(bytes.length, { maxByteLength: 1_000_000_000 })
+            val = new Uint8Array(buff)
+            val.abuff = buff;
+            val.set(bytes);
           } else if(type == "number"){
             type = 'number-' + _type;
             switch(_type){
               case 'u8':
                 val = new Uint8Array([val])
+                break
               case 'u16':
                 val = new Uint16Array([val])
+                break
               case 'u32':
                 val = new Uint32Array([val])
+                break
               case 'i8':
                 val = new Int8Array([val])
+                break
               case 'i16':
                 val = new Int16Array([val])
+                break
               case 'i32':
                 val = new Int32Array([val])
+                break
               case 'f32':
                 val = new Float32Array([val])
+                break
               case 'f64':
                 val = new Float64Array([val])
+                break
+              case 'i64':
+                val = new BigInt64Array([val])
+                break
+              case 'u64':
+                val = new BigUint64Array([val])
+                break
               default:
-                type = 'number-' + (val.toString().includes('.') ? 'f32' : 'i32');
-                val = val.toString().includes('.') ? new Float32Array([val]) : new Int32Array([val])
+                type = 'number-' + (Number.isInteger(val) ? 'i32' : 'f32');
+                val = Number.isInteger(val)
+                  ? new Int32Array([val])
+                  : new Float32Array([val]);
             }
           } else if(type == "bigint"){
             val = new BigUint64Array([val]);
           } else if (type === "boolean") {
             val = new Uint8Array([val ? 1 : 0]);
           }
-          const ptr = Deno.UnsafePointer.of(val);
-          try{
-            pointerMap.set(ptr, type);
-          } catch(e) {}
+
+          // _log_out(v, type);
+          return giveType ? [val, type] : val;
+        },
+        of(val, _type = 'auto') {
+          let type = _type;
+          if(val instanceof Deno.UnsafePointer){
+            val = new BigUint64Array([this.val(val)])
+          } else [val, type] = this.bytes(val, _type, true);
+          const ptr = __rew_ptr(Deno.UnsafePointer.of(val), val, type);
           return ptr;
         },
         val(ptr) {
           return Deno.UnsafePointer.value(ptr);
         },
-        deref(ptr) {
-          const type = pointerMap.get(ptr);
-          switch (type) {
-            case "string":
-              return this.string(ptr);
-            case "bigint":
-              return this.view(ptr).getBigUint64();
-            case "boolean":
-              return !!this.view(ptr).getUint8();
+        deref(ptr, _type) {
+          if(typeof _type == "function" && _type.type){
+            _type = _type.type.type;
           }
-          if(type.startsWith('number-')){ 
-            return this.read(ptr, type.split('-')[1]);
+          let pull = false;
+          if(_type == 'any'){
+            pull = true;
+            _type = undefined;
+          }
+          const type = _type || __rew_ptr_type(ptr) || "";
+          // _log_out(__rew_ptr_type(ptr), _type);
+          if(typeof ptr == 'bigint'){
+            ptr = this.create(ptr);
           }
           const view = this.view(ptr);
           view.toString = () => this.string(ptr);
-          view.as = (type) => this.read(ptr, type);
-          view.asBool = () => !!view.getUint8();
+          view.as = (type = 'i32') => typeof type == "object" ? this.readStruct(ptr, type) : this.read(ptr, jstypetorust(type?.type?.type || type));
+          view.bool = () => !!view.getUint8();
+          __rew_ptr_buff(ptr, (buff) => {
+            view.set = (v, type = 'auto') => {
+              const buff2 = this.bytes(v, type);
+              if(buff.abuff){
+                buff.abuff.resize(buff2.length);
+              }
+              buff.set(buff2);
+            };
+          });
+          view.valueOf = view.auto = (v) => {
+            switch (type) {
+              case "string": case "str":
+                return this.string(ptr);
+              case "number":
+                return this.view(ptr).getInt32();
+              case "bigint":
+                return this.view(ptr).getBigUint64();
+              case "boolean": case "bool":
+                return !!this.view(ptr).getUint8();
+            }
+            if(type.startsWith('number-')){ 
+              return this.read(ptr, type.split('-')[1]);
+            }
+            if(v){
+              return view.as(v)
+            }
+          }
+          if(_type || pull){
+            return view.auto(pull ? type : _type);
+          }
+          // _log_out(type);
           return view;
         },
 
@@ -548,6 +641,12 @@
               return view.getFloat32();
             case "f64":
               return view.getFloat64();
+            case "i64":
+              return view.getBigInt64();
+            case "u64":
+              return view.getBigUint64();
+            case "string":
+              return this.string(ptr);
             default:
               throw new Error("Unsupported type: " + type);
           }
@@ -663,6 +762,13 @@
         create(length) {
           return Deno.UnsafePointer.create(length);
         },
+
+        offset(value, offset) {
+          return Deno.UnsafePointer.offset(value, offset);
+        },
+        // free(ptr) {
+        //   Deno.UnsafePointer.free(ptr);
+        // },
 
         sizeOf(type) {
           if (typeof type === "string") {
