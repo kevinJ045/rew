@@ -87,7 +87,8 @@ extension!(
     op_terminal_size,
     op_p_exit,
     op_p_panic,
-    op_p_sleep
+    op_p_sleep,
+    op_async_to_sync
   ],
   state = |state| {
     let permissions =

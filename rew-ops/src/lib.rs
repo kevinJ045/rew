@@ -931,11 +931,43 @@ pub fn op_p_panic(#[string] msg: String) -> Result<String, CoreError> {
   panic!("{}", msg);
 }
 
-
-use tokio::time::{sleep, Duration};
+use tokio::time::{Duration, sleep};
 #[op2(async)]
 #[serde]
 pub async fn op_p_sleep(#[bigint] ms: u64) -> Result<(), CoreError> {
   sleep(Duration::from_millis(ms)).await;
   Ok(())
+}
+
+use deno_core::v8;
+
+#[op2(reentrant)]
+#[global]
+pub fn op_async_to_sync<'scope>(
+  scope: &mut v8::HandleScope<'scope>,
+  promise: v8::Local<'scope, v8::Promise>,
+) -> Result<v8::Global<v8::Value>, CoreError> {
+  loop {
+    match promise.state() {
+      v8::PromiseState::Pending => {
+        scope.perform_microtask_checkpoint();
+        std::thread::sleep(std::time::Duration::from_micros(10));
+      }
+      v8::PromiseState::Fulfilled => {
+        let result = promise.result(scope);
+        let global = v8::Global::new(scope, result);
+        return Ok(global);
+      }
+      v8::PromiseState::Rejected => {
+        let result = promise.result(scope);
+        return Err(CoreError::Io(io::Error::new(
+          io::ErrorKind::InvalidInput,
+          format!(
+            "{:?}",
+            result
+          )
+        )));
+      }
+    }
+  }
 }

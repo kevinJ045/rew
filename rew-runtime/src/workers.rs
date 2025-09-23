@@ -1,3 +1,5 @@
+use crate::builtins::BUILTIN_MODULES;
+use crate::get_rew_runtime;
 use anyhow::Result;
 use deno_core::error::CoreError;
 use deno_core::{OpState, op2};
@@ -11,8 +13,6 @@ use std::sync::{
 };
 use tokio::runtime::Builder;
 use uuid::Uuid;
-use crate::builtins::BUILTIN_MODULES;
-use crate::get_rew_runtime;
 
 /// Represents a handle to a worker thread
 struct WorkerHandle {
@@ -65,7 +65,6 @@ pub fn op_thread_spawn(
         }
       };
 
-      // Store the worker ID and sender in the runtime state
       {
         let op_state = runtime.op_state();
         let mut op_state = op_state.borrow_mut();
@@ -73,21 +72,68 @@ pub fn op_thread_spawn(
         op_state.put(from_worker_tx);
       }
 
-      runtime.execute_script("<std>", BUILTIN_MODULES.get("#std.ffi").unwrap_or(&"").to_string())?;
-      runtime.execute_script("<std>", BUILTIN_MODULES.get("#std.conf").unwrap_or(&"").to_string())?;
-      runtime.execute_script("<std>", BUILTIN_MODULES.get("#std.encoding").unwrap_or(&"").to_string())?;
-      runtime.execute_script("<std>", BUILTIN_MODULES.get("#std.fs").unwrap_or(&"").to_string())?;
-      runtime.execute_script("<std>", BUILTIN_MODULES.get("#std.threads").unwrap_or(&"").to_string())?;
-      runtime.execute_script("<std>", BUILTIN_MODULES.get("#std.shell").unwrap_or(&"").to_string())?;
-      runtime.execute_script("<std>", BUILTIN_MODULES.get("#std.os").unwrap_or(&"").to_string())?;
-      runtime.execute_script("<std>", BUILTIN_MODULES.get("#std.path").unwrap_or(&"").to_string())?;
-      runtime.execute_script("<std>", BUILTIN_MODULES.get("#std.http").unwrap_or(&"").to_string())?;
-      runtime.execute_script("<std>", BUILTIN_MODULES.get("#std.net").unwrap_or(&"").to_string())?;
-      runtime.execute_script("<std>", BUILTIN_MODULES.get("#std.types").unwrap_or(&"").to_string())?;
-      runtime.execute_script("<std>", BUILTIN_MODULES.get("#std.yaml").unwrap_or(&"").to_string())?;
-      runtime.execute_script("<std>", BUILTIN_MODULES.get("#std.testing").unwrap_or(&"").to_string())?;
-
-      // Initialize the worker with postMessage function
+      runtime.execute_script(
+        "<std>",
+        BUILTIN_MODULES.get("#std.ffi").unwrap_or(&"").to_string(),
+      )?;
+      runtime.execute_script(
+        "<std>",
+        BUILTIN_MODULES.get("#std.conf").unwrap_or(&"").to_string(),
+      )?;
+      runtime.execute_script(
+        "<std>",
+        BUILTIN_MODULES
+          .get("#std.encoding")
+          .unwrap_or(&"")
+          .to_string(),
+      )?;
+      runtime.execute_script(
+        "<std>",
+        BUILTIN_MODULES.get("#std.fs").unwrap_or(&"").to_string(),
+      )?;
+      runtime.execute_script(
+        "<std>",
+        BUILTIN_MODULES
+          .get("#std.threads")
+          .unwrap_or(&"")
+          .to_string(),
+      )?;
+      runtime.execute_script(
+        "<std>",
+        BUILTIN_MODULES.get("#std.shell").unwrap_or(&"").to_string(),
+      )?;
+      runtime.execute_script(
+        "<std>",
+        BUILTIN_MODULES.get("#std.os").unwrap_or(&"").to_string(),
+      )?;
+      runtime.execute_script(
+        "<std>",
+        BUILTIN_MODULES.get("#std.path").unwrap_or(&"").to_string(),
+      )?;
+      runtime.execute_script(
+        "<std>",
+        BUILTIN_MODULES.get("#std.http").unwrap_or(&"").to_string(),
+      )?;
+      runtime.execute_script(
+        "<std>",
+        BUILTIN_MODULES.get("#std.net").unwrap_or(&"").to_string(),
+      )?;
+      runtime.execute_script(
+        "<std>",
+        BUILTIN_MODULES.get("#std.types").unwrap_or(&"").to_string(),
+      )?;
+      runtime.execute_script(
+        "<std>",
+        BUILTIN_MODULES.get("#std.yaml").unwrap_or(&"").to_string(),
+      )?;
+      runtime.execute_script(
+        "<std>",
+        BUILTIN_MODULES
+          .get("#std.testing")
+          .unwrap_or(&"")
+          .to_string(),
+      )?;
+      
       if let Err(e) = runtime.execute_script(
         "<init>",
         r#"

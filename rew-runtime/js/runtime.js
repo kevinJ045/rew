@@ -274,6 +274,10 @@
         usage.system(this, ...(usage.args || []));
       }
 
+      this.sync = (promise) => {
+        return Deno.core.ops.op_async_to_sync(promise);
+      }
+
       this.imp = async (filename) => {
         let [filepath, to_exec] = await ops.op_dyn_imp(
           isAbsolutePath(filename) ? (isWindows ? "C:\\" : "/") : module.filename,
@@ -287,6 +291,10 @@
           return new Usage(fn.name, fn);
         },
       });
+
+      this.move = function(func){
+        new Promise(func);
+      }
 
       this.declare = (name, item) => {
         if (name && !item) {
@@ -471,22 +479,26 @@
     if(buff) cb(buff);
   }
 
+  function ezaw(cb, ezaw){
+    return (...args) => cb.call(ezaw, ...args);
+  }
+
   const _rew_extensions = {};
   const _createRew = (...args) =>
     _createClass({
       ptr: _createClass({
         _namespace() {
           return {
-            ptr: this,
-            ptr_of: this.of,
-            ptr_deref: this.deref,
-            ptr_val: this.val,
-            ptr_new: this.create,
-            ptr_offset: this.offset,
-            ptr_fn: this.fn,
-            ptr_free: this.free,
-            ptr_view: this.view,
-            ptr_struct: this.readStruct
+            ptr: { prototype: this },
+            ptr_of: ezaw(this.of, this),
+            ptr_deref: ezaw(this.deref, this),
+            ptr_val: ezaw(this.val, this),
+            ptr_new: ezaw(this.create, this),
+            ptr_offset: ezaw(this.offset, this),
+            ptr_fn: ezaw(this.fn, this),
+            ptr_free: ezaw(this.free, this),
+            ptr_view: ezaw(this.view, this),
+            ptr_struct: ezaw(this.readStruct, this)
           };
         },
         bytes(val, _type = 'auto', giveType = false){
@@ -1105,7 +1117,7 @@
         },
         exit(code = 0) {
           Deno.core.ops.op_p_exit(code);
-        },
+        }
       }),
       bootstrap: _createClass({
         compile: compile,
