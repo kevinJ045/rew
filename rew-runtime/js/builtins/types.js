@@ -8,6 +8,7 @@
 //declare* "=bool" = rew::types::bool;
 //declare* "=typef" = rew::types::typef;
 //declare* "=struct" = struct;
+if (!rew.extensions.has('types')) rew.extensions.add('types', (Deno) => {
 
 const _defaultConstructors = {
   string: String,
@@ -185,6 +186,14 @@ function typei(child, parent) {
 
 const _supportsFor = (item) => {
   item.or = (...others) => [item, ...others]
+  item.of = (type) => {
+    const t = item;
+    for (let i in item) {
+      t[i] = item[i];
+    }
+    t.trueType = type;
+    return t;
+  }
 }
 function int(str) {
   return parseInt(str);
@@ -380,6 +389,33 @@ Object.without = function (object, ...keys) {
   return newObject;
 }
 
+function getFFIType(type, val) {
+  if (typeof val == "object" && (val instanceof Struct || val['@instance'] instanceof Struct)) {
+    if (val instanceof Struct) {
+      return { struct: val.prototype.type };
+    }
+    if (val['@instance'] instanceof Struct) {
+      return { struct: val['@instance'].prototype.type };
+    }
+  }
+  switch (type) {
+    case 'number':
+      return Number.isInteger(val)
+        ? 'i32'
+        : 'f32';
+    case 'string':
+      return 'buffer';
+    case 'function':
+      return 'function';
+    case 'undefined': case 'null':
+      return 'void';
+    case 'object':
+      return 'pointer';
+    default:
+      return 'pointer';
+  }
+}
+
 class Struct {
   #template = {};
   #types = {};
@@ -408,7 +444,27 @@ class Struct {
     return instance;
   }
 
+  getType() {
+    let typedef = {};
+
+    for (let key in this.#template) {
+      let defaultValue = this.#template[key];
+      if (defaultValue == '!any' && this.#types[key] == '!any') {
+        typedef[key] = "pointer";
+      } else {
+        typedef[key] = this.#types[key]?.trueType ?? getFFIType(this.#types[key]?.type?.type ?? this.#types[key], defaultValue);
+      }
+    }
+
+    return {
+      struct: {
+        fields: typedef
+      }
+    }
+  }
+
 }
+
 function struct(template) {
   var key, types, value;
 
@@ -432,8 +488,63 @@ function struct(template) {
       }
     }
     instance.__proto__ = { '@instance': s };
+    instance.__proto__.toBuff = () => {
+
+      let totalBytes = 0;
+      for (let key in s.prototype.type.struct.fields) {
+        let fieldType = s.prototype.type.struct.fields[key];
+        let val = instance[key];
+
+        if(typeof val == "string"){ 
+          totalBytes += Deno.core.encode(val + '\0').length;
+        } else if(fieldType == "buffer") {
+          totalBytes += val.length;
+        } else totalBytes += rew.prototype.ptr.prototype.sizeOf(fieldType);
+      }
+
+      let buffer = new ArrayBuffer(totalBytes);
+      let view = new DataView(buffer);
+      let offset = 0;
+
+
+      for (let key in s.prototype.type.struct.fields) {
+        let type = s.prototype.type.struct.fields[key];
+        let val = instance[key];
+
+        switch (type) {
+          case 'u8': view.setUint8(offset, val); offset += 1; break;
+          case 'i8': view.setInt8(offset, val); offset += 1; break;
+          case 'u16': view.setUint16(offset, val, true); offset += 2; break;
+          case 'i16': view.setInt16(offset, val, true); offset += 2; break;
+          case 'u32': view.setUint32(offset, val, true); offset += 4; break;
+          case 'i32': view.setInt32(offset, val, true); offset += 4; break;
+          case 'f32': view.setFloat32(offset, val, true); offset += 4; break;
+          case 'f64': view.setFloat64(offset, val, true); offset += 8; break;
+          case 'i64': view.setBigInt64(offset, BigInt(val), true); offset += 8; break;
+          case 'u64': view.setBigUint64(offset, BigInt(val), true); offset += 8; break;
+          case 'buffer':
+            if (typeof val === "string") {
+              const strBytes = Deno.core.encode(val + '\0');
+              new Uint8Array(buffer, offset, strBytes.length).set(strBytes);
+              offset += strBytes.length;
+            } else if (val instanceof Uint8Array) {
+              new Uint8Array(buffer, offset, val.length).set(val);
+              offset += val.length;
+            }
+            break;
+          case 'pointer':
+            view.setBigUint64(offset, BigInt(rew.prototype.ptr.prototype.val(val)), true); offset += 8; break;
+        }
+      }
+
+      return view.buffer;
+    }
+    instance.__proto__.toPtr = () => {
+      return Deno.UnsafePointer.of(instance.__proto__.toBuff());
+    }
     return instance;
   }
+  s.prototype.type = s.getType();
   return s;
 };
 
@@ -499,15 +610,15 @@ proto.strict = (name, ...a) => proto(name, "strict", ...a);
 proto.unsafe = (result) => (name, fn, ...args) => rew.prototype.ptr.prototype.fn(args, result, fn)
 
 proto.class = (to_extend) => (name, fn, ...args) => {
-  if(to_extend){
+  if (to_extend) {
     fn.prototype = to_extend.prototype || {};
   }
 
-  fn.prototype.new = function(...args){
+  fn.prototype.new = function (...args) {
     return new fn(...args);
   }
 
-  if(args.length){
+  if (args.length) {
     let macro = args.shift();
     return macro(name, fn, ...args)
   }
@@ -515,13 +626,13 @@ proto.class = (to_extend) => (name, fn, ...args) => {
   return fn;
 };
 
-function signat(someClass){
-  const theClass = someClass ? class extends someClass {} : class {};
+function signat(someClass) {
+  const theClass = someClass ? class extends someClass { } : class { };
   return theClass;
 }
 
-class EnumValue {}
-function const_rec(rec){
+class EnumValue { }
+function const_rec(rec) {
   const e = new EnumValue;
   Object.defineProperties(e, Object.fromEntries(Object.keys(rec).map(key => [key, {
     enumerable: true,
@@ -538,7 +649,7 @@ function const_rec(rec){
 //   });
 // }
 
-if (!rew.extensions.has('types')) rew.extensions.add('types', () => rew.extensions.createClass({
+return rew.extensions.createClass({
   _namespace() {
     return this;
   },
@@ -559,4 +670,6 @@ if (!rew.extensions.has('types')) rew.extensions.add('types', () => rew.extensio
   macro,
   proto,
   const_rec
-}));
+});
+
+});

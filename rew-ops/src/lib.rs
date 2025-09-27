@@ -2,6 +2,7 @@ use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use deno_core::OpState;
 use deno_core::error::CoreError;
 use deno_core::op2;
+use deno_core::v8;
 use rew_core::RuntimeState;
 use rew_core::utils::find_app_path;
 use rew_data_manager::{DataFormat, DataManager};
@@ -14,6 +15,9 @@ use std::fs::{self, File};
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
+use std::sync::{Arc, Mutex};
+use std::thread;
+use tokio::time::{Duration, sleep};
 
 #[op2]
 #[serde]
@@ -931,15 +935,12 @@ pub fn op_p_panic(#[string] msg: String) -> Result<String, CoreError> {
   panic!("{}", msg);
 }
 
-use tokio::time::{Duration, sleep};
 #[op2(async)]
 #[serde]
 pub async fn op_p_sleep(#[bigint] ms: u64) -> Result<(), CoreError> {
   sleep(Duration::from_millis(ms)).await;
   Ok(())
 }
-
-use deno_core::v8;
 
 #[op2(reentrant)]
 #[global]
@@ -962,12 +963,101 @@ pub fn op_async_to_sync<'scope>(
         let result = promise.result(scope);
         return Err(CoreError::Io(io::Error::new(
           io::ErrorKind::InvalidInput,
-          format!(
-            "{:?}",
-            result
-          )
+          format!("{:?}", result),
         )));
       }
     }
   }
+}
+
+pub struct LoopHandle {
+  pub stop: Arc<Mutex<bool>>,
+  pub _thread: thread::JoinHandle<()>,
+  pub stop_fn: Option<Box<dyn Fn() + Send>>,
+}
+
+fn get_loops() -> &'static Mutex<std::collections::HashMap<u64, LoopHandle>> {
+  static LOOPS: once_cell::sync::Lazy<Mutex<std::collections::HashMap<u64, LoopHandle>>> =
+    once_cell::sync::Lazy::new(|| Mutex::new(std::collections::HashMap::new()));
+  &LOOPS
+}
+
+#[op2]
+#[bigint]
+pub fn op_start_loop(
+  #[bigint] func_ptr: usize,
+  #[bigint] fn_stop_ptr: Option<usize>,
+  _: &mut v8::HandleScope,
+) -> u64 {
+  static NEXT_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+  let id = NEXT_ID.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+
+  let stop_flag = Arc::new(Mutex::new(false));
+  let stop_clone = stop_flag.clone();
+
+  let stop_fn: Option<Box<dyn Fn() + Send>> = fn_stop_ptr.clone().map(|ptr| {
+    let f: unsafe extern "C" fn() = unsafe { std::mem::transmute(ptr) };
+    Box::new(move || unsafe { f() }) as Box<dyn Fn() + Send>
+  });
+
+  let symbol: unsafe extern "C" fn() = unsafe { std::mem::transmute(func_ptr) };
+
+  let thread_handle = thread::spawn(move || unsafe {
+    if fn_stop_ptr.is_some() {
+      symbol();
+    } else {
+      loop {
+        if *stop_clone.lock().unwrap() {
+          break;
+        }
+        symbol();
+        thread::sleep(Duration::from_millis(50));
+      }
+    }
+  });
+
+  let handle = LoopHandle {
+    stop: stop_flag,
+    _thread: thread_handle,
+    stop_fn,
+  };
+
+  get_loops().lock().unwrap().insert(id, handle);
+  id
+}
+
+#[op2(fast)]
+#[bigint]
+pub fn op_stop_loop(#[bigint] id: u64) -> u64 {
+  if let Some(handle) = get_loops().lock().unwrap().remove(&id) {
+    *handle.stop.lock().unwrap() = true;
+
+    if let Some(stop_fn) = handle.stop_fn {
+      stop_fn();
+    }
+  }
+  id
+}
+
+#[op2]
+#[string]
+pub fn op_p_loop<'scope>(
+  scope: &mut v8::HandleScope<'scope>,
+  func: v8::Local<'scope, v8::Function>,
+) -> Result<String, CoreError> {
+  loop {
+    let undefined = v8::undefined(scope).into();
+    let result = func.call(scope, undefined, &[]);
+
+    if let Some(val) = result {
+      if val.boolean_value(scope) {
+        break;
+      }
+    }
+
+    scope.perform_microtask_checkpoint();
+    thread::sleep(Duration::from_millis(50));
+  }
+
+  Ok("".to_string())
 }

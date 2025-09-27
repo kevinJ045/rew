@@ -88,7 +88,10 @@ extension!(
     op_p_exit,
     op_p_panic,
     op_p_sleep,
-    op_async_to_sync
+    op_async_to_sync,
+    op_start_loop,
+    op_stop_loop,
+    op_p_loop
   ],
   state = |state| {
     let permissions =

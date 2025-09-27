@@ -790,7 +790,8 @@
               case "u32": case "i32": case "f32": return 4;
               case "f64": return 8;
               case "f64": return 8;
-              case "u64": case "i64": case "str": return 8;
+              case "u64": case "usize": case "isize":
+              case "pointer": case "i64": case "str": return 8;
               default:
                 if (type.startsWith("string:")) {
                   return parseInt(type.split(":")[1], 10);
@@ -995,6 +996,21 @@
       channel: _createClass({
         async sleep(time){
           await Deno.core.ops.op_p_sleep(time);
+        },
+        loopC(name, libpath, isLoop){
+          const id = Deno.core.ops.op_start_loop(name, libpath, isLoop);
+          return {
+            id,
+            stop(){
+              Deno.core.ops.op_stop_loop(id);
+            }
+          }
+        },
+        stopLoopC(id){
+          Deno.core.ops.op_stop_loop(id);
+        },
+        loop(func){
+          Deno.core.ops.op_p_loop(func);
         },
         new(interval = 1, cb) {
           if (typeof interval == "function") {

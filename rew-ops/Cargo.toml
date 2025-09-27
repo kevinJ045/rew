@@ -34,6 +34,7 @@ libc = { workspace = true }
 uuid = { workspace = true }
 lazy_static = { workspace = true }
 deno_io = { workspace = true }
+libloading = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3", features = ["consoleapi", "handleapi", "wincon", "winuser", "fileapi"] }
