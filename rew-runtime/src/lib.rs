@@ -108,12 +108,12 @@ pub fn get_rew_runtime(
 ) -> Result<JsRuntime> {
   let mut extensions = vec![rewextension::init()];
 
+  extensions.extend(rew_extensions::ext::telemetry::extensions(false));
   extensions.extend(webidl::extensions(false));
   extensions.extend(console::extensions(false));
   extensions.extend(url::extensions(false));
   extensions.extend(web::extensions(web::WebOptions::default(), false));
   extensions.extend(ffi::extensions(false));
-  extensions.extend(rew_extensions::ext::telemetry::extensions(false));
   extensions.extend(rew_extensions::ext::tls::extensions(false));
   // extensions.extend(rew_extensions::ext::networking::extensions(false));
   // extensions.extend(rew_extensions::ext::http::extensions(false));
