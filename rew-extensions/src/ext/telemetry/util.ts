@@ -1,6 +1,5 @@
 // Copyright 2018-2025 the Deno authors. MIT license.
 import { primordials } from "ext:core/mod.js";
-import * as telutils from "ext:deno_telemetry/util.ts";
 const { String, StringPrototypeSlice } = primordials;
 export function updateSpanFromRequest(span, request) {
     span.updateName(request.method);
@@ -24,5 +23,3 @@ export function updateSpanFromError(span, error) {
     span.setAttribute("error.type", (_a = error.name) !== null && _a !== void 0 ? _a : "Error");
     span.setStatus({ code: 2, message: (_b = error.message) !== null && _b !== void 0 ? _b : String(error) });
 }
-
-Deno.telutils = telutils;
