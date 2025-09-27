@@ -1,13 +1,13 @@
 //! Core utilities and types for the Rew runtime system
 
-pub mod utils;
 pub mod logger;
+pub mod utils;
 
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::{
   fs::File,
-  io::{Read, Seek, SeekFrom}
+  io::{Read, Seek, SeekFrom},
 };
 
 /// Build options for compiling Rew code
@@ -38,7 +38,6 @@ pub struct AppInfo {
   pub config: AppConfig,
 }
 
-
 #[derive(Default)]
 pub struct RuntimeState {
   pub current_dir: PathBuf,
@@ -55,7 +54,7 @@ pub fn load_embedded_script() -> Option<String> {
   f.read_exact(&mut footer).ok()?;
 
   if &footer[8..12] != b"REW!" {
-      return None; // not patched
+    return None; // not patched
   }
   let len = u64::from_le_bytes(footer[0..8].try_into().unwrap());
 
@@ -67,3 +66,17 @@ pub fn load_embedded_script() -> Option<String> {
   String::from_utf8(data).ok()
 }
 
+#[macro_export]
+macro_rules! rew_error {
+  ($msg:expr) => {
+    deno_core::error::CoreErrorKind::Io(::std::io::Error::new(
+      std::io::ErrorKind::InvalidData,
+      $msg,
+    ))
+    .into()
+  };
+
+  ($msg:expr, $kind:expr) => {
+    deno_core::error::CoreErrorKind::Io(::std::io::Error::new($kind, $msg)).into()
+  };
+}

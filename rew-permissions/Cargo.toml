@@ -10,3 +10,4 @@ description = "Rew Permissions"
 [dependencies]
 anyhow = "1.0"
 deno_permissions = { workspace = true }
+sys_traits = { workspace = true }

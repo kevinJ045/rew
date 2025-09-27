@@ -1,8 +1,9 @@
 use crate::builtins::BUILTIN_MODULES;
 use crate::get_rew_runtime;
 use anyhow::Result;
-use deno_core::error::CoreError;
+use deno_core::error::{CoreError, CoreErrorKind};
 use deno_core::{OpState, op2};
+use rew_core::rew_error;
 use serde_json::Value;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -235,17 +236,14 @@ pub fn op_thread_message(
       .to_worker
       .send(serde_json::from_str(&msg).unwrap())
       .map_err(|e| {
-        CoreError::Io(std::io::Error::new(
+        CoreErrorKind::Io(std::io::Error::new(
           std::io::ErrorKind::Other,
           e.to_string(),
         ))
       })?;
     Ok("".to_string())
   } else {
-    Err(CoreError::Io(std::io::Error::new(
-      std::io::ErrorKind::InvalidData,
-      "Thread not found",
-    )))
+    Err(rew_error!("Thread not found"))
   }
 }
 
@@ -263,10 +261,7 @@ pub fn op_thread_terminate(
     Ok("".to_string())
   } else {
     println!("Thread termination failed");
-    Err(CoreError::Io(std::io::Error::new(
-      std::io::ErrorKind::InvalidData,
-      "Thread not found",
-    )))
+    Err(rew_error!("Thread not found"))
   }
 }
 
@@ -278,7 +273,7 @@ pub fn op_thread_post_message(
 ) -> Result<String, CoreError> {
   // Parse the message from JSON string
   let msg: Value = serde_json::from_str(&message).map_err(|e| {
-    CoreError::Io(std::io::Error::new(
+    CoreErrorKind::Io(std::io::Error::new(
       std::io::ErrorKind::InvalidData,
       e.to_string(),
     ))
@@ -292,7 +287,7 @@ pub fn op_thread_post_message(
 
   // Send the message back to the main thread
   sender.send(msg).map_err(|e| {
-    CoreError::Io(std::io::Error::new(
+    CoreErrorKind::Io(std::io::Error::new(
       std::io::ErrorKind::BrokenPipe,
       e.to_string(),
     ))
@@ -319,26 +314,17 @@ pub fn op_thread_receive(
       match receiver.recv_timeout(Duration::from_millis(timeout)) {
         Ok(msg) => Ok(Some(msg)),
         Err(std::sync::mpsc::RecvTimeoutError::Timeout) => Ok(None),
-        Err(e) => Err(CoreError::Io(std::io::Error::new(
-          std::io::ErrorKind::Other,
-          e.to_string(),
-        ))),
+        Err(e) => Err(rew_error!(e.to_string())),
       }
     } else {
       // No timeout, try to receive immediately
       match receiver.try_recv() {
         Ok(msg) => Ok(Some(msg)),
         Err(std::sync::mpsc::TryRecvError::Empty) => Ok(None),
-        Err(e) => Err(CoreError::Io(std::io::Error::new(
-          std::io::ErrorKind::Other,
-          e.to_string(),
-        ))),
+        Err(e) => Err(rew_error!(e.to_string())),
       }
     }
   } else {
-    Err(CoreError::Io(std::io::Error::new(
-      std::io::ErrorKind::InvalidData,
-      "Thread not found",
-    )))
+    Err(rew_error!("Thread not found"))
   }
 }

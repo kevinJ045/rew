@@ -11,7 +11,7 @@ use deno_core::ResourceId;
 use deno_core::error::ResourceError;
 use deno_core::op2;
 use deno_net::io::TcpStreamResource;
-use deno_net::ops_tls::TlsStreamResource;
+
 
 pub const UNSTABLE_FEATURE_NAME: &str = "http";
 
@@ -65,19 +65,19 @@ fn op_http_start(
     return Ok(http_create_conn_resource(state, tcp_stream, addr, "http"));
   }
 
-  if let Ok(resource_rc) = state
-    .resource_table
-    .take::<TlsStreamResource>(tcp_stream_rid)
-  {
+  // if let Ok(resource_rc) = state
+    // .resource_table
+    // .take::<TlsStreamResource>(tcp_stream_rid)
+  // {
     // This TLS connection might be used somewhere else. If it's the case, we cannot proceed with the
     // process of starting a HTTP server on top of this TLS connection, so we just return a Busy error.
     // See also: https://github.com/denoland/deno/pull/16242
-    let resource = Rc::try_unwrap(resource_rc).map_err(|_| HttpStartError::TlsStreamInUse)?;
-    let (read_half, write_half) = resource.into_inner();
-    let tls_stream = read_half.unsplit(write_half);
-    let addr = tls_stream.local_addr()?;
-    return Ok(http_create_conn_resource(state, tls_stream, addr, "https"));
-  }
+    // let resource = Rc::try_unwrap(resource_rc).map_err(|_| HttpStartError::TlsStreamInUse)?;
+    // let (read_half, write_half) = resource.into_inner();
+    // let tls_stream = read_half.unsplit(write_half);
+    // let addr = tls_stream.local_addr()?;
+    // return Ok(http_create_conn_resource(state, tls_stream, addr, "https"));
+  // }
 
   #[cfg(unix)]
   if let Ok(resource_rc) = state

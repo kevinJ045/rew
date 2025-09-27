@@ -5,12 +5,10 @@ use std::{
   sync::{Arc, RwLock},
 };
 
-pub use deno_permissions::PermissionDeniedError;
+use deno_permissions::PermissionDeniedError as DenoPermissionDeniedError;
 
-pub fn oops<T>(msg: impl std::fmt::Display) -> Result<T, PermissionDeniedError> {
-  Err(PermissionDeniedError::Fatal {
-    access: msg.to_string(),
-  })
+pub fn oops<T>(msg: impl std::fmt::Display) -> Result<T, DenoPermissionDeniedError> {
+  Err(DenoPermissionDeniedError { access: msg.to_string(), name: "" })
 }
 
 /// The default permissions manager for the web related extensions
@@ -27,7 +25,7 @@ impl WebPermissions for DefaultWebPermissions {
     &self,
     url: &deno_core::url::Url,
     api_name: &str,
-  ) -> Result<(), PermissionDeniedError> {
+  ) -> Result<(), DenoPermissionDeniedError> {
     Ok(())
   }
 
@@ -46,11 +44,11 @@ impl WebPermissions for DefaultWebPermissions {
     &self,
     p: &'a Path,
     api_name: Option<&str>,
-  ) -> Result<Cow<'a, Path>, PermissionDeniedError> {
+  ) -> Result<Cow<'a, Path>, DenoPermissionDeniedError> {
     Ok(Cow::Borrowed(p))
   }
 
-  fn check_read_all(&self, api_name: Option<&str>) -> Result<(), PermissionDeniedError> {
+  fn check_read_all(&self, api_name: Option<&str>) -> Result<(), DenoPermissionDeniedError> {
     Ok(())
   }
 
@@ -59,7 +57,7 @@ impl WebPermissions for DefaultWebPermissions {
     p: &Path,
     display: &str,
     api_name: &str,
-  ) -> Result<(), PermissionDeniedError> {
+  ) -> Result<(), DenoPermissionDeniedError> {
     Ok(())
   }
 
@@ -67,11 +65,11 @@ impl WebPermissions for DefaultWebPermissions {
     &self,
     p: &'a Path,
     api_name: Option<&str>,
-  ) -> Result<Cow<'a, Path>, PermissionDeniedError> {
+  ) -> Result<Cow<'a, Path>, DenoPermissionDeniedError> {
     Ok(Cow::Borrowed(p))
   }
 
-  fn check_write_all(&self, api_name: &str) -> Result<(), PermissionDeniedError> {
+  fn check_write_all(&self, api_name: &str) -> Result<(), DenoPermissionDeniedError> {
     Ok(())
   }
 
@@ -80,7 +78,7 @@ impl WebPermissions for DefaultWebPermissions {
     p: &Path,
     display: &str,
     api_name: &str,
-  ) -> Result<(), PermissionDeniedError> {
+  ) -> Result<(), DenoPermissionDeniedError> {
     Ok(())
   }
 
@@ -88,7 +86,7 @@ impl WebPermissions for DefaultWebPermissions {
     &self,
     path: &str,
     api_name: &str,
-  ) -> Result<std::path::PathBuf, PermissionDeniedError> {
+  ) -> Result<std::path::PathBuf, DenoPermissionDeniedError> {
     Ok(PathBuf::from(path))
   }
 
@@ -97,7 +95,7 @@ impl WebPermissions for DefaultWebPermissions {
     host: &str,
     port: Option<u16>,
     api_name: &str,
-  ) -> Result<(), PermissionDeniedError> {
+  ) -> Result<(), DenoPermissionDeniedError> {
     Ok(())
   }
 
@@ -105,15 +103,15 @@ impl WebPermissions for DefaultWebPermissions {
     &self,
     kind: SystemsPermissionKind,
     api_name: &str,
-  ) -> Result<(), PermissionDeniedError> {
+  ) -> Result<(), DenoPermissionDeniedError> {
     Ok(())
   }
 
-  fn check_env(&self, var: &str) -> Result<(), PermissionDeniedError> {
+  fn check_env(&self, var: &str) -> Result<(), DenoPermissionDeniedError> {
     Ok(())
   }
 
-  fn check_exec(&self) -> Result<(), PermissionDeniedError> {
+  fn check_exec(&self) -> Result<(), DenoPermissionDeniedError> {
     Ok(())
   }
 }
@@ -269,7 +267,7 @@ impl WebPermissions for AllowlistWebPermissions {
     host: &str,
     port: Option<u16>,
     api_name: &str,
-  ) -> Result<(), PermissionDeniedError> {
+  ) -> Result<(), DenoPermissionDeniedError> {
     if self.borrow().hosts.contains(host) {
       Ok(())
     } else {
@@ -281,7 +279,7 @@ impl WebPermissions for AllowlistWebPermissions {
     &self,
     url: &deno_core::url::Url,
     api_name: &str,
-  ) -> Result<(), PermissionDeniedError> {
+  ) -> Result<(), DenoPermissionDeniedError> {
     if self.borrow().url.contains(url.as_str()) {
       Ok(())
     } else {
@@ -293,7 +291,7 @@ impl WebPermissions for AllowlistWebPermissions {
     &self,
     p: &'a Path,
     api_name: Option<&str>,
-  ) -> Result<Cow<'a, Path>, PermissionDeniedError> {
+  ) -> Result<Cow<'a, Path>, DenoPermissionDeniedError> {
     let inst = self.borrow();
     if inst.read_all && inst.read_paths.contains(p.to_str().unwrap()) {
       Ok(Cow::Borrowed(p))
@@ -306,7 +304,7 @@ impl WebPermissions for AllowlistWebPermissions {
     &self,
     p: &'a Path,
     api_name: Option<&str>,
-  ) -> Result<Cow<'a, Path>, PermissionDeniedError> {
+  ) -> Result<Cow<'a, Path>, DenoPermissionDeniedError> {
     let inst = self.borrow();
     if inst.write_all && inst.write_paths.contains(p.to_str().unwrap()) {
       Ok(Cow::Borrowed(p))
@@ -333,7 +331,7 @@ impl WebPermissions for AllowlistWebPermissions {
     Some(Cow::Borrowed(path.as_ref()))
   }
 
-  fn check_read_all(&self, api_name: Option<&str>) -> Result<(), PermissionDeniedError> {
+  fn check_read_all(&self, api_name: Option<&str>) -> Result<(), DenoPermissionDeniedError> {
     if self.borrow().read_all {
       Ok(())
     } else {
@@ -346,7 +344,7 @@ impl WebPermissions for AllowlistWebPermissions {
     p: &Path,
     display: &str,
     api_name: &str,
-  ) -> Result<(), PermissionDeniedError> {
+  ) -> Result<(), DenoPermissionDeniedError> {
     if !self.borrow().read_all {
       return oops("read_all")?;
     }
@@ -354,7 +352,7 @@ impl WebPermissions for AllowlistWebPermissions {
     Ok(())
   }
 
-  fn check_write_all(&self, api_name: &str) -> Result<(), PermissionDeniedError> {
+  fn check_write_all(&self, api_name: &str) -> Result<(), DenoPermissionDeniedError> {
     if self.borrow().write_all {
       Ok(())
     } else {
@@ -367,7 +365,7 @@ impl WebPermissions for AllowlistWebPermissions {
     path: &Path,
     display: &str,
     api_name: &str,
-  ) -> Result<(), PermissionDeniedError> {
+  ) -> Result<(), DenoPermissionDeniedError> {
     self.check_write(Path::new(path), Some(api_name))?;
     Ok(())
   }
@@ -376,7 +374,7 @@ impl WebPermissions for AllowlistWebPermissions {
     &self,
     path: &str,
     api_name: &str,
-  ) -> Result<std::path::PathBuf, PermissionDeniedError> {
+  ) -> Result<std::path::PathBuf, DenoPermissionDeniedError> {
     let p = self.check_write(Path::new(path), Some(api_name))?;
     Ok(p.into_owned())
   }
@@ -385,7 +383,7 @@ impl WebPermissions for AllowlistWebPermissions {
     &self,
     kind: SystemsPermissionKind,
     api_name: &str,
-  ) -> Result<(), PermissionDeniedError> {
+  ) -> Result<(), DenoPermissionDeniedError> {
     if self.borrow().sys.contains(&kind) {
       Ok(())
     } else {
@@ -393,7 +391,7 @@ impl WebPermissions for AllowlistWebPermissions {
     }
   }
 
-  fn check_env(&self, var: &str) -> Result<(), PermissionDeniedError> {
+  fn check_env(&self, var: &str) -> Result<(), DenoPermissionDeniedError> {
     if self.borrow().envs.contains(var) {
       Ok(())
     } else {
@@ -401,7 +399,7 @@ impl WebPermissions for AllowlistWebPermissions {
     }
   }
 
-  fn check_exec(&self) -> Result<(), PermissionDeniedError> {
+  fn check_exec(&self) -> Result<(), DenoPermissionDeniedError> {
     if self.borrow().exec {
       Ok(())
     } else {
@@ -427,7 +425,7 @@ pub trait WebPermissions: std::fmt::Debug + Send + Sync {
     &self,
     url: &deno_core::url::Url,
     api_name: &str,
-  ) -> Result<(), PermissionDeniedError>;
+  ) -> Result<(), DenoPermissionDeniedError>;
 
   /// Check if a path is allowed to be opened by fs
   ///
@@ -449,7 +447,7 @@ pub trait WebPermissions: std::fmt::Debug + Send + Sync {
     &self,
     p: &'a Path,
     api_name: Option<&str>,
-  ) -> Result<Cow<'a, Path>, PermissionDeniedError>;
+  ) -> Result<Cow<'a, Path>, DenoPermissionDeniedError>;
 
   /// Check if all paths are allowed to be read by fs
   ///
@@ -457,7 +455,7 @@ pub trait WebPermissions: std::fmt::Debug + Send + Sync {
   ///
   /// # Errors
   /// If an error is returned, the operation will be denied with the error message as the reason
-  fn check_read_all(&self, api_name: Option<&str>) -> Result<(), PermissionDeniedError>;
+  fn check_read_all(&self, api_name: Option<&str>) -> Result<(), DenoPermissionDeniedError>;
 
   /// Check if a path is allowed to be read by fs
   ///
@@ -468,7 +466,7 @@ pub trait WebPermissions: std::fmt::Debug + Send + Sync {
     p: &Path,
     display: &str,
     api_name: &str,
-  ) -> Result<(), PermissionDeniedError>;
+  ) -> Result<(), DenoPermissionDeniedError>;
 
   /// Check if a path is allowed to be written to by net
   ///
@@ -478,7 +476,7 @@ pub trait WebPermissions: std::fmt::Debug + Send + Sync {
     &self,
     p: &'a Path,
     api_name: Option<&str>,
-  ) -> Result<Cow<'a, Path>, PermissionDeniedError>;
+  ) -> Result<Cow<'a, Path>, DenoPermissionDeniedError>;
 
   /// Check if all paths are allowed to be written to by fs
   ///
@@ -486,7 +484,7 @@ pub trait WebPermissions: std::fmt::Debug + Send + Sync {
   ///
   /// # Errors
   /// If an error is returned, the operation will be denied with the error message as the reason
-  fn check_write_all(&self, api_name: &str) -> Result<(), PermissionDeniedError>;
+  fn check_write_all(&self, api_name: &str) -> Result<(), DenoPermissionDeniedError>;
 
   /// Check if a path is allowed to be written to by fs
   ///
@@ -497,7 +495,7 @@ pub trait WebPermissions: std::fmt::Debug + Send + Sync {
     p: &Path,
     display: &str,
     api_name: &str,
-  ) -> Result<(), PermissionDeniedError>;
+  ) -> Result<(), DenoPermissionDeniedError>;
 
   /// Check if a path is allowed to be written to by fs
   ///
@@ -507,7 +505,7 @@ pub trait WebPermissions: std::fmt::Debug + Send + Sync {
     &self,
     path: &str,
     api_name: &str,
-  ) -> Result<std::path::PathBuf, PermissionDeniedError>;
+  ) -> Result<std::path::PathBuf, DenoPermissionDeniedError>;
 
   /// Check if a host is allowed to be connected to by net
   ///
@@ -518,7 +516,7 @@ pub trait WebPermissions: std::fmt::Debug + Send + Sync {
     host: &str,
     port: Option<u16>,
     api_name: &str,
-  ) -> Result<(), PermissionDeniedError>;
+  ) -> Result<(), DenoPermissionDeniedError>;
 
   /// Check if a system operation is allowed
   ///
@@ -528,7 +526,7 @@ pub trait WebPermissions: std::fmt::Debug + Send + Sync {
     &self,
     kind: SystemsPermissionKind,
     api_name: &str,
-  ) -> Result<(), PermissionDeniedError>;
+  ) -> Result<(), DenoPermissionDeniedError>;
 
   /// Check if an environment variable is allowed to be accessed
   ///
@@ -536,13 +534,13 @@ pub trait WebPermissions: std::fmt::Debug + Send + Sync {
   ///
   /// # Errors
   /// If an error is returned, the operation will be denied with the error message as the reason
-  fn check_env(&self, var: &str) -> Result<(), PermissionDeniedError>;
+  fn check_env(&self, var: &str) -> Result<(), DenoPermissionDeniedError>;
 
   /// Check if FFI execution is allowed
   ///
   /// # Errors
   /// If an error is returned, the operation will be denied with the error message as the reason
-  fn check_exec(&self) -> Result<(), PermissionDeniedError>;
+  fn check_exec(&self) -> Result<(), DenoPermissionDeniedError>;
 }
 
 macro_rules! impl_sys_permission_kinds {

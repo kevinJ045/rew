@@ -11,7 +11,7 @@ use crate::workers::{
 use anyhow::{Context, Result};
 use deno_core::OpState;
 use deno_core::PollEventLoopOptions;
-use deno_core::error::CoreError;
+use deno_core::error::{CoreError, CoreErrorKind};
 use deno_core::{JsRuntime, RuntimeOptions, extension, op2};
 use deno_fs::{FileSystem, RealFs};
 use deno_permissions::PermissionsContainer;
@@ -114,8 +114,9 @@ pub fn get_rew_runtime(
   extensions.extend(web::extensions(web::WebOptions::default(), false));
   extensions.extend(ffi::extensions(false));
   extensions.extend(rew_extensions::ext::telemetry::extensions(false));
-  extensions.extend(rew_extensions::ext::networking::extensions(false));
-  extensions.extend(rew_extensions::ext::http::extensions(false));
+  extensions.extend(rew_extensions::ext::tls::extensions(false));
+  // extensions.extend(rew_extensions::ext::networking::extensions(false));
+  // extensions.extend(rew_extensions::ext::http::extensions(false));
   extensions.extend(rew_extensions::ext::io::extensions(
     Some(deno_io::Stdio {
       stdin: deno_io::StdioPipe::inherit(),
@@ -939,10 +940,10 @@ async fn op_dyn_imp(
   };
 
   let mut runtime = RewRuntime::new(None, None)
-    .map_err(|_| CoreError::Io(std::io::Error::new(std::io::ErrorKind::NotFound, "")))?;
+    .map_err(|_| CoreErrorKind::Io(std::io::Error::new(std::io::ErrorKind::NotFound, "")))?;
 
   let files_with_flags = RewRuntime::resolve_includes_recursive_from(file_path.clone())
-    .map_err(|_| CoreError::Io(std::io::Error::new(std::io::ErrorKind::NotFound, "")))?;
+    .map_err(|_| CoreErrorKind::Io(std::io::Error::new(std::io::ErrorKind::NotFound, "")))?;
   for (_, content, preprocess) in &files_with_flags {
     if *preprocess {
       let local_declarations = runtime.declaration_engine.process_script(content);
@@ -964,10 +965,10 @@ async fn op_dyn_imp(
   let prepared = runtime
     .prepare(files, None)
     .await
-    .map_err(|_| CoreError::Io(std::io::Error::new(std::io::ErrorKind::NotFound, "")))?;
+    .map_err(|_| CoreErrorKind::Io(std::io::Error::new(std::io::ErrorKind::NotFound, "")))?;
 
   let fp = fs::canonicalize(&file_path)
-    .map_err(|_| CoreError::Io(std::io::Error::new(std::io::ErrorKind::NotFound, "")))?;
+    .map_err(|_| CoreErrorKind::Io(std::io::Error::new(std::io::ErrorKind::NotFound, "")))?;
 
   Ok(serde_json::json!([
     fp.to_string_lossy().to_string(),

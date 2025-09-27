@@ -31,6 +31,7 @@ pub mod webidl;
 pub mod fs;
 pub mod http;
 pub mod io;
+pub mod tls;
 pub mod networking;
 pub mod os;
 pub mod process;

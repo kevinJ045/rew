@@ -1,9 +1,9 @@
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use deno_core::OpState;
-use deno_core::error::CoreError;
+use deno_core::error::{CoreError, CoreErrorKind};
 use deno_core::op2;
 use deno_core::v8;
-use rew_core::RuntimeState;
+use rew_core::{rew_error, RuntimeState};
 use rew_core::utils::find_app_path;
 use rew_data_manager::{DataFormat, DataManager};
 use rew_vfile::{VIRTUAL_FILES, add_virtual_file};
@@ -39,29 +39,23 @@ pub fn op_to_base64(#[serde] data: serde_json::Value) -> Result<String, CoreErro
         .map(|v| {
           if let serde_json::Value::Number(n) = v {
             n.as_u64().map(|n| n as u8).ok_or_else(|| {
-              CoreError::Io(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "Invalid byte value",
-              ))
+              rew_error!("Invalid byte value")
             })
           } else {
-            Err(CoreError::Io(io::Error::new(
-              io::ErrorKind::InvalidData,
-              "Expected number in byte array",
-            )))
+            Err::<u8, CoreError>(rew_error!("Expected number in byte array"))
           }
         })
         .collect();
 
       match buffer {
         Ok(bytes) => Ok(BASE64.encode(bytes)),
-        Err(e) => Err(e),
+        Err(e) => Err(e.into()),
       }
     }
-    _ => Err(CoreError::Io(io::Error::new(
+    _ => Err(CoreErrorKind::Io(io::Error::new(
       io::ErrorKind::InvalidData,
       "Expected string or array of bytes for base64 encoding",
-    ))),
+    )).into()),
   }
 }
 
@@ -75,11 +69,11 @@ pub fn op_from_base64(
 
   let decoded = BASE64
     .decode(encoded.as_bytes())
-    .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::InvalidData, e)))?;
+    .map_err(|e| CoreErrorKind::Io(io::Error::new(io::ErrorKind::InvalidData, e)))?;
 
   if options.as_string {
     let text = String::from_utf8(decoded)
-      .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::InvalidData, e)))?;
+      .map_err(|e| CoreErrorKind::Io(io::Error::new(io::ErrorKind::InvalidData, e)))?;
     Ok(serde_json::Value::String(text))
   } else {
     Ok(serde_json::Value::Array(
@@ -118,7 +112,7 @@ pub fn op_yaml_to_string(
   _: Rc<RefCell<OpState>>,
 ) -> Result<String, CoreError> {
   let yaml = serde_yaml::to_string(&data)
-    .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::InvalidData, e)))?;
+    .map_err(|e| CoreErrorKind::Io(io::Error::new(io::ErrorKind::InvalidData, e)))?;
 
   Ok(yaml)
 }
@@ -130,7 +124,7 @@ pub fn op_string_to_yaml(
   _: Rc<RefCell<OpState>>,
 ) -> Result<serde_json::Value, CoreError> {
   let value: serde_json::Value = serde_yaml::from_str(&yaml_str)
-    .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::InvalidData, e)))?;
+    .map_err(|e| CoreErrorKind::Io(io::Error::new(io::ErrorKind::InvalidData, e)))?;
 
   Ok(value)
 }
@@ -144,26 +138,23 @@ pub fn op_app_loadconfig(
   let app_path = Path::new(&app_path);
 
   if !app_path.exists() {
-    return Err(CoreError::Io(io::Error::new(
+    return Err(CoreErrorKind::Io(io::Error::new(
       io::ErrorKind::NotFound,
       format!("App path not found: {}", app_path.display()),
-    )));
+    )).into());
   }
 
   let config_path = app_path.join("app.yaml");
 
   if !config_path.exists() {
-    return Err(CoreError::Io(io::Error::new(
-      io::ErrorKind::NotFound,
-      format!("App config not found: {}", config_path.display()),
-    )));
+    return Err(rew_error!(format!("App config not found: {}", config_path.display()), io::ErrorKind::NotFound));
   }
 
   let config_str = fs::read_to_string(&config_path)
-    .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))?;
+    .map_err(|e| CoreErrorKind::Io(io::Error::new(io::ErrorKind::Other, e)))?;
 
   let config: serde_json::Value = serde_yaml::from_str(&config_str)
-    .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::InvalidData, e)))?;
+    .map_err(|e| CoreErrorKind::Io(io::Error::new(io::ErrorKind::InvalidData, e)))?;
 
   Ok(config)
 }
@@ -175,7 +166,7 @@ pub fn get_data_manager_for_package(app_package: &str) -> Result<DataManager, Co
   let user_id = "default";
 
   DataManager::new(user_id, app_package)
-    .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))
+    .map_err(|e| rew_error!(e))
 }
 
 #[op2]
@@ -188,7 +179,7 @@ pub fn op_data_read(
   let data_manager = get_data_manager_for_package(&app_package)?;
   data_manager
     .read(&key)
-    .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))
+    .map_err(|e| rew_error!(e))
 }
 
 #[op2(async)]
@@ -201,7 +192,7 @@ pub async fn op_data_write(
   let data_manager = get_data_manager_for_package(&app_package)?;
   data_manager
     .write(&key, &content)
-    .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))
+    .map_err(|e| rew_error!(e))
 }
 
 #[op2(async)]
@@ -213,7 +204,7 @@ pub async fn op_data_delete(
   let data_manager = get_data_manager_for_package(&app_package)?;
   data_manager
     .delete(&key)
-    .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))
+    .map_err(|e| rew_error!(e))
 }
 
 #[op2(fast)]
@@ -236,9 +227,9 @@ pub fn op_data_list(
   let data_manager = get_data_manager_for_package(&app_package)?;
   let files = data_manager
     .list(&prefix)
-    .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))?;
+    .map_err(|e| CoreErrorKind::Io(io::Error::new(io::ErrorKind::Other, e)))?;
 
-  serde_json::to_string(&files).map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))
+  serde_json::to_string(&files).map_err(|e| rew_error!(e))
 }
 
 #[op2]
@@ -251,7 +242,7 @@ pub fn op_data_read_binary(
   let data_manager = get_data_manager_for_package(&app_package)?;
   data_manager
     .read_binary(&key)
-    .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))
+    .map_err(|e| rew_error!(e))
 }
 
 #[op2]
@@ -259,11 +250,11 @@ pub fn op_data_read_binary(
 pub fn op_fetch_env(_: Rc<RefCell<OpState>>) -> Result<String, CoreError> {
   let env_vars: HashMap<String, String> = std::env::vars().collect();
   let cwd = std::env::current_dir()?
-    // .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))?;
+    // .map_err(|e| CoreErrorKind::Io(io::Error::new(io::ErrorKind::Other, e)))?;
     .to_string_lossy()
     .to_string();
   let exec_path = std::env::current_exe()?
-    // .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))?;
+    // .map_err(|e| CoreErrorKind::Io(io::Error::new(io::ErrorKind::Other, e)))?;
     .to_string_lossy()
     .to_string();
 
@@ -276,7 +267,7 @@ pub fn op_fetch_env(_: Rc<RefCell<OpState>>) -> Result<String, CoreError> {
   });
 
   serde_json::to_string(&result)
-    .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::InvalidData, e)))
+    .map_err(|e| rew_error!(e))
 }
 
 #[op2(async)]
@@ -289,7 +280,7 @@ pub async fn op_data_write_binary(
   let data_manager = get_data_manager_for_package(&app_package)?;
   data_manager
     .write_binary(&key, &data)
-    .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))
+    .map_err(|e| rew_error!(e))
 }
 
 #[op2]
@@ -302,7 +293,7 @@ pub fn op_data_read_yaml(
   let data_manager = get_data_manager_for_package(&app_package)?;
   data_manager
     .read_yaml(&key)
-    .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))
+    .map_err(|e| rew_error!(e))
 }
 
 #[op2(async)]
@@ -315,7 +306,7 @@ pub async fn op_data_write_yaml(
   let data_manager = get_data_manager_for_package(&app_package)?;
   data_manager
     .write_yaml(&key, &data)
-    .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))
+    .map_err(|e| rew_error!(e))
 }
 
 #[op2]
@@ -328,7 +319,7 @@ pub fn op_data_get_info(
   let data_manager = get_data_manager_for_package(&app_package)?;
   let (exists, format) = data_manager
     .get_file_info(&key)
-    .map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))?;
+    .map_err(|e| CoreErrorKind::Io(io::Error::new(io::ErrorKind::Other, e)))?;
 
   let format_str = match format {
     DataFormat::Text => "text",
@@ -503,9 +494,9 @@ pub fn op_fs_read(
   let options = options.unwrap_or_default();
 
   if options.binary {
-    let mut file = File::open(&full_path).map_err(CoreError::Io)?;
+    let mut file = File::open(&full_path).map_err(CoreErrorKind::Io)?;
     let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer).map_err(CoreError::Io)?;
+    file.read_to_end(&mut buffer).map_err(CoreErrorKind::Io)?;
 
     Ok(serde_json::Value::Array(
       buffer
@@ -514,7 +505,7 @@ pub fn op_fs_read(
         .collect(),
     ))
   } else {
-    let content = fs::read_to_string(&full_path).map_err(CoreError::Io)?;
+    let content = fs::read_to_string(&full_path).map_err(CoreErrorKind::Io)?;
     Ok(serde_json::Value::String(content))
   }
 }
@@ -541,7 +532,7 @@ pub async fn op_fs_write(
 
   if let Some(parent) = full_path.parent() {
     if options.create_dirs {
-      fs::create_dir_all(parent).map_err(CoreError::Io)?;
+      fs::create_dir_all(parent).map_err(CoreErrorKind::Io)?;
     }
   }
 
@@ -552,13 +543,13 @@ pub async fn op_fs_write(
         .map(|v| {
           if let serde_json::Value::Number(n) = v {
             n.as_u64().map(|n| n as u8).ok_or_else(|| {
-              CoreError::Io(io::Error::new(
+              CoreErrorKind::Io(io::Error::new(
                 io::ErrorKind::InvalidData,
                 "Invalid byte value",
               ))
             })
           } else {
-            Err(CoreError::Io(io::Error::new(
+            Err(CoreErrorKind::Io(io::Error::new(
               io::ErrorKind::InvalidData,
               "Expected number in byte array",
             )))
@@ -566,21 +557,15 @@ pub async fn op_fs_write(
         })
         .collect();
 
-      fs::write(&full_path, buffer?).map_err(CoreError::Io)?;
+      fs::write(&full_path, buffer?).map_err(CoreErrorKind::Io)?;
     } else {
-      return Err(CoreError::Io(io::Error::new(
-        io::ErrorKind::InvalidData,
-        "Expected array of bytes for binary write",
-      )));
+      return Err(rew_error!("Expected array of bytes for binary write"));
     }
   } else if let serde_json::Value::String(text) = content {
-    let mut file = File::create(&full_path).map_err(CoreError::Io)?;
-    file.write_all(text.as_bytes()).map_err(CoreError::Io)?;
+    let mut file = File::create(&full_path).map_err(CoreErrorKind::Io)?;
+    file.write_all(text.as_bytes()).map_err(CoreErrorKind::Io)?;
   } else {
-    return Err(CoreError::Io(io::Error::new(
-      io::ErrorKind::InvalidData,
-      "Expected string for text write",
-    )));
+    return Err(rew_error!("Expected string for text write"));
   }
 
   Ok(())
@@ -643,12 +628,12 @@ pub async fn op_fs_rm(
 
   if full_path.is_dir() {
     if options.recursive {
-      fs::remove_dir_all(&full_path).map_err(CoreError::Io)?;
+      fs::remove_dir_all(&full_path).map_err(CoreErrorKind::Io)?;
     } else {
-      fs::remove_dir(&full_path).map_err(CoreError::Io)?;
+      fs::remove_dir(&full_path).map_err(CoreErrorKind::Io)?;
     }
   } else {
-    fs::remove_file(&full_path).map_err(CoreError::Io)?;
+    fs::remove_file(&full_path).map_err(CoreErrorKind::Io)?;
   }
 
   Ok(())
@@ -674,9 +659,9 @@ pub async fn op_fs_mkdir(
   let options = options.unwrap_or_default();
 
   if options.recursive {
-    fs::create_dir_all(&full_path).map_err(CoreError::Io)?;
+    fs::create_dir_all(&full_path).map_err(CoreErrorKind::Io)?;
   } else {
-    fs::create_dir(&full_path).map_err(CoreError::Io)?;
+    fs::create_dir(&full_path).map_err(CoreErrorKind::Io)?;
   }
 
   Ok(())
@@ -702,13 +687,13 @@ pub fn op_fs_readdir(
 
   let options = options.unwrap_or_default();
 
-  let entries = fs::read_dir(&full_path).map_err(CoreError::Io)?;
+  let entries = fs::read_dir(&full_path).map_err(CoreErrorKind::Io)?;
 
   let mut result = Vec::new();
 
   for entry in entries {
-    let entry = entry.map_err(CoreError::Io)?;
-    let file_type = entry.file_type().map_err(CoreError::Io)?;
+    let entry = entry.map_err(CoreErrorKind::Io)?;
+    let file_type = entry.file_type().map_err(CoreErrorKind::Io)?;
 
     if !options.include_hidden {
       if let Some(file_name) = entry.path().file_name() {
@@ -741,7 +726,7 @@ pub fn op_fs_readdir(
       }
     }
 
-    let metadata = entry.metadata().map_err(CoreError::Io)?;
+    let metadata = entry.metadata().map_err(CoreErrorKind::Io)?;
 
     let entry_info = DirEntryInfo {
       name: entry.file_name().to_string_lossy().to_string(),
@@ -775,7 +760,7 @@ pub fn op_fs_readdir(
     }
   }
 
-  serde_json::to_string(&result).map_err(|e| CoreError::Io(io::Error::new(io::ErrorKind::Other, e)))
+  serde_json::to_string(&result).map_err(|e| rew_error!(e))
 }
 
 #[derive(Deserialize, Default)]
@@ -809,7 +794,7 @@ pub fn op_fs_stats(
 
   let full_path = base_dir.join(filepath);
 
-  let metadata = fs::metadata(&full_path).map_err(CoreError::Io)?;
+  let metadata = fs::metadata(&full_path).map_err(CoreErrorKind::Io)?;
 
   let stats = serde_json::json!({
       "isFile": metadata.is_file(),
@@ -846,21 +831,18 @@ pub async fn op_fs_copy(
 
   if src_path.is_dir() {
     if options.recursive {
-      copy_dir_recursive(&src_path, &dest_path, &options).map_err(CoreError::Io)?;
+      copy_dir_recursive(&src_path, &dest_path, &options).map_err(CoreErrorKind::Io)?;
     } else {
-      return Err(CoreError::Io(io::Error::new(
-        io::ErrorKind::InvalidInput,
-        "Source is a directory, but recursive option is not set",
-      )));
+      return Err(rew_error!("Source is a directory, but recursive option is not set"));
     }
   } else {
     if let Some(parent) = dest_path.parent() {
       if options.create_dirs {
-        fs::create_dir_all(parent).map_err(CoreError::Io)?;
+        fs::create_dir_all(parent).map_err(CoreErrorKind::Io)?;
       }
     }
 
-    fs::copy(&src_path, &dest_path).map_err(CoreError::Io)?;
+    fs::copy(&src_path, &dest_path).map_err(CoreErrorKind::Io)?;
   }
 
   Ok(())
@@ -909,7 +891,7 @@ pub async fn op_fs_rename(
   let src_path = base_dir.join(src);
   let dest_path = base_dir.join(dest);
 
-  fs::rename(&src_path, &dest_path).map_err(CoreError::Io)?;
+  fs::rename(&src_path, &dest_path).map_err(CoreErrorKind::Io)?;
 
   Ok(())
 }
@@ -961,10 +943,7 @@ pub fn op_async_to_sync<'scope>(
       }
       v8::PromiseState::Rejected => {
         let result = promise.result(scope);
-        return Err(CoreError::Io(io::Error::new(
-          io::ErrorKind::InvalidInput,
-          format!("{:?}", result),
-        )));
+        return Err(rew_error!(format!("{:?}", result)));
       }
     }
   }
