@@ -91,7 +91,8 @@ extension!(
     op_async_to_sync,
     op_start_loop,
     op_stop_loop,
-    op_p_loop
+    op_p_loop,
+    op_tls_peer_certificate
   ],
   state = |state| {
     let permissions =
@@ -922,6 +923,13 @@ return globalThis.module.exports;
 impl Drop for RewRuntime {
   fn drop(&mut self) {}
 }
+
+#[op2]
+#[string]
+fn op_tls_peer_certificate() -> String{
+  "".to_string()
+}
+
 
 #[op2(async, reentrant)]
 #[serde]

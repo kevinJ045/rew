@@ -16,6 +16,7 @@ import * as messagePort from 'ext:deno_web/13_message_port.js';
 import * as compression from 'ext:deno_web/14_compression.js';
 import * as performance from 'ext:deno_web/15_performance.js';
 import * as imageData from 'ext:deno_web/16_image_data.js';
+import * as websocket from 'ext:deno_websocket/01_websocket.js';
 
 import * as errors from 'ext:init_web/init_errors.js';
 import { core, primordials } from "ext:core/mod.js";
@@ -30,6 +31,7 @@ primordials.ObjectSetPrototypeOf(globalThis, DedicatedWorkerGlobalScope.prototyp
 
 globalThis.Deno.refTimer = timers.refTimer;
 globalThis.Deno.unrefTimer = timers.unrefTimer;
+globalThis.Deno.websocket = websocket;
 
 const ObjectProperties = {
   'nonEnumerable': {writable: true, enumerable: false, configurable: true},

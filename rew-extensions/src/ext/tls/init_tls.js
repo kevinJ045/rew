@@ -1,1 +1,0 @@
-import * as s from "ext:deno_telemetry/util.ts";
