@@ -114,8 +114,7 @@ pub fn get_rew_runtime(
   extensions.extend(web::extensions(web::WebOptions::default(), false));
   extensions.extend(rew_extensions::ext::telemetry::extensions(false));
   extensions.extend(ffi::extensions(false));
-  extensions.extend(rew_extensions::ext::tls::extensions(false));
-  // extensions.extend(rew_extensions::ext::networking::extensions(false));
+  extensions.extend(rew_extensions::ext::networking::extensions(false));
   // extensions.extend(rew_extensions::ext::http::extensions(false));
   extensions.extend(rew_extensions::ext::io::extensions(
     Some(deno_io::Stdio {

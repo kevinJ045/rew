@@ -8,8 +8,7 @@ pub use options::WebOptions;
 mod permissions;
 pub(crate) use permissions::PermissionsContainer;
 pub use permissions::{
-  AllowlistWebPermissions, DefaultWebPermissions, SystemsPermissionKind,
-  WebPermissions,
+  AllowlistWebPermissions, DefaultWebPermissions, SystemsPermissionKind, WebPermissions,
 };
 
 extension!(
@@ -33,9 +32,16 @@ impl ExtensionTrait<WebOptions> for deno_web::deno_web {
   }
 }
 
+impl ExtensionTrait<()> for deno_tls::deno_tls {
+  fn init((): ()) -> Extension {
+    deno_tls::deno_tls::init()
+  }
+}
+
 pub fn extensions(options: WebOptions, is_snapshot: bool) -> Vec<Extension> {
   vec![
     deno_web::deno_web::build(options.clone(), is_snapshot),
+    deno_tls::deno_tls::build((), is_snapshot),
     init_web::build(options.clone(), is_snapshot),
   ]
 }
