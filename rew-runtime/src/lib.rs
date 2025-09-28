@@ -92,6 +92,7 @@ extension!(
     op_start_loop,
     op_stop_loop,
     op_p_loop,
+    op_lookup_symbol,
     op_tls_peer_certificate
   ],
   state = |state| {

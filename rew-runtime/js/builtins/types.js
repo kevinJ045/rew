@@ -389,7 +389,7 @@ Object.without = function (object, ...keys) {
   return newObject;
 }
 
-function getFFIType(type, val) {
+function getFFIType(type, val, rec) {
   if (typeof val == "object" && (val instanceof Struct || val['@instance'] instanceof Struct)) {
     if (val instanceof Struct) {
       return { struct: val.prototype.type };
@@ -404,7 +404,7 @@ function getFFIType(type, val) {
         ? 'i32'
         : 'f32';
     case 'string':
-      return 'buffer';
+      return rec ? 'str' : 'buffer';
     case 'function':
       return 'function';
     case 'undefined': case 'null':
@@ -444,23 +444,21 @@ class Struct {
     return instance;
   }
 
-  getType() {
+  getType(rec = false) {
     let typedef = {};
 
     for (let key in this.#template) {
       let defaultValue = this.#template[key];
       if (defaultValue == '!any' && this.#types[key] == '!any') {
         typedef[key] = "pointer";
+      } else if(rec && (this.#types[key]?.type?.type == "string" || typeof defaultValue == "string")) {
+        typedef[key] = 'str';
       } else {
-        typedef[key] = this.#types[key]?.trueType ?? getFFIType(this.#types[key]?.type?.type ?? this.#types[key], defaultValue);
+        typedef[key] = this.#types[key]?.trueType ?? getFFIType(this.#types[key]?.type?.type ?? this.#types[key], defaultValue, rec);
       }
     }
 
-    return {
-      struct: {
-        fields: typedef
-      }
-    }
+    return typedef;
   }
 
 }
@@ -477,6 +475,9 @@ function struct(template) {
   let s = new Struct(template, types);
   s.prototype = {};
   s.prototype.extends = (stuff) => struct({ ...template, ...stuff });
+  s.prototype.fromPtr = function StructFactoryFromPointer(ptr) {
+    return s.prototype.new(rew.prototype.ptr.prototype.readStruct(ptr, s.getType(true)));
+  }
   s.prototype.new = function StructFactory(properties, extra) {
     var instance = s.validate(properties);
     if (instance?.[0] == false) {
@@ -491,11 +492,11 @@ function struct(template) {
     instance.__proto__.toBuff = () => {
 
       let totalBytes = 0;
-      for (let key in s.prototype.type.struct.fields) {
-        let fieldType = s.prototype.type.struct.fields[key];
+      for (let key in s.prototype.type) {
+        let fieldType = s.prototype.type[key];
         let val = instance[key];
 
-        if(typeof val == "string"){ 
+        if(typeof val == "string" && fieldType !== "pointer"){ 
           totalBytes += Deno.core.encode(val + '\0').length;
         } else if(fieldType == "buffer") {
           totalBytes += val.length;
@@ -507,8 +508,8 @@ function struct(template) {
       let offset = 0;
 
 
-      for (let key in s.prototype.type.struct.fields) {
-        let type = s.prototype.type.struct.fields[key];
+      for (let key in s.prototype.type) {
+        let type = s.prototype.type[key];
         let val = instance[key];
 
         switch (type) {
@@ -533,11 +534,14 @@ function struct(template) {
             }
             break;
           case 'pointer':
+            if (typeof val === "string") {
+              val = Deno.UnsafePointer.of(Deno.core.encode(val + '\0'));
+            }
             view.setBigUint64(offset, BigInt(rew.prototype.ptr.prototype.val(val)), true); offset += 8; break;
         }
       }
 
-      return view.buffer;
+      return buffer;
     }
     instance.__proto__.toPtr = () => {
       return Deno.UnsafePointer.of(instance.__proto__.toBuff());
@@ -545,6 +549,11 @@ function struct(template) {
     return instance;
   }
   s.prototype.type = s.getType();
+  s.prototype.ffitype = {
+    struct: {
+      fields: s.prototype.type
+    }
+  };
   return s;
 };
 

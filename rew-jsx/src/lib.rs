@@ -112,15 +112,22 @@ impl<'a> Parser<'a> {
 
       let name = self.consume_identifier();
       self.skip_whitespace();
-      self.consume("=");
-      self.skip_whitespace();
-      let value = if self.starts_with("\"") {
-        format!("\"{}\"", self.consume_quoted_string())
-      } else if self.starts_with("{") {
-        self.parse_braced_attribute()
+
+      let value = if self.starts_with("=") {
+        self.consume("=");
+        self.skip_whitespace();
+        if self.starts_with("\"") {
+          format!("\"{}\"", self.consume_quoted_string())
+        } else if self.starts_with("{") {
+          self.parse_braced_attribute()
+        } else {
+          panic!("Expected attribute value");
+        }
       } else {
-        panic!("Expected attribute value");
+        // unvalued attribute -> default to true
+        "true".to_string()
       };
+
       attrs.push(Attr::KeyValue(name, value));
     }
     attrs
@@ -433,9 +440,12 @@ mod tests {
   use super::*;
 
   #[test]
-  fn test_jsx(){
+  fn test_jsx() {
     assert_eq!(
-      compile_jsx("<><div>{something.map((i) => <p>{i}</p>)}<Element name={<i>{u}</i>} /></div></>".into(), None),
+      compile_jsx(
+        "<><div>{something.map((i) => <p>{i}</p>)}<Element name={<i>{u}</i>} /></div></>".into(),
+        None
+      ),
       "JSX.prototype.new(\"div\", {}, something.map((i) => JSX.prototype.new(\"p\", {}, i)), JSX.prototype.new(Element, {name: JSX.prototype.new(\"i\", {}, u)}, null))"
     )
   }

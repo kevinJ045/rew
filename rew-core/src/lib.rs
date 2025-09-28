@@ -10,6 +10,21 @@ use std::{
   io::{Read, Seek, SeekFrom},
 };
 
+#[macro_export]
+macro_rules! rew_error {
+  ($msg:expr) => {
+    deno_core::error::CoreErrorKind::Io(::std::io::Error::new(
+      std::io::ErrorKind::InvalidData,
+      $msg,
+    ))
+    .into()
+  };
+
+  ($msg:expr, $kind:expr) => {
+    deno_core::error::CoreErrorKind::Io(::std::io::Error::new($kind, $msg)).into()
+  };
+}
+
 /// Build options for compiling Rew code
 #[derive(Debug, Clone, Default)]
 pub struct BuildOptions {
@@ -64,19 +79,4 @@ pub fn load_embedded_script() -> Option<String> {
   f.read_exact(&mut data).ok()?;
 
   String::from_utf8(data).ok()
-}
-
-#[macro_export]
-macro_rules! rew_error {
-  ($msg:expr) => {
-    deno_core::error::CoreErrorKind::Io(::std::io::Error::new(
-      std::io::ErrorKind::InvalidData,
-      $msg,
-    ))
-    .into()
-  };
-
-  ($msg:expr, $kind:expr) => {
-    deno_core::error::CoreErrorKind::Io(::std::io::Error::new($kind, $msg)).into()
-  };
 }

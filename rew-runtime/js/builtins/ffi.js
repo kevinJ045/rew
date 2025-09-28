@@ -130,6 +130,9 @@ if(!rew.extensions.has('ffi')) rew.extensions.add('ffi', (Deno) => rew.extension
 
     return this._buildFFI(def, lib);
   },
+  lookupSymbol(lib, symbol){
+    return Deno.core.ops.op_lookup_symbol(lib, `${symbol}\0`);
+  },
   _translateFFIData(meta) {
     const result = {};
   

@@ -38,9 +38,9 @@ pub fn op_to_base64(#[serde] data: serde_json::Value) -> Result<String, CoreErro
         .iter()
         .map(|v| {
           if let serde_json::Value::Number(n) = v {
-            n.as_u64().map(|n| n as u8).ok_or_else(|| {
-              rew_error!("Invalid byte value")
-            })
+            n.as_u64()
+              .map(|n| n as u8)
+              .ok_or_else(|| rew_error!("Invalid byte value"))
           } else {
             Err::<u8, CoreError>(rew_error!("Expected number in byte array"))
           }
@@ -52,10 +52,13 @@ pub fn op_to_base64(#[serde] data: serde_json::Value) -> Result<String, CoreErro
         Err(e) => Err(e.into()),
       }
     }
-    _ => Err(CoreErrorKind::Io(io::Error::new(
-      io::ErrorKind::InvalidData,
-      "Expected string or array of bytes for base64 encoding",
-    )).into()),
+    _ => Err(
+      CoreErrorKind::Io(io::Error::new(
+        io::ErrorKind::InvalidData,
+        "Expected string or array of bytes for base64 encoding",
+      ))
+      .into(),
+    ),
   }
 }
 
@@ -138,16 +141,22 @@ pub fn op_app_loadconfig(
   let app_path = Path::new(&app_path);
 
   if !app_path.exists() {
-    return Err(CoreErrorKind::Io(io::Error::new(
-      io::ErrorKind::NotFound,
-      format!("App path not found: {}", app_path.display()),
-    )).into());
+    return Err(
+      CoreErrorKind::Io(io::Error::new(
+        io::ErrorKind::NotFound,
+        format!("App path not found: {}", app_path.display()),
+      ))
+      .into(),
+    );
   }
 
   let config_path = app_path.join("app.yaml");
 
   if !config_path.exists() {
-    return Err(rew_error!(format!("App config not found: {}", config_path.display()), io::ErrorKind::NotFound));
+    return Err(rew_error!(
+      format!("App config not found: {}", config_path.display()),
+      io::ErrorKind::NotFound
+    ));
   }
 
   let config_str = fs::read_to_string(&config_path)
@@ -165,8 +174,7 @@ pub fn get_data_manager_for_package(app_package: &str) -> Result<DataManager, Co
   // In a real implementation, you'd get this from user authentication
   let user_id = "default";
 
-  DataManager::new(user_id, app_package)
-    .map_err(|e| rew_error!(e))
+  DataManager::new(user_id, app_package).map_err(|e| rew_error!(e))
 }
 
 #[op2]
@@ -177,9 +185,7 @@ pub fn op_data_read(
   _: Rc<RefCell<OpState>>,
 ) -> Result<String, CoreError> {
   let data_manager = get_data_manager_for_package(&app_package)?;
-  data_manager
-    .read(&key)
-    .map_err(|e| rew_error!(e))
+  data_manager.read(&key).map_err(|e| rew_error!(e))
 }
 
 #[op2(async)]
@@ -202,9 +208,7 @@ pub async fn op_data_delete(
   _: Rc<RefCell<OpState>>,
 ) -> Result<(), CoreError> {
   let data_manager = get_data_manager_for_package(&app_package)?;
-  data_manager
-    .delete(&key)
-    .map_err(|e| rew_error!(e))
+  data_manager.delete(&key).map_err(|e| rew_error!(e))
 }
 
 #[op2(fast)]
@@ -240,9 +244,7 @@ pub fn op_data_read_binary(
   _: Rc<RefCell<OpState>>,
 ) -> Result<Vec<u8>, CoreError> {
   let data_manager = get_data_manager_for_package(&app_package)?;
-  data_manager
-    .read_binary(&key)
-    .map_err(|e| rew_error!(e))
+  data_manager.read_binary(&key).map_err(|e| rew_error!(e))
 }
 
 #[op2]
@@ -266,8 +268,7 @@ pub fn op_fetch_env(_: Rc<RefCell<OpState>>) -> Result<String, CoreError> {
     "rewPath": rew_core::utils::get_rew_root()
   });
 
-  serde_json::to_string(&result)
-    .map_err(|e| rew_error!(e))
+  serde_json::to_string(&result).map_err(|e| rew_error!(e))
 }
 
 #[op2(async)]
@@ -291,9 +292,7 @@ pub fn op_data_read_yaml(
   _: Rc<RefCell<OpState>>,
 ) -> Result<serde_json::Value, CoreError> {
   let data_manager = get_data_manager_for_package(&app_package)?;
-  data_manager
-    .read_yaml(&key)
-    .map_err(|e| rew_error!(e))
+  data_manager.read_yaml(&key).map_err(|e| rew_error!(e))
 }
 
 #[op2(async)]
@@ -833,7 +832,9 @@ pub async fn op_fs_copy(
     if options.recursive {
       copy_dir_recursive(&src_path, &dest_path, &options).map_err(CoreErrorKind::Io)?;
     } else {
-      return Err(rew_error!("Source is a directory, but recursive option is not set"));
+      return Err(rew_error!(
+        "Source is a directory, but recursive option is not set"
+      ));
     }
   } else {
     if let Some(parent) = dest_path.parent() {
@@ -1039,4 +1040,62 @@ pub fn op_p_loop<'scope>(
   }
 
   Ok("".to_string())
+}
+
+#[op2(fast)]
+#[bigint]
+pub fn op_lookup_symbol(
+  _state: &mut OpState,
+  #[string] lib_name: String,
+  #[string] symbol_name: String,
+) -> Result<u64, CoreError> {
+
+  #[cfg(target_os = "linux")]
+  let lib_handle = unsafe {
+    let handle = libc::dlopen(
+      lib_name.as_ptr() as *const i8,
+      libc::RTLD_LAZY | libc::RTLD_NOLOAD,
+    );
+    if handle.is_null() {
+      return Err(rew_error!(format!("Library '{}' not found", lib_name)));
+    }
+    handle
+  };
+
+  #[cfg(target_os = "windows")]
+  let lib_handle = unsafe {
+    let handle = winapi::um::libloaderapi::GetModuleHandleA(lib_name.as_ptr() as *const i8);
+    if handle.is_null() {
+      return Err(rew_error!(format!("Library '{}' not loaded", lib_name)));
+    }
+    handle as *mut std::ffi::c_void
+  };
+
+  #[cfg(target_os = "macos")]
+  let lib_handle = unsafe {
+    let handle = libc::dlopen(
+      lib_name.as_ptr() as *const i8,
+      libc::RTLD_LAZY | libc::RTLD_NOLOAD,
+    );
+    if handle.is_null() {
+      return Err(rew_error!(format!("Library '{}' not found", lib_name)));
+    }
+    handle
+  };
+
+  unsafe {
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
+    let sym = libc::dlsym(lib_handle, symbol_name.as_ptr() as *const i8);
+    #[cfg(target_os = "windows")]
+    let sym = winapi::um::libloaderapi::GetProcAddress(
+      lib_handle as *mut _,
+      symbol_name.as_ptr() as *const i8,
+    );
+
+    if sym.is_null() {
+      return Err(rew_error!(format!("Symbol '{}' not found", symbol_name)));
+    }
+
+    Ok(sym as u64)
+  }
 }
