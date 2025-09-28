@@ -112,6 +112,9 @@ if(!rew.extensions.has('ffi')) rew.extensions.add('ffi', (Deno) => rew.extension
       });
     }
 
+    generated.__proto__ = {}
+    generated.__proto__.__path__ = libPath;
+
     return generated;
   },
   autoload(libPath){

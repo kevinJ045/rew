@@ -125,6 +125,8 @@ function typeis(obj, typeDef, missingObjects = false) {
     return missingObjects ? [false] : false;
   }
 
+  if(typeDef instanceof Struct && obj['@instance'] === typeDef) return true;
+
   if (getType(obj) == 'object' && typeDef.type == 'function') {
     return missingObjects ? [obj instanceof typeDef.class] : obj instanceof typeDef.class;
   }
@@ -392,10 +394,10 @@ Object.without = function (object, ...keys) {
 function getFFIType(type, val, rec) {
   if (typeof val == "object" && (val instanceof Struct || val['@instance'] instanceof Struct)) {
     if (val instanceof Struct) {
-      return { struct: val.prototype.type };
+      return rec ? val.getType(true) : val.prototype.type;
     }
     if (val['@instance'] instanceof Struct) {
-      return { struct: val['@instance'].prototype.type };
+      return rec ? val['@instance'].getType(true) : val['@instance'].prototype.type;
     }
   }
   switch (type) {
@@ -433,6 +435,11 @@ class Struct {
         instance[realname] = defaultValue(properties[realname]);
       } else if (key in properties) {
         let value = properties[key];
+        // for ffi
+        if(this.#types[key] instanceof Struct && !value['@instance']){
+          instance[key] = this.#types[key].prototype.new(value);
+          continue;
+        }
         if (defaultValue != '!any' && typeof value !== this.#types[key] && this.#types[key] !== '!any' && !typeis(value, this.#types[key])) {
           return [false, (this.#types[key]?.type?.type ?? this.#types[key]), key, typeof value];
         }
@@ -469,7 +476,7 @@ function struct(template) {
   types = {};
   for (key in template) {
     value = template[key];
-    types[key] = typeof template[key] == 'function' && template[key].type instanceof Type ? template[key] : typeof value;
+    types[key] = typeof template[key] == 'function' && template[key].type instanceof Type ? template[key] : value instanceof Struct ? value : typeof value;
   }
 
   let s = new Struct(template, types);
@@ -477,6 +484,9 @@ function struct(template) {
   s.prototype.extends = (stuff) => struct({ ...template, ...stuff });
   s.prototype.fromPtr = function StructFactoryFromPointer(ptr) {
     return s.prototype.new(rew.prototype.ptr.prototype.readStruct(ptr, s.getType(true)));
+  }
+  s.prototype.fromBuff = function StructFactoryFromBuffer(buff) {
+    return s.prototype.fromPtr(Deno.UnsafePointer.of(buff));
   }
   s.prototype.new = function StructFactory(properties, extra) {
     var instance = s.validate(properties);
@@ -491,15 +501,23 @@ function struct(template) {
     instance.__proto__ = { '@instance': s };
     instance.__proto__.toBuff = () => {
 
+      let currentStructs = {};
+
       let totalBytes = 0;
-      for (let key in s.prototype.type) {
-        let fieldType = s.prototype.type[key];
+      for (let key in s.type) {
+        let fieldType = s.type[key];
         let val = instance[key];
+
+        if(fieldType?.struct){
+          fieldType = "buffer";
+          currentStructs[key] = new Uint8Array(val.toBuff());
+          val = currentStructs[key];
+        }
 
         if(typeof val == "string" && fieldType !== "pointer"){ 
           totalBytes += Deno.core.encode(val + '\0').length;
         } else if(fieldType == "buffer") {
-          totalBytes += val.length;
+          totalBytes += val.length || 0;
         } else totalBytes += rew.prototype.ptr.prototype.sizeOf(fieldType);
       }
 
@@ -508,9 +526,14 @@ function struct(template) {
       let offset = 0;
 
 
-      for (let key in s.prototype.type) {
-        let type = s.prototype.type[key];
+      for (let key in s.type) {
+        let type = s.type[key];
         let val = instance[key];
+
+        if(type?.struct){
+          val = currentStructs[key];
+          type = "buffer";
+        }
 
         switch (type) {
           case 'u8': view.setUint8(offset, val); offset += 1; break;
@@ -548,11 +571,9 @@ function struct(template) {
     }
     return instance;
   }
-  s.prototype.type = s.getType();
-  s.prototype.ffitype = {
-    struct: {
-      fields: s.prototype.type
-    }
+  s.type = s.getType();
+  s.prototype.type = {
+    struct: Object.values(s.type)
   };
   return s;
 };

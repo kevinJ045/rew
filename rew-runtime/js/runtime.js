@@ -716,24 +716,38 @@
         readStruct(ptr, structDef, length = 0) {
           const view = this.view(ptr);
 
+          return this._readObjectDefinition(view, structDef, length)[0];
+        },
+
+        sizeOfS(type){
+          return typeof type == "object" ? Object.values(type)
+              .map((type) => this.sizeOfS(type))
+              .reduce((a, b) => a + b, 0) : this.sizeOf(type);
+        },
+
+        _readObjectDefinition(view, structDef, length, offset = 0){
+          
           if (!length) {
-            length = Object.values(structDef)
-              .map((type) => this.sizeOf(type))
-              .reduce((a, b) => a + b, 0);
+            length = this.sizeOfS(structDef);
           }
 
-          const buf = view.getArrayBuffer(length);
-          const dv = new DataView(buf);
+          const dv = new DataView(view.getArrayBuffer(length));
+
           const result = {};
-          let offset = 0;
 
           for (const [field, type] of Object.entries(structDef)) {
-            const size = this.sizeOf(type);
-            result[field] = this._readFromDataView(dv, type, offset);
-            offset += size;
+            if(typeof type == "object"){
+              let [val, _offset] = this._readObjectDefinition(view, type, length, offset);
+              result[field] = val;
+              offset = _offset;
+            } else {
+              const size = this.sizeOf(type);
+              result[field] = this._readFromDataView(dv, type, offset);
+              offset += size;
+            }
           }
 
-          return result;
+          return [result, offset];
         },
 
         _readFromDataView(dv, type, offset) {
