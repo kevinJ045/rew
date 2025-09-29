@@ -3,8 +3,8 @@ use deno_core::OpState;
 use deno_core::error::{CoreError, CoreErrorKind};
 use deno_core::op2;
 use deno_core::v8;
-use rew_core::{rew_error, RuntimeState};
 use rew_core::utils::find_app_path;
+use rew_core::{RuntimeState, rew_error};
 use rew_data_manager::{DataFormat, DataManager};
 use rew_vfile::{VIRTUAL_FILES, add_virtual_file};
 use serde::{Deserialize, Serialize};
@@ -967,6 +967,7 @@ fn get_loops() -> &'static Mutex<std::collections::HashMap<u64, LoopHandle>> {
 pub fn op_start_loop(
   #[bigint] func_ptr: usize,
   #[bigint] fn_stop_ptr: Option<usize>,
+  #[bigint] arg_p: Option<usize>,
   _: &mut v8::HandleScope,
 ) -> u64 {
   static NEXT_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
@@ -980,9 +981,19 @@ pub fn op_start_loop(
     Box::new(move || unsafe { f() }) as Box<dyn Fn() + Send>
   });
 
-  let symbol: unsafe extern "C" fn() = unsafe { std::mem::transmute(func_ptr) };
+  let symbol: Box<dyn Fn() + Send> = if let Some(arg) = arg_p {
+    Box::new(move || unsafe {
+      let f: unsafe extern "C" fn(*mut std::os::raw::c_void) = std::mem::transmute(func_ptr);
+      f(arg as *mut std::os::raw::c_void);
+    })
+  } else {
+    Box::new(move || unsafe {
+      let f: unsafe extern "C" fn() = std::mem::transmute(func_ptr);
+      f();
+    })
+  };
 
-  let thread_handle = thread::spawn(move || unsafe {
+  let thread_handle = thread::spawn(move || {
     if fn_stop_ptr.is_some() {
       symbol();
     } else {
@@ -1049,7 +1060,6 @@ pub fn op_lookup_symbol(
   #[string] lib_name: String,
   #[string] symbol_name: String,
 ) -> Result<u64, CoreError> {
-
   #[cfg(target_os = "linux")]
   let lib_handle = unsafe {
     let handle = libc::dlopen(

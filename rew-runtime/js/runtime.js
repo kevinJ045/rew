@@ -483,6 +483,8 @@
     return (...args) => cb.call(ezaw, ...args);
   }
 
+  let alive;
+
   const _rew_extensions = {};
   const _createRew = (...args) =>
     _createClass({
@@ -1147,6 +1149,12 @@
         },
         exit(code = 0) {
           Deno.core.ops.op_p_exit(code);
+        },
+        alive(){
+          alive = setInterval(10000, () => {});
+        },
+        dead(){
+          clearInterval(alive)
         }
       }),
       bootstrap: _createClass({
@@ -1203,6 +1211,7 @@
       },
       createClass: _createClass,
       has: (name) => !!_rew_extensions[name],
+      get: (name) => _rew_extensions[name],
     },
   };
   delete globalThis.Deno;

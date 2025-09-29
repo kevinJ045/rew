@@ -1,20 +1,20 @@
 "no-compile"
 //declare* "=ffi_type" = rew::ffi::typed;
-if(!rew.extensions.has('ffi')) rew.extensions.add('ffi', (Deno) => rew.extensions.createClass({
-  _namespace(){
+if (!rew.extensions.has('ffi')) rew.extensions.add('ffi', (Deno, ...args) => rew.extensions.createClass({
+  _namespace() {
     return "ffi";
   },
-  cwd(){},
-  pre(...types){
+  cwd() { },
+  pre(...types) {
     return () => types;
   },
   typed: (...types) => {
-    if(!types.length) return;
+    if (!types.length) return;
     const fn = types.pop();
-    if(typeof fn != "function") return;
+    if (typeof fn != "function") return;
     let returnType = fn();
     let pre;
-    if(Array.isArray(returnType)){
+    if (Array.isArray(returnType)) {
       pre = returnType.pop();
       returnType = returnType[0];
     }
@@ -53,8 +53,8 @@ if(!rew.extensions.has('ffi')) rew.extensions.add('ffi', (Deno) => rew.extension
       throw new Error(`Failed to load dynamic library "${libPath}": ${e.message}`);
     }
   },
-  load(path, object){
-    if(typeof object !== "object"){
+  load(path, object) {
+    if (typeof object !== "object") {
       throw new TypeError("Invalid object passed to ffi loader");
     }
     object = Object.fromEntries(Object.keys(object).map((key) => [key, typeof object[key] == "string" ? {
@@ -119,37 +119,125 @@ if(!rew.extensions.has('ffi')) rew.extensions.add('ffi', (Deno) => rew.extension
 
     return generated;
   },
-  autoload(libPath){
+  threaded(libPath, instance) {
+    const threads = rew.extensions.get('threads')(Deno, ...args);
+    if(!threads){
+      throw new Error("\"#std.threads\" is not imported.\n\nsuggestion: add \'import \"#std.threads!\";\' somewhere to include it.");
+    }
+
+    let nextId = 1n;
+    function threadFunction() {
+      let lib = null;
+
+      onmessage = async (e) => {
+        const { id, action, data } = e.data;
+
+        if (action === "OPEN") {
+          const { path, symbols } = data;
+          lib = rew.prototype.ffi.prototype.open(path, symbols);
+          postMessage({ id, result: true });
+        } else if (action === "CALL") {
+          const { name, args } = data;
+          const symbol = lib[name];
+
+          const convertedArgs = args.map((arg, idx) => {
+            const type = lib[name].parameters[idx];
+
+            if (type === "pointer") {
+              if (typeof arg === "bigint") return Deno.UnsafePointer.of(arg);
+              if (typeof arg === "string") {
+                const buf = new TextEncoder().encode(arg + "\\0");
+                return Deno.UnsafePointer.of(buf);
+              }
+            } else if (type === "buffer") {
+              if (typeof arg === "string") {
+                const buf = new TextEncoder().encode(arg);
+                return Deno.UnsafePointer.of(buf);
+              }
+              return arg;
+            }
+            return arg;
+          });
+
+          let result;
+          try {
+            result = symbol(...convertedArgs);
+          } catch (err) {
+            result = { __error: err.message };
+          }
+
+          const retType = lib[name].result;
+          if (retType === "pointer") {
+            result = BigInt(result);
+          }
+
+          postMessage({ id, result });
+        }
+      };
+    }
+
+    let thread = threads.prototype.spawn(threadFunction);
+
+    const wrappers = {};
+    const pending = new Map();
+
+    thread.onmessage((e) => {
+      if(pending.has(e.data.id)){
+        pending.get(e.data.id)(e);
+        pending.delete(e.data.id);
+      } else {}
+    });
+
+    for (const [funcName, def] of Object.entries(instance)) {
+      wrappers[funcName] = (...args) => {
+        return new Promise((resolve, reject) => {
+          const id = nextId++;
+          const onMsg = (e) => {
+            if (e.data.id !== id) return;
+            if (e.data.result?.__error) reject(new Error(e.data.result.__error));
+            else resolve(e.data.result);
+          };
+          pending.add(id, onMsg);
+          
+          thread.postMessage({ id, action: "CALL", data: { name: funcName, args } });
+        });
+      };
+    }
+
+    thread.postMessage({ action: "OPEN", data: { path: libPath, symbols: instance } });
+    return wrappers;
+  },
+  autoload(libPath) {
     const { symbols: meta } = Deno.dlopen(libPath, {
       __rew_symbols: { parameters: [], result: "pointer" },
     });
-    
+
     const view = new Deno.UnsafePointerView(meta.__rew_symbols());
     const json = view.getCString();
     const def = JSON.parse(json);
-    
+
     const ffiDef = this._translateFFIData(def);
     // rew.prototype.io.prototype.out.print(ffiDef);
-    
+
     const lib = Deno.dlopen(libPath, ffiDef);
 
     return this._buildFFI(def, lib);
   },
-  lookupSymbol(lib, symbol){
+  lookupSymbol(lib, symbol) {
     return Deno.core.ops.op_lookup_symbol(lib, `${symbol}\0`);
   },
   _translateFFIData(meta) {
     const result = {};
-  
+
     for (const [symbolName, symbol] of Object.entries(meta)) {
       if (symbol.kind !== "Function") continue;
-  
+
       const sig = symbol.signature;
       const parts = sig.match(/fn\s+\w+\((.*?)\)(?:\s*->\s*(\S+))?/);
-  
+
       const paramList = parts?.[1]?.split(",").filter(Boolean) ?? [];
       const returnType = parts?.[2]?.trim() ?? "void";
-  
+
       const parameters = paramList.map(param => {
         const typeStr = param.split(/\s*:\s*/)[1]?.trim();
         return this._mapTypeRust(typeStr || "pointer");
@@ -160,9 +248,9 @@ if(!rew.extensions.has('ffi')) rew.extensions.add('ffi', (Deno) => rew.extension
         result: this._mapTypeRust(returnType),
       };
     }
-  
+
     return result;
-  },  
+  },
   _mapType(type) {
     if (typeof type === "string") return type;
     if (type === this.ptr) return "pointer";
@@ -243,9 +331,9 @@ if(!rew.extensions.has('ffi')) rew.extensions.add('ffi', (Deno) => rew.extension
     return result;
   },
   _mapTypeRust(type) {
-    if(!type) return "pointer";
+    if (!type) return "pointer";
     const base = type.replace(/\.ty$/, "").trim();
-  
+
     switch (base) {
       case "i32": return "i32";
       case "i64": return "i64";
