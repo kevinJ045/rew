@@ -112,8 +112,10 @@ if(!rew.extensions.has('ffi')) rew.extensions.add('ffi', (Deno) => rew.extension
       });
     }
 
-    generated.__proto__ = {}
-    generated.__proto__.__path__ = libPath;
+    Object.defineProperty(generated, '__path__', {
+      value: libPath,
+      enumerable: false
+    });
 
     return generated;
   },

@@ -467,7 +467,7 @@ if (!rew.extensions.has('types')) rew.extensions.add('types', (Deno) => {
         } else if (rec && (this.#types[key]?.type?.type == "string" || typeof defaultValue == "string")) {
           typedef[key] = 'str';
         } else {
-          typedef[key] = rec ? getFFIType(this.#types[key]?.type?.type ?? this.#types[key], defaultValue, rec) : (this.#types[key]?.trueType ?? getFFIType(this.#types[key]?.type?.type ?? this.#types[key], defaultValue, rec));
+          typedef[key] = this.#types[key]?.trueType ?? getFFIType(this.#types[key]?.type?.type ?? this.#types[key], defaultValue, rec);
         }
       }
 
@@ -504,77 +504,89 @@ if (!rew.extensions.has('types')) rew.extensions.add('types', (Deno) => {
           instance[i] = extra[i];
         }
       }
-      instance.__proto__ = { '@instance': s };
-      instance.__proto__.toBuff = () => {
+      instance.__proto__ = {};
+      Object.defineProperties(instance.__proto__, {
+        '@instance': {
+          value: s,
+          enumerable: false,
+        },
+        toBuff: {
+          value: () => {
 
-        let currentStructs = {};
+            let currentStructs = {};
 
-        let totalBytes = 0;
-        for (let key in s.type) {
-          let fieldType = s.type[key];
-          let val = instance[key];
+            let totalBytes = 0;
+            for (let key in s.type) {
+              let fieldType = s.type[key];
+              let val = instance[key];
 
-          if (fieldType?.struct) {
-            fieldType = "buffer";
-            currentStructs[key] = new Uint8Array(val.toBuff());
-            val = currentStructs[key];
-          }
-
-          if (typeof val == "string" && fieldType !== "pointer") {
-            totalBytes += Deno.core.encode(val + '\0').length;
-          } else if (fieldType == "buffer") {
-            totalBytes += val.length || 0;
-          } else totalBytes += rew.prototype.ptr.prototype.sizeOf(fieldType);
-        }
-
-        let buffer = new ArrayBuffer(totalBytes);
-        let view = new DataView(buffer);
-        let offset = 0;
-
-
-        for (let key in s.type) {
-          let type = s.type[key];
-          let val = instance[key];
-
-          if (type?.struct) {
-            val = currentStructs[key];
-            type = "buffer";
-          }
-
-          switch (type) {
-            case 'u8': view.setUint8(offset, val); offset += 1; break;
-            case 'i8': view.setInt8(offset, val); offset += 1; break;
-            case 'u16': view.setUint16(offset, val, true); offset += 2; break;
-            case 'i16': view.setInt16(offset, val, true); offset += 2; break;
-            case 'u32': view.setUint32(offset, val, true); offset += 4; break;
-            case 'i32': view.setInt32(offset, val, true); offset += 4; break;
-            case 'f32': view.setFloat32(offset, val, true); offset += 4; break;
-            case 'f64': view.setFloat64(offset, val, true); offset += 8; break;
-            case 'i64': view.setBigInt64(offset, BigInt(val), true); offset += 8; break;
-            case 'u64': view.setBigUint64(offset, BigInt(val), true); offset += 8; break;
-            case 'buffer':
-              if (typeof val === "string") {
-                const strBytes = Deno.core.encode(val + '\0');
-                new Uint8Array(buffer, offset, strBytes.length).set(strBytes);
-                offset += strBytes.length;
-              } else if (val instanceof Uint8Array) {
-                new Uint8Array(buffer, offset, val.length).set(val);
-                offset += val.length;
+              if (fieldType?.struct) {
+                fieldType = "buffer";
+                currentStructs[key] = new Uint8Array(val.toBuff());
+                val = currentStructs[key];
               }
-              break;
-            case 'pointer':
-              if (typeof val === "string") {
-                val = Deno.UnsafePointer.of(Deno.core.encode(val + '\0'));
-              }
-              view.setBigUint64(offset, BigInt(rew.prototype.ptr.prototype.val(val)), true); offset += 8; break;
-          }
-        }
 
-        return buffer;
-      }
-      instance.__proto__.toPtr = () => {
-        return Deno.UnsafePointer.of(instance.__proto__.toBuff());
-      }
+              if (typeof val == "string" && fieldType !== "pointer") {
+                totalBytes += Deno.core.encode(val + '\0').length;
+              } else if (fieldType == "buffer") {
+                totalBytes += val.length || 0;
+              } else totalBytes += rew.prototype.ptr.prototype.sizeOf(fieldType);
+            }
+
+            let buffer = new ArrayBuffer(totalBytes);
+            let view = new DataView(buffer);
+            let offset = 0;
+
+
+            for (let key in s.type) {
+              let type = s.type[key];
+              let val = instance[key];
+
+              if (type?.struct) {
+                val = currentStructs[key];
+                type = "buffer";
+              }
+
+              switch (type) {
+                case 'u8': view.setUint8(offset, val); offset += 1; break;
+                case 'i8': view.setInt8(offset, val); offset += 1; break;
+                case 'u16': view.setUint16(offset, val, true); offset += 2; break;
+                case 'i16': view.setInt16(offset, val, true); offset += 2; break;
+                case 'u32': view.setUint32(offset, val, true); offset += 4; break;
+                case 'i32': view.setInt32(offset, val, true); offset += 4; break;
+                case 'f32': view.setFloat32(offset, val, true); offset += 4; break;
+                case 'f64': view.setFloat64(offset, val, true); offset += 8; break;
+                case 'i64': view.setBigInt64(offset, BigInt(val), true); offset += 8; break;
+                case 'u64': view.setBigUint64(offset, BigInt(val), true); offset += 8; break;
+                case 'buffer':
+                  if (typeof val === "string") {
+                    const strBytes = Deno.core.encode(val + '\0');
+                    new Uint8Array(buffer, offset, strBytes.length).set(strBytes);
+                    offset += strBytes.length;
+                  } else if (val instanceof Uint8Array) {
+                    new Uint8Array(buffer, offset, val.length).set(val);
+                    offset += val.length;
+                  }
+                  break;
+                case 'pointer':
+                  if (typeof val === "string") {
+                    val = Deno.UnsafePointer.of(Deno.core.encode(val + '\0'));
+                  }
+                  view.setBigUint64(offset, BigInt(rew.prototype.ptr.prototype.val(val)), true); offset += 8; break;
+              }
+            }
+
+            return buffer;
+          },
+          enumerable: false
+        },
+        toPtr: {
+          value: () => {
+            return Deno.UnsafePointer.of(instance.__proto__.toBuff());
+          },
+          enumerable: false,
+        },
+      });
       return instance;
     }
     s.type = s.getType();
