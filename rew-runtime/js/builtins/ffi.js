@@ -125,39 +125,42 @@ if (!rew.extensions.has('ffi')) rew.extensions.add('ffi', (Deno, ...args) => rew
       throw new Error("\"#std.threads\" is not imported.\n\nsuggestion: add \'import \"#std.threads!\";\' somewhere to include it.");
     }
 
-    let nextId = 1n;
+    let nextId = 1;
     function threadFunction() {
-      let lib = null;
+      let lib = null, symbols = null;
 
-      onmessage = async (e) => {
-        const { id, action, data } = e.data;
+      onmessage(async (e) => {
+        const { id, action, data } = e;
+        print(data);
 
         if (action === "OPEN") {
-          const { path, symbols } = data;
-          lib = rew.prototype.ffi.prototype.open(path, symbols);
+          const { path, symbols: symbs } = data;
+          lib = rew.prototype.ffi.prototype.open(path, symbs);
+          symbols = symbs;
           postMessage({ id, result: true });
         } else if (action === "CALL") {
           const { name, args } = data;
           const symbol = lib[name];
 
           const convertedArgs = args.map((arg, idx) => {
-            const type = lib[name].parameters[idx];
+            const type = symbols[name].parameters[idx];
+            if(arg?.val){
+              try{
+                arg = BigInt(arg.val);
+              } catch(e){
+                print(e);
+              }
+            }
 
             if (type === "pointer") {
-              if (typeof arg === "bigint") return Deno.UnsafePointer.of(arg);
-              if (typeof arg === "string") {
-                const buf = new TextEncoder().encode(arg + "\\0");
-                return Deno.UnsafePointer.of(buf);
-              }
+              return arg ? Deno.UnsafePointer.create(arg) : null;
             } else if (type === "buffer") {
-              if (typeof arg === "string") {
-                const buf = new TextEncoder().encode(arg);
-                return Deno.UnsafePointer.of(buf);
-              }
-              return arg;
+              return arg ? new Deno.UnsafePointerView(Deno.UnsafePointer.create(arg)).buffer : null;
             }
             return arg;
           });
+
+          print(convertedArgs)
 
           let result;
           try {
@@ -166,17 +169,25 @@ if (!rew.extensions.has('ffi')) rew.extensions.add('ffi', (Deno, ...args) => rew
             result = { __error: err.message };
           }
 
-          const retType = lib[name].result;
+          const retType = symbols[name].result;
+          print(retType, result);
           if (retType === "pointer") {
-            result = BigInt(result);
+            result = Deno.UnsafePointer.val(result);
+          }
+          if (retType === "buffer") {
+            result = Deno.UnsafePointer.val(Deno.UnsafePointer.of(result));
+          }
+
+          if(typeof result == "bigint"){
+            result = { val: result.toString() };
           }
 
           postMessage({ id, result });
         }
-      };
+      });
     }
 
-    let thread = threads.prototype.spawn(threadFunction);
+    let thread = threads.prototype.create(threadFunction);
 
     const wrappers = {};
     const pending = new Map();
@@ -189,16 +200,34 @@ if (!rew.extensions.has('ffi')) rew.extensions.add('ffi', (Deno, ...args) => rew
     });
 
     for (const [funcName, def] of Object.entries(instance)) {
-      wrappers[funcName] = (...args) => {
+      wrappers[funcName] = (...argsRaw) => {
         return new Promise((resolve, reject) => {
           const id = nextId++;
           const onMsg = (e) => {
+            rew.prototype.io.prototype.out.print(e);
             if (e.data.id !== id) return;
             if (e.data.result?.__error) reject(new Error(e.data.result.__error));
             else resolve(e.data.result);
           };
-          pending.add(id, onMsg);
+          pending.set(id, onMsg);
+          rew.prototype.io.prototype.out.print(id, onMsg);
           
+          const args = argsRaw.map((arg, index) => {
+            const type = def.parameters[index];
+            switch(type){
+              case "pointer": case "buffer":
+                if(typeof arg == "string")
+                  return Deno.UnsafePointer.value(Deno.UnsafePointer.of(Deno.core.encode(`${arg}\0`)));
+                else
+                  return arg ? Deno.UnsafePointer.value(arg) : null;
+              default:
+                return arg;
+            }
+          }).map((i) => typeof i == "bigint" ? { val: i.toString() } : i);
+
+          rew.prototype.io.prototype.out.print(argsRaw, args);
+          // rew.prototype.io.prototype.out.print(typeof id);
+
           thread.postMessage({ id, action: "CALL", data: { name: funcName, args } });
         });
       };

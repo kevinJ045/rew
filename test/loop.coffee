@@ -1,7 +1,18 @@
-import "#std.ffi";
+import "#std.ffi!";
+import "#std.threads!";
+using namespace rew::ns;
 
-# closure = rew::ptr::fn [], 'void', -> loop rew::io::out.print 'hi'
 
-# rew::channel::loopC rew::ptr::val closure
+lib = rew::ffi::threaded "/home/makano/workspace/rew.smn/demo.so", {
+  add: {
+    result: 'i32',
+    parameters: ['i32', 'i32']
+  }
+  ssmmtt: {
+    result: 'buffer',
+    parameters: ['buffer']
+  }
+}
 
-# rew::channel::new()
+lib.ssmmtt("ss").then(print)
+lib.add(12, 12).then(print)
