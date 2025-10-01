@@ -2,7 +2,7 @@ use crate::builtins::BUILTIN_MODULES;
 use crate::get_rew_runtime;
 use anyhow::Result;
 use deno_core::error::{CoreError, CoreErrorKind};
-use deno_core::{op2, OpState, PollEventLoopOptions};
+use deno_core::{op2, OpState};
 use rew_core::rew_error;
 use serde_json::Value;
 use std::cell::RefCell;

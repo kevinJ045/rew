@@ -3635,7 +3635,7 @@ checksum = "95325155c684b1c89f7765e30bc1c42e4a6da51ca513615660cb8a62ef9a88e3"
 
 [[package]]
 name = "rew-brew"
-version = "0.0.66"
+version = "0.0.67"
 dependencies = [
  "anyhow",
  "base64 0.21.7",
@@ -3643,7 +3643,7 @@ dependencies = [
 
 [[package]]
 name = "rew-cli"
-version = "0.0.66"
+version = "0.0.67"
 dependencies = [
  "anyhow",
  "clap",
@@ -3659,7 +3659,7 @@ dependencies = [
 
 [[package]]
 name = "rew-compiler"
-version = "0.0.66"
+version = "0.0.67"
 dependencies = [
  "anyhow",
  "regex",
@@ -3670,7 +3670,7 @@ dependencies = [
 
 [[package]]
 name = "rew-core"
-version = "0.0.66"
+version = "0.0.67"
 dependencies = [
  "anyhow",
  "colored",
@@ -3680,7 +3680,7 @@ dependencies = [
 
 [[package]]
 name = "rew-data-manager"
-version = "0.0.66"
+version = "0.0.67"
 dependencies = [
  "anyhow",
  "rew-core",
@@ -3691,7 +3691,7 @@ dependencies = [
 
 [[package]]
 name = "rew-extensions"
-version = "0.0.66"
+version = "0.0.67"
 dependencies = [
  "anyhow",
  "deno_console",
@@ -3724,11 +3724,11 @@ dependencies = [
 
 [[package]]
 name = "rew-jsx"
-version = "0.0.66"
+version = "0.0.67"
 
 [[package]]
 name = "rew-ops"
-version = "0.0.66"
+version = "0.0.67"
 dependencies = [
  "anyhow",
  "base64 0.21.7",
@@ -3761,7 +3761,7 @@ dependencies = [
 
 [[package]]
 name = "rew-permissions"
-version = "0.0.66"
+version = "0.0.67"
 dependencies = [
  "anyhow",
  "deno_permissions",
@@ -3770,7 +3770,7 @@ dependencies = [
 
 [[package]]
 name = "rew-pimmy"
-version = "0.0.66"
+version = "0.0.67"
 dependencies = [
  "chrono",
  "colored",
@@ -3793,18 +3793,18 @@ dependencies = [
 
 [[package]]
 name = "rew-utils"
-version = "0.0.66"
+version = "0.0.67"
 
 [[package]]
 name = "rew-vfile"
-version = "0.0.66"
+version = "0.0.67"
 dependencies = [
  "once_cell",
 ]
 
 [[package]]
 name = "rew_runtime"
-version = "0.0.66"
+version = "0.0.67"
 dependencies = [
  "anyhow",
  "base64 0.21.7",
