@@ -500,6 +500,7 @@
             ptr_fn: ezaw(this.fn, this),
             ptr_free: ezaw(this.free, this),
             ptr_view: ezaw(this.view, this),
+            ptr_string: ezaw(this.string, this),
             ptr_struct: ezaw(this.readStruct, this)
           };
         },

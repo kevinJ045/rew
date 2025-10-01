@@ -131,7 +131,6 @@ if (!rew.extensions.has('ffi')) rew.extensions.add('ffi', (Deno, ...args) => rew
 
       onmessage(async (e) => {
         const { id, action, data } = e;
-        print(data);
 
         if (action === "OPEN") {
           const { path, symbols: symbs } = data;
@@ -144,23 +143,27 @@ if (!rew.extensions.has('ffi')) rew.extensions.add('ffi', (Deno, ...args) => rew
 
           const convertedArgs = args.map((arg, idx) => {
             const type = symbols[name].parameters[idx];
+            let len;
+            // print(type, arg);
             if(arg?.val){
-              try{
-                arg = BigInt(arg.val);
-              } catch(e){
-                print(e);
-              }
+              len = arg.length;
+              arg = BigInt(arg.val);
             }
+            // print(type, arg);
 
-            if (type === "pointer") {
-              return arg ? Deno.UnsafePointer.create(arg) : null;
-            } else if (type === "buffer") {
-              return arg ? new Deno.UnsafePointerView(Deno.UnsafePointer.create(arg)).buffer : null;
+            try{
+              if (type === "pointer" || type === "function") {
+                return arg ? ptr_new(arg) : null;
+              } else if (type === "buffer" || type?.struct) {
+                return arg ? ptr_view(ptr_new(arg)).getArrayBuffer(len) : null;
+              }
+            } catch(e){
+              print(e);
             }
             return arg;
           });
 
-          print(convertedArgs)
+          // print(convertedArgs)
 
           let result;
           try {
@@ -169,17 +172,26 @@ if (!rew.extensions.has('ffi')) rew.extensions.add('ffi', (Deno, ...args) => rew
             result = { __error: err.message };
           }
 
-          const retType = symbols[name].result;
-          print(retType, result);
-          if (retType === "pointer") {
-            result = Deno.UnsafePointer.val(result);
+          let retType = symbols[name].result;
+          if(retType?.struct){
+            retType = "buffer";
           }
+          // print(retType, result);
+          if (retType === "pointer") {
+            result = result ? ptr_val(result) : null;
+          }
+          // idk i guess buffer becomes a pointer when returned
           if (retType === "buffer") {
-            result = Deno.UnsafePointer.val(Deno.UnsafePointer.of(result));
+            result = result ? {
+              _valAsBigInt: ptr_val(result instanceof ArrayBuffer || result?.buffer instanceof ArrayBuffer ? ptr_of(result) : result).toString(),
+              length: result.length || result.byteLength
+            } : null;
           }
 
+          // print(result);
+
           if(typeof result == "bigint"){
-            result = { val: result.toString() };
+            result = { _valAsBigInt: result.toString() };
           }
 
           postMessage({ id, result });
@@ -204,28 +216,58 @@ if (!rew.extensions.has('ffi')) rew.extensions.add('ffi', (Deno, ...args) => rew
         return new Promise((resolve, reject) => {
           const id = nextId++;
           const onMsg = (e) => {
-            rew.prototype.io.prototype.out.print(e);
+            // rew.prototype.io.prototype.out.print(e);
             if (e.data.id !== id) return;
             if (e.data.result?.__error) reject(new Error(e.data.result.__error));
-            else resolve(e.data.result);
+            else resolve((() => {
+              let type = def.result;
+              // rew.prototype.io.prototype.out.print(def, e.data.result);
+              if(type?.struct){
+                type = "buffer";
+              }
+              switch(type){
+                case 'pointer':
+                  if(!e.data.result._valAsBigInt) return null;
+                  return Deno.UnsafePointer.create(BigInt(e.data.result._valAsBigInt));
+                case 'buffer':
+                  if(!e.data.result?._valAsBigInt) return null;
+                  const ptr = Deno.UnsafePointer.create(BigInt(e.data.result._valAsBigInt));
+                  return typeof e.data.result.length == "number" ? new Deno.UnsafePointerView(ptr).getArrayBuffer(e.data.result.length) : ptr;
+                default:
+                  return e.data.result?._valAsBigInt ? BigInt(e.data.result._valAsBigInt) : e.data.result;
+              }
+            })());
           };
           pending.set(id, onMsg);
-          rew.prototype.io.prototype.out.print(id, onMsg);
+          // rew.prototype.io.prototype.out.print(id, onMsg);
           
           const args = argsRaw.map((arg, index) => {
-            const type = def.parameters[index];
+            let type = def.parameters[index];
+            if(type?.struct){
+              type = "buffer";
+            }
             switch(type){
-              case "pointer": case "buffer":
+              case "pointer": case "function":
                 if(typeof arg == "string")
                   return Deno.UnsafePointer.value(Deno.UnsafePointer.of(Deno.core.encode(`${arg}\0`)));
                 else
                   return arg ? Deno.UnsafePointer.value(arg) : null;
+              case "buffer":
+                if(typeof arg == "string")
+                  arg = Deno.core.encode(`${arg}\0`);
+
+                // rew.prototype.io.prototype.out.print(arg);
+                
+                return arg ? {
+                  val: Deno.UnsafePointer.value(Deno.UnsafePointer.of(arg)).toString(),
+                  length: arg.length || arg.byteLength
+                } : null;
               default:
                 return arg;
             }
           }).map((i) => typeof i == "bigint" ? { val: i.toString() } : i);
 
-          rew.prototype.io.prototype.out.print(argsRaw, args);
+          // rew.prototype.io.prototype.out.print(argsRaw, args);
           // rew.prototype.io.prototype.out.print(typeof id);
 
           thread.postMessage({ id, action: "CALL", data: { name: funcName, args } });
