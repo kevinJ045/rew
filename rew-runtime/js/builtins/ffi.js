@@ -112,7 +112,7 @@ if (!rew.extensions.has('ffi')) rew.extensions.add('ffi', (Deno, ...args) => rew
       });
     }
 
-    Object.defineProperty(generated, '__path__', {
+    Object.defineProperty(generated, '__path', {
       value: libPath,
       enumerable: false
     });
@@ -167,7 +167,18 @@ if (!rew.extensions.has('ffi')) rew.extensions.add('ffi', (Deno, ...args) => rew
 
           let result;
           try {
-            result = symbol(...convertedArgs);
+            // if(symbols[name].loop){
+            //   const l = rew.prototype.ffi.prototype.lookupSymbol(lib.__path, name);
+            //   const s = ptr_val(ptr_fn([], 'void', () => {}).pointer)
+            //   rew.prototype.channel.prototype.loopC(l, s, convertedArgs[0] ? ptr_val(convertedArgs[0]) : null);
+            // } 
+            if(symbols[name].loop){
+              new Promise(async (resolve) => {
+                symbol(...convertedArgs);
+                resolve();
+              })
+              result = null;
+            } else result = symbol(...convertedArgs);
           } catch (err) {
             result = { __error: err.message };
           }
@@ -276,6 +287,17 @@ if (!rew.extensions.has('ffi')) rew.extensions.add('ffi', (Deno, ...args) => rew
     }
 
     thread.postMessage({ action: "OPEN", data: { path: libPath, symbols: instance } });
+    
+    Object.defineProperty(wrappers, '__close', {
+      value: () => {
+        thread.terminate();
+      },
+      enumerable: false
+    });
+    Object.defineProperty(wrappers, '__thread', {
+      value: thread,
+      enumerable: false
+    });
     return wrappers;
   },
   autoload(libPath) {

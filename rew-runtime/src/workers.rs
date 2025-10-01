@@ -2,7 +2,7 @@ use crate::builtins::BUILTIN_MODULES;
 use crate::get_rew_runtime;
 use anyhow::Result;
 use deno_core::error::{CoreError, CoreErrorKind};
-use deno_core::{OpState, op2};
+use deno_core::{op2, OpState, PollEventLoopOptions};
 use rew_core::rew_error;
 use serde_json::Value;
 use std::cell::RefCell;
@@ -41,7 +41,8 @@ pub fn op_thread_spawn(
   // Spawn thread
   std::thread::spawn(move || {
     // Create a Tokio runtime for this thread
-    let rt = match Builder::new_current_thread()
+    let rt = match Builder::new_multi_thread()
+      .worker_threads(2)
       .enable_all() // Enable all Tokio features including time
       .build()
     {
@@ -134,7 +135,7 @@ pub fn op_thread_spawn(
           .unwrap_or(&"")
           .to_string(),
       )?;
-      
+
       if let Err(e) = runtime.execute_script(
         "<init>",
         r#"
